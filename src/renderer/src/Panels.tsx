@@ -86,6 +86,8 @@ export function Palette({ model }: { model: Model }) {
   const placing = useStore((s) => s.placing)
   const newBranch = useStore((s) => s.newBranch)
   const cancelPlacing = useStore((s) => s.cancelPlacing)
+  const joining = useStore((s) => s.joining)
+  const startJoin = useStore((s) => s.startJoin)
   const [step, setStep] = useState<'size' | 'catalog'>(parts.length ? 'catalog' : 'size')
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen)
@@ -193,6 +195,11 @@ export function Palette({ model }: { model: Model }) {
       {parts.length > 0 && (
         <button className={'wide branch' + (placing ? ' on' : '')} onClick={() => (placing ? cancelPlacing() : newBranch())}>
           {placing ? '✕ Отменить установку' : '＋ Новая ветка (поставить отдельно)'}
+        </button>
+      )}
+      {portSize && (
+        <button className={'wide branch' + (joining ? ' on' : '')} onClick={() => (joining ? useStore.setState({ joining: false, message: null }) : startJoin())} title="Клавиша J">
+          {joining ? '✕ Отменить соединение' : '🔗 Соединить с другим концом (J)'}
         </button>
       )}
       {parts.length > 0 && !portSize && !placing && <div className="hint">Выбери зелёную точку — конец, к которому присоединять, или начни новую ветку: выбери деталь и кликни на пол</div>}
@@ -370,7 +377,7 @@ export function Inspector({ model }: { model: Model }) {
           <button onClick={() => rotateRoot(part.id, 2, 90)}>Z 90°</button>
         </div>
       )}
-      {part.parent && <div className="muted small">Сейчас: {part.roll}° вокруг оси подключения</div>}
+      {part.parent && <div className="muted small">Сейчас: {Math.round(part.roll * 10) / 10}° вокруг оси подключения</div>}
 
       {part.parent && (ports.length > 2 || s2?.reversible) && (
         <button className="wide" onClick={() => cycleAttach(part.id)}>

@@ -101,6 +101,8 @@ export function App() {
       if (e.ctrlKey && e.code === 'KeyS') return (e.preventDefault(), void save(e.shiftKey))
       if (e.ctrlKey && e.code === 'KeyO') return (e.preventDefault(), void open())
       if (e.ctrlKey) return
+      if (s.joining && k === 'escape') return useStore.setState({ joining: false, message: null })
+      if (e.code === 'KeyJ') return s.startJoin()
       if (s.placing) {
         if (k === 'escape') return s.cancelPlacing()
         if (e.code === 'KeyR') return s.turnPlacing(e.shiftKey ? -90 : 90)

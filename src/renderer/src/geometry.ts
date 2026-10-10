@@ -88,6 +88,20 @@ export function buildModel(parts: Part[]): Model {
     links.set(a, b)
     links.set(b, a)
   }
+  // Явные соединения между ветками («Соединить концы»)
+  for (const p of parts) {
+    if (!p.tie || !ids.has(p.tie.to.id)) continue
+    const a = portKey(p.id, p.tie.port)
+    const b = portKey(p.tie.to.id, p.tie.to.port)
+    if (links.has(a) || links.has(b)) continue
+    // связь действует, только пока концы действительно сходятся
+    const tie = p.tie
+    const wa = ports.find((w) => w.partId === p.id && w.index === tie.port)
+    const wb = ports.find((w) => w.partId === tie.to.id && w.index === tie.to.port)
+    if (!wa || !wb || wa.pos.distanceTo(wb.pos) > 0.6) continue
+    links.set(a, b)
+    links.set(b, a)
+  }
 
   // Замыкание контуров: свободные порты, которые совпали в пространстве, считаем соединёнными.
   const free = ports.filter((w) => !links.has(portKey(w.partId, w.index)))

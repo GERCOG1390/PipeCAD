@@ -46,6 +46,7 @@ export interface Part {
   roll: number
   rot?: V3
   pos?: V3 // положение корневой детали (вся система труб)
+  tie?: { port: number; to: { id: string; port: number } } // соединение этого конца с концом другой ветки
 }
 
 export type Group = 'common' | 'pressure' | 'dwv'

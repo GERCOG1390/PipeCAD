@@ -307,7 +307,7 @@ function PortMarkers({ model }: { model: Model }) {
           key={portKey(w.partId, w.index)}
           w={w}
           active={!!active && portKey(active.id, active.port) === portKey(w.partId, w.index)}
-          onPick={() => selectPort({ id: w.partId, port: w.index })}
+          onPick={() => (useStore.getState().joining ? useStore.getState().joinTo({ id: w.partId, port: w.index }) : selectPort({ id: w.partId, port: w.index }))}
           disabled={placing}
         />
       ))}

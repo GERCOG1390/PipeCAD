@@ -3,6 +3,7 @@ import { DEFAULT_PIPE, FITTINGS, Part, PartKind, PortDef, SizeId, V3, defaultSiz
 import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, portKey } from './geometry'
 import { Placing, placementFor } from './placement'
+import { joinPorts } from './join'
 import { formatLength } from './units'
 
 // Короткий отрезок между двумя раструбами: обе глубины + 1/2" видимой трубы, с округлением до 1/4"
@@ -92,6 +93,7 @@ interface State {
   placing: Placing | null // режим установки новой ветки
   placeTurn: number // поворот устанавливаемой детали вокруг вертикали
   placedAt: number // время последней установки: тот же клик не должен ничего выбирать
+  joining: boolean // ждём клик по второму концу для «Соединить»
   selectedId: string | null
   activePort: PortRef | null
   paletteSize: SizeId
@@ -120,6 +122,8 @@ interface State {
   turnPlacing: (deg: number) => void
   placeAt: (at: V3) => void
   newBranch: () => void
+  startJoin: () => void
+  joinTo: (b: PortRef) => void
   beginDrag: () => void
   dragTo: (patch: { env?: EnvItem[]; parts?: Part[] }) => void
   endDrag: () => void
@@ -188,6 +192,7 @@ export const useStore = create<State>((set, get) => ({
   placing: null,
   placeTurn: 0,
   placedAt: 0,
+  joining: false,
   selectedId: null,
   activePort: null,
   paletteSize: '1-1/2',
@@ -240,6 +245,21 @@ export const useStore = create<State>((set, get) => ({
     const next = [...parts, part]
     get().commit(next)
     set({ placing: null, placedAt: Date.now(), selectedId: part.id, activePort: firstOpen(next, part.id), message: null })
+  },
+  startJoin: () => {
+    if (!get().activePort) {
+      set({ message: 'Сначала выбери первый конец (зелёное кольцо), потом «Соединить»' })
+      return
+    }
+    set({ joining: true, placing: null, message: 'Кликни второй свободный конец — разверну фитинги, чтобы концы сошлись. Esc — отмена' })
+  },
+  joinTo: (b) => {
+    const { activePort: a, parts } = get()
+    set({ joining: false })
+    if (!a || (a.id === b.id && a.port === b.port)) return
+    const res = joinPorts(parts, a, b, newId)
+    if (res.parts !== parts) get().commit(res.parts)
+    set({ message: res.message, selectedId: res.newId ?? get().selectedId, activePort: res.ok ? null : a })
   },
   newBranch: () => set({ selectedId: null, activePort: null, selectedEnv: null, message: 'Новая ветка: выбери деталь в каталоге и кликни, куда её поставить' }),
   // Перетаскивание гизмо: живое обновление без истории, одна запись в историю по окончании
@@ -369,7 +389,7 @@ export const useStore = create<State>((set, get) => ({
     set({ activePort: firstOpen(out, id) })
   },
 
-  select: (id) => set({ moveSystem: false, selectedId: id, activePort: id ? get().activePort : null, selectedEnv: id ? null : get().selectedEnv }),
+  select: (id) => set({ joining: false, moveSystem: false, selectedId: id, activePort: id ? get().activePort : null, selectedEnv: id ? null : get().selectedEnv }),
   selectPort: (ref) => set({ activePort: ref, selectedId: ref ? ref.id : get().selectedId, selectedEnv: ref ? null : get().selectedEnv, message: null }),
 
   undo: () => {
