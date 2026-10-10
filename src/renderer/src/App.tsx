@@ -55,6 +55,7 @@ export function App() {
   const model = useMemo(() => buildModel(parts), [parts])
   const bom = useMemo(() => computeBom(parts, model, stick), [parts, model, stick])
   const openEnds = model.open.length
+  ;(window as unknown as { pipecadModel: typeof model }).pipecadModel = model // для автотестов
   const pens = usePenetrations(model)
   const badPens = pens.filter((p) => !p.ok).length
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { GizmoHelper, GizmoViewport, Grid, Html, OrbitControls } from '@react-three/drei'
-import { Canvas, ThreeEvent, useThree } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
+import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BoxGeometry,
   BufferGeometry,
@@ -10,6 +10,9 @@ import {
   CurvePath,
   CylinderGeometry,
   DoubleSide,
+  Group,
+  Mesh,
+  Ray,
   LatheGeometry,
   MeshStandardMaterial,
   PMREMGenerator,
@@ -23,7 +26,7 @@ import {
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Part, PathSeg, Shape, SizeId, buildPart, hubR, sizeLabel, sizeSpec } from './catalog'
-import { Model, Xf, portKey } from './geometry'
+import { Model, WorldPort, Xf, portKey } from './geometry'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { formatLength } from './units'
@@ -181,17 +184,32 @@ function PipeBody({ size, len, selected }: { size: SizeId; len: number; selected
   )
 }
 
-function PartMesh({ part, xf }: { part: Part; xf: Xf }) {
+function PartMesh({ part, xf, open }: { part: Part; xf: Xf; open: WorldPort[] }) {
   const selected = useStore((s) => s.selectedId === part.id)
   const select = useStore((s) => s.select)
+  const selectPort = useStore((s) => s.selectPort)
   const built = buildPart(part)
   const geos = useMemo(() => built.shapes.map(shapeGeo).filter((g): g is Geo => !!g), [built])
   useEffect(() => () => geos.forEach((g) => g.geom.dispose()), [geos])
   const pipe = built.shapes.find((s): s is Extract<Shape, { t: 'pipe' }> => s.t === 'pipe')
   const onClick = (e: ThreeEvent<MouseEvent>): void => {
     if (e.delta > 4) return
+    // по метке конца (даже если она за деталью) кликаем в метку, а не в деталь
+    if (e.intersections.some((i) => i.object.userData.portHit)) return
     e.stopPropagation()
-    select(part.id)
+    // клик рядом с открытым концом сразу выбирает этот конец
+    let best: WorldPort | null = null
+    let bestD = Infinity
+    for (const w of open) {
+      const d = w.pos.distanceTo(e.point)
+      if (d < bestD) {
+        bestD = d
+        best = w
+      }
+    }
+    const reach = part.kind === 'pipe' ? Math.max(3, Math.min(12, (part.length ?? 0) * 0.25)) : Infinity
+    if (best && bestD <= reach) selectPort({ id: best.partId, port: best.index })
+    else select(part.id)
   }
   return (
     <group position={xf.pos} quaternion={xf.quat} onClick={onClick}>
@@ -199,6 +217,64 @@ function PartMesh({ part, xf }: { part: Part; xf: Xf }) {
       {geos.map((g, i) => (
         <mesh key={i} geometry={g.geom} position={g.pos} quaternion={g.quat} material={mat(g.color, selected, { metal: g.metal, flat: g.flat })} />
       ))}
+    </group>
+  )
+}
+
+const setCursor = (c: string): void => {
+  document.body.style.cursor = c
+}
+
+// Метка свободного конца: видимое кольцо + невидимая крупная зона клика (не меньше ~20 px на экране)
+function PortMarker({ w, active, onPick }: { w: WorldPort; active: boolean; onPick: () => void }) {
+  const [hover, setHover] = useState(false)
+  const hit = useRef<Mesh>(null)
+  const { camera } = useThree()
+  const face = w.def.depth ? w.def.face ?? w.def.depth : 0
+  const pos = useMemo(() => w.pos.clone().addScaledVector(w.dir, face + 0.03), [w, face])
+  const r = hubR(w.size, w.def.fam) * 1.04
+  const thread = w.def.kind === 'fpt' || w.def.kind === 'mpt'
+  useFrame(() => {
+    if (!hit.current) return
+    const want = Math.max(r * 1.5, camera.position.distanceTo(pos) * 0.028)
+    hit.current.scale.setScalar(want)
+  })
+  useEffect(() => () => setCursor('auto'), [])
+  const k = active ? 1.18 : hover ? 1.12 : 1
+  const color = active ? '#f59e0b' : hover ? '#fde68a' : thread ? '#60a5fa' : '#4ade80'
+  return (
+    <group position={pos} quaternion={quatTo(w.dir)}>
+      <mesh renderOrder={10}>
+        <cylinderGeometry args={[r * k, r * k, Math.max(0.06, r * 0.12), 40, 1, true]} />
+        <meshBasicMaterial color={color} side={DoubleSide} depthTest={false} transparent opacity={active || hover ? 0.95 : 0.75} />
+      </mesh>
+      {hover && !active && (
+        <mesh renderOrder={10}>
+          <circleGeometry args={[r * 0.9, 32]} />
+          <meshBasicMaterial color="#fde68a" side={DoubleSide} depthTest={false} transparent opacity={0.25} />
+        </mesh>
+      )}
+      <mesh
+        ref={hit}
+        userData={{ portHit: true }}
+        onClick={(e) => {
+          if (e.delta > 4) return
+          e.stopPropagation()
+          onPick()
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          setHover(true)
+          setCursor('pointer')
+        }}
+        onPointerOut={() => {
+          setHover(false)
+          setCursor('auto')
+        }}
+      >
+        <sphereGeometry args={[1, 16, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+      </mesh>
     </group>
   )
 }
@@ -217,30 +293,107 @@ function PortMarkers({ model }: { model: Model }) {
           <meshBasicMaterial color="#e2574c" depthTest={false} transparent opacity={0.55} />
         </mesh>
       ))}
-      {model.open.map((w) => {
-        const face = w.def.depth ? w.def.face ?? w.def.depth : 0
-        const pos = w.pos.clone().addScaledVector(w.dir, face + 0.03)
-        const isActive = active && portKey(active.id, active.port) === portKey(w.partId, w.index)
-        const r = hubR(w.size, w.def.fam) * 1.04
-        const thread = w.def.kind === 'fpt' || w.def.kind === 'mpt'
-        return (
-          <mesh
-            key={portKey(w.partId, w.index)}
-            position={pos}
-            quaternion={quatTo(w.dir)}
-            renderOrder={10}
-            onClick={(e) => {
-              if (e.delta > 4) return
-              e.stopPropagation()
-              selectPort({ id: w.partId, port: w.index })
-            }}
-          >
-            <cylinderGeometry args={[r * (isActive ? 1.18 : 1), r * (isActive ? 1.18 : 1), Math.max(0.06, r * 0.12), 40, 1, true]} />
-            <meshBasicMaterial color={isActive ? '#f59e0b' : thread ? '#60a5fa' : '#4ade80'} side={DoubleSide} depthTest={false} transparent opacity={isActive ? 0.95 : 0.75} />
-          </mesh>
-        )
-      })}
+      {model.open.map((w) => (
+        <PortMarker
+          key={portKey(w.partId, w.index)}
+          w={w}
+          active={!!active && portKey(active.id, active.port) === portKey(w.partId, w.index)}
+          onPick={() => selectPort({ id: w.partId, port: w.index })}
+        />
+      ))}
     </>
+  )
+}
+
+// Ручка длины трубы: тянуть за дальний конец вдоль оси
+function PipeLengthHandle({ part, xf }: { part: Part; xf: Xf }) {
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
+  const { camera } = useThree()
+  const [drag, setDrag] = useState(false)
+  const [hover, setHover] = useState(false)
+  const grip = useRef<Group>(null)
+  const len = part.length ?? 0
+  const r = sizeSpec(part.size).od / 2
+  const axis = useMemo(() => new Vector3(0, 0, 1).applyQuaternion(xf.quat), [xf])
+  const end = useMemo(() => xf.pos.clone().addScaledVector(axis, len), [xf, axis, len])
+  useFrame(() => {
+    if (!grip.current) return
+    grip.current.scale.setScalar(Math.max(r * 1.2, camera.position.distanceTo(end) * 0.022))
+  })
+  useEffect(() => () => setCursor('auto'), [])
+
+  // ближайшая к лучу мыши точка на оси трубы → новая длина
+  const lengthFromRay = (ray: Ray, fine: boolean): number => {
+    const w0 = xf.pos.clone().sub(ray.origin)
+    const b = axis.dot(ray.direction)
+    const d = axis.dot(w0)
+    const e = ray.direction.dot(w0)
+    const den = 1 - b * b
+    if (Math.abs(den) < 1e-6) return len
+    const t = (b * e - d) / den
+    const step = fine ? 0.125 : useStore.getState().snap
+    return Math.max(1, Math.round(t / step) * step)
+  }
+
+  return (
+    <group position={end} quaternion={xf.quat}>
+      <group ref={grip}>
+        <mesh renderOrder={13}>
+          <sphereGeometry args={[0.3, 16, 12]} />
+          <meshBasicMaterial color={drag || hover ? '#fde68a' : '#2dd4bf'} depthTest={false} transparent opacity={0.95} />
+        </mesh>
+        <mesh renderOrder={13} position={[0, 0, 0.75]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.32, 0.6, 20]} />
+          <meshBasicMaterial color={drag || hover ? '#fde68a' : '#2dd4bf'} depthTest={false} transparent opacity={0.95} />
+        </mesh>
+        <mesh renderOrder={13} position={[0, 0, -0.75]} rotation={[-Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.32, 0.6, 20]} />
+          <meshBasicMaterial color={drag || hover ? '#fde68a' : '#2dd4bf'} depthTest={false} transparent opacity={0.95} />
+        </mesh>
+        <mesh
+          userData={{ portHit: true }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            ;(e.target as Element).setPointerCapture(e.pointerId)
+            if (controls) controls.enabled = false
+            useStore.getState().beginDrag()
+            setDrag(true)
+          }}
+          onPointerMove={(e) => {
+            if (!drag) return
+            e.stopPropagation()
+            const L = lengthFromRay(e.ray, e.nativeEvent.shiftKey)
+            const s = useStore.getState()
+            if (Math.abs(L - len) > 1e-6) s.dragTo({ parts: s.parts.map((p) => (p.id === part.id ? { ...p, length: L } : p)) })
+          }}
+          onPointerUp={(e) => {
+            if (!drag) return
+            e.stopPropagation()
+            ;(e.target as Element).releasePointerCapture(e.pointerId)
+            if (controls) controls.enabled = true
+            setDrag(false)
+            useStore.getState().endDrag()
+            useStore.setState({ lastPipe: useStore.getState().parts.find((p) => p.id === part.id)?.length ?? len })
+          }}
+          onPointerOver={() => {
+            setHover(true)
+            setCursor('grab')
+          }}
+          onPointerOut={() => {
+            setHover(false)
+            if (!drag) setCursor('auto')
+          }}
+        >
+          <sphereGeometry args={[1.3, 16, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        </mesh>
+      </group>
+      {(drag || hover) && (
+        <Html position={[0, 0, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none', transform: 'translateY(-34px)' }}>
+          <div className="dim drag">{formatLength(len)}</div>
+        </Html>
+      )}
+    </group>
   )
 }
 
@@ -265,6 +418,9 @@ function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
 // Мягкое окружение для отражений на пластике (без загрузки HDR из сети)
 function EnvSetup() {
   const { gl, scene } = useThree()
+  const camera = useThree((st) => st.camera)
+  // для автотестов: проекция точек на экран
+  ;(window as unknown as { pipecadCamera: typeof camera }).pipecadCamera = camera
   useEffect(() => {
     const pmrem = new PMREMGenerator(gl)
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
@@ -306,6 +462,8 @@ export function Scene({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const showDims = useStore((s) => s.showDims)
   const select = useStore((s) => s.select)
+  const selectedId = useStore((s) => s.selectedId)
+  const selPipe = parts.find((p) => p.id === selectedId && p.kind === 'pipe')
   return (
     <Canvas
       camera={{ position: [60, 45, 70], fov: 40, near: 0.05, far: 10000 }}
@@ -333,11 +491,12 @@ export function Scene({ model }: { model: Model }) {
       />
       <group name="parts">
         {parts.map((p) => (
-          <PartMesh key={p.id} part={p} xf={model.xfs.get(p.id)!} />
+          <PartMesh key={p.id} part={p} xf={model.xfs.get(p.id)!} open={model.open.filter((w) => w.partId === p.id)} />
         ))}
       </group>
       <EnvLayer model={model} />
       <PortMarkers model={model} />
+      {selPipe && <PipeLengthHandle part={selPipe} xf={model.xfs.get(selPipe.id)!} />}
       {showDims && <DimLabels model={model} parts={parts} />}
       <OrbitControls makeDefault enableDamping={false} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
