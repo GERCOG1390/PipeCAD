@@ -44,6 +44,7 @@ export function App() {
   const dirty = useStore((s) => s.dirty)
   const showDims = useStore((s) => s.showDims)
   const showPorts = useStore((s) => s.showPorts)
+  const showAxes = useStore((s) => s.showAxes)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
   const st = useStore.getState()
@@ -103,6 +104,7 @@ export function App() {
       if (e.ctrlKey) return
       if (s.joining && k === 'escape') return useStore.setState({ joining: false, message: null })
       if (e.code === 'KeyJ') return s.startJoin()
+      if (e.code === 'KeyA') return s.toggleAxes()
       if (s.placing) {
         if (k === 'escape') return s.cancelPlacing()
         if (e.code === 'KeyR') return s.turnPlacing(e.shiftKey ? -90 : 90)
@@ -155,6 +157,9 @@ export function App() {
         </button>
         <button className={showPorts ? 'on' : ''} onClick={st.togglePorts} title="Показывать свободные концы">
           Концы
+        </button>
+        <button className={showAxes ? 'on' : ''} onClick={st.toggleAxes} title="Оси свободных концов и точки пересечения (A)">
+          Оси
         </button>
         <span className="sep" />
         <span className="muted small">Стройка:</span>

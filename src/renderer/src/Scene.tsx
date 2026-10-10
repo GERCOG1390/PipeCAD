@@ -1,4 +1,4 @@
-import { GizmoHelper, GizmoViewport, Grid, Html, OrbitControls } from '@react-three/drei'
+import { GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls } from '@react-three/drei'
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -29,6 +29,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Part, PathSeg, Shape, SizeId, V3, buildPart, hubR, sizeLabel, sizeSpec } from './catalog'
 import { Model, WorldPort, Xf, buildModel, computeTransforms, portKey } from './geometry'
 import { placementFor } from './placement'
+import { computeGuides, mouthOf } from './axes'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { formatLength } from './units'
@@ -496,6 +497,86 @@ function LengthHandles({ model }: { model: Model }) {
   )
 }
 
+// ---------- Оси свободных концов и пересечения ----------
+function AxisGuides({ model }: { model: Model }) {
+  const show = useStore((s) => s.showAxes)
+  const parts = useStore((s) => s.parts)
+  const active = useStore((s) => s.activePort)
+  const connectAt = useStore((s) => s.connectAt)
+  const guides = useMemo(() => (show ? computeGuides(model, parts, active) : []), [show, model, parts, active])
+  if (!show) return null
+  const activeKey = active ? portKey(active.id, active.port) : null
+  // длина оси: до самого дальнего пересечения + запас
+  const reach = new Map<string, number>()
+  for (const g of guides) {
+    for (const [w, t] of [[g.a, g.tA], [g.b, g.tB]] as const) {
+      const k = portKey(w.partId, w.index)
+      reach.set(k, Math.max(reach.get(k) ?? 0, t + 12))
+    }
+  }
+  return (
+    <>
+      {model.open.map((w) => {
+        const k = portKey(w.partId, w.index)
+        const isA = k === activeKey
+        const from = mouthOf(w)
+        const len = Math.max(reach.get(k) ?? 0, isA ? 144 : 48)
+        const to = w.pos.clone().addScaledVector(w.dir, len)
+        return <Line key={k} points={[from, to]} color={isA ? '#f59e0b' : '#7dd3fc'} lineWidth={isA ? 2 : 1.2} dashed dashSize={2} gapSize={1.2} transparent opacity={isA ? 0.95 : 0.6} depthTest={false} renderOrder={9} />
+      })}
+      {guides.map((g, i) => {
+        const X = g.pA.clone().add(g.pB).multiplyScalar(0.5)
+        const hit = g.miss <= 0.5
+        const cutA = g.fit ? g.tA - g.fit.takeoff : null
+        const cutB = g.fit ? g.tB - g.fit.takeoff : null
+        return (
+          <group key={i}>
+            {!hit && <Line points={[g.pA, g.pB]} color="#ef4444" lineWidth={2} dashed dashSize={0.6} gapSize={0.4} depthTest={false} renderOrder={9} />}
+            <mesh position={X} renderOrder={12}>
+              <sphereGeometry args={[hit ? 0.7 : 0.45, 20, 14]} />
+              <meshBasicMaterial color={hit ? (g.fit ? '#22c55e' : '#eab308') : '#ef4444'} depthTest={false} transparent opacity={0.9} />
+            </mesh>
+            <Html position={X} zIndexRange={[30, 20]} style={{ transform: 'translate(14px, -50%)' }}>
+              <div className="axis-label" onPointerDown={(e) => e.stopPropagation()}>
+                {hit ? (
+                  <>
+                    <b>
+                      Поворот {Math.round(g.turn * 10) / 10}° {g.fit ? `→ ${g.fit.ru}` : '— нет стандартного колена'}
+                    </b>
+                    <div>
+                      До пересечения: {formatLength(g.tA)} и {formatLength(g.tB)}
+                    </div>
+                    {g.fit && cutA !== null && cutB !== null && (
+                      <div>
+                        Отрезы: {cutA > 0.25 ? formatLength(cutA) : '—'} и {cutB > 0.25 ? formatLength(cutB) : '—'}
+                      </div>
+                    )}
+                    {g.fit && activeKey && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          connectAt({ id: g.a.partId, port: g.a.index }, { id: g.b.partId, port: g.b.index }, [X.x, X.y, X.z], g.fit!.kind, g.fit!.takeoff)
+                        }}
+                      >
+                        Соединить здесь
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <b>Оси не пересекаются</b>
+                    <div>Промах {formatLength(g.miss)} · поворот {Math.round(g.turn * 10) / 10}°</div>
+                  </>
+                )}
+              </div>
+            </Html>
+          </group>
+        )
+      })}
+    </>
+  )
+}
+
 // ---------- Установка новой ветки ----------
 const floorPlane = new Plane(new Vector3(0, 1, 0), 0)
 function PlacementLayer() {
@@ -667,6 +748,7 @@ export function Scene({ model }: { model: Model }) {
       <PortMarkers model={model} />
       <LengthHandles model={model} />
       <PlacementLayer />
+      <AxisGuides model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
       <OrbitControls makeDefault enableDamping={false} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />

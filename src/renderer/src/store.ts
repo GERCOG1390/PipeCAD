@@ -3,7 +3,8 @@ import { DEFAULT_PIPE, FITTINGS, Part, PartKind, PortDef, SizeId, V3, defaultSiz
 import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, portKey } from './geometry'
 import { Placing, placementFor } from './placement'
-import { joinPorts } from './join'
+import { connectVia, joinPorts } from './join'
+import { Vector3 } from 'three'
 import { formatLength } from './units'
 
 // Короткий отрезок между двумя раструбами: обе глубины + 1/2" видимой трубы, с округлением до 1/4"
@@ -94,6 +95,7 @@ interface State {
   placeTurn: number // поворот устанавливаемой детали вокруг вертикали
   placedAt: number // время последней установки: тот же клик не должен ничего выбирать
   joining: boolean // ждём клик по второму концу для «Соединить»
+  showAxes: boolean // оси свободных концов и их пересечения
   selectedId: string | null
   activePort: PortRef | null
   paletteSize: SizeId
@@ -124,6 +126,8 @@ interface State {
   newBranch: () => void
   startJoin: () => void
   joinTo: (b: PortRef) => void
+  toggleAxes: () => void
+  connectAt: (a: PortRef, b: PortRef, x: V3, fitKind: string, takeoff: number) => void
   beginDrag: () => void
   dragTo: (patch: { env?: EnvItem[]; parts?: Part[] }) => void
   endDrag: () => void
@@ -193,6 +197,7 @@ export const useStore = create<State>((set, get) => ({
   placeTurn: 0,
   placedAt: 0,
   joining: false,
+  showAxes: false,
   selectedId: null,
   activePort: null,
   paletteSize: '1-1/2',
@@ -260,6 +265,13 @@ export const useStore = create<State>((set, get) => ({
     const res = joinPorts(parts, a, b, newId)
     if (res.parts !== parts) get().commit(res.parts)
     set({ message: res.message, selectedId: res.newId ?? get().selectedId, activePort: res.ok ? null : a })
+  },
+  toggleAxes: () => set((s) => ({ showAxes: !s.showAxes })),
+  connectAt: (a, b, x, fitKind, takeoff) => {
+    const { parts } = get()
+    const res = connectVia(parts, a, b, new Vector3(...x), fitKind, takeoff, newId)
+    if (res.parts !== parts) get().commit(res.parts)
+    set({ message: res.message, selectedId: res.newId ?? get().selectedId, activePort: null })
   },
   newBranch: () => set({ selectedId: null, activePort: null, selectedEnv: null, message: 'Новая ветка: выбери деталь в каталоге и кликни, куда её поставить' }),
   // Перетаскивание гизмо: живое обновление без истории, одна запись в историю по окончании

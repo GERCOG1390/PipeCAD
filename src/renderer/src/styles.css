@@ -131,3 +131,6 @@ td.bad { color: #f87171; }
 .toolbar .muted { white-space: nowrap; }
 .dim.drag { color: #0b1514; background: #fde68a; border-color: #f59e0b; font-weight: 700; font-size: 13px; }
 .wide.branch { margin-top: 0; border-style: dashed; }
+.axis-label { background: rgba(20,24,28,0.92); border: 1px solid #3a4148; border-radius: 6px; padding: 6px 8px; font-size: 12px; white-space: nowrap; color: var(--text); display: flex; flex-direction: column; gap: 2px; }
+.axis-label b { color: #fde68a; font-weight: 600; }
+.axis-label button { margin-top: 4px; background: var(--accent-dim); border-color: var(--accent); padding: 3px 8px; font-size: 12px; }
