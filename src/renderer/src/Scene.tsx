@@ -25,8 +25,8 @@ import {
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { Part, PathSeg, Shape, SizeId, buildPart, hubR, sizeLabel, sizeSpec } from './catalog'
-import { Model, WorldPort, Xf, portKey } from './geometry'
+import { Part, PathSeg, Shape, SizeId, V3, buildPart, hubR, sizeLabel, sizeSpec } from './catalog'
+import { Model, WorldPort, Xf, buildModel, portKey } from './geometry'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { formatLength } from './units'
@@ -305,76 +305,129 @@ function PortMarkers({ model }: { model: Model }) {
   )
 }
 
-// Ручка длины трубы: тянуть за дальний конец вдоль оси
-function PipeLengthHandle({ part, xf }: { part: Part; xf: Xf }) {
+// ---------- Ручки длины ----------
+// Тянем конец трубы `end` вдоль её оси. Противоположный конец трубы остаётся на месте:
+// если двигается конец со стороны начала системы, вся система сдвигается на ту же величину.
+
+const tmpZ = new Vector3(0, 0, 1)
+
+function rootOf(parts: Part[], id: string): Part {
+  const byId = new Map(parts.map((p) => [p.id, p]))
+  let p = byId.get(id)!
+  while (p.parent && byId.get(p.parent.id)) p = byId.get(p.parent.id)!
+  return p
+}
+
+const worldPort = (parts: Part[], id: string, index: number): Vector3 | null =>
+  buildModel(parts).ports.find((w) => w.partId === id && w.index === index)?.pos.clone() ?? null
+
+// Параметр точки на прямой (o + u·t), ближайшей к лучу мыши
+function rayParam(ray: Ray, o: Vector3, u: Vector3): number | null {
+  const w0 = o.clone().sub(ray.origin)
+  const b = u.dot(ray.direction)
+  const d = u.dot(w0)
+  const e = ray.direction.dot(w0)
+  const den = 1 - b * b
+  if (Math.abs(den) < 1e-6) return null
+  return (b * e - d) / den
+}
+
+interface DragState {
+  parts: Part[]
+  L0: number
+  t0: number
+  anchor: Vector3 // мировое положение неподвижного конца
+  u: Vector3 // направление от неподвижного конца к тянущемуся
+}
+
+function LengthHandle({ pipeId, end, at, dir }: { pipeId: string; end: 0 | 1; at: Vector3; dir: Vector3 }) {
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
   const { camera } = useThree()
-  const [drag, setDrag] = useState(false)
+  const pipe = useStore((s) => s.parts.find((p) => p.id === pipeId))
+  const [drag, setDrag] = useState<DragState | null>(null)
   const [hover, setHover] = useState(false)
   const grip = useRef<Group>(null)
-  const len = part.length ?? 0
-  const r = sizeSpec(part.size).od / 2
-  const axis = useMemo(() => new Vector3(0, 0, 1).applyQuaternion(xf.quat), [xf])
-  const end = useMemo(() => xf.pos.clone().addScaledVector(axis, len), [xf, axis, len])
+  const quat = useMemo(() => new Quaternion().setFromUnitVectors(tmpZ, dir.clone().normalize()), [dir])
   useFrame(() => {
-    if (!grip.current) return
-    grip.current.scale.setScalar(Math.max(r * 1.2, camera.position.distanceTo(end) * 0.022))
+    if (grip.current) grip.current.scale.setScalar(Math.max(0.8, camera.position.distanceTo(at) * 0.022))
   })
   useEffect(() => () => setCursor('auto'), [])
+  if (!pipe) return null
+  const len = pipe.length ?? 0
+  const color = drag || hover ? '#fde68a' : '#2dd4bf'
 
-  // ближайшая к лучу мыши точка на оси трубы → новая длина
-  const lengthFromRay = (ray: Ray, fine: boolean): number => {
-    const w0 = xf.pos.clone().sub(ray.origin)
-    const b = axis.dot(ray.direction)
-    const d = axis.dot(w0)
-    const e = ray.direction.dot(w0)
-    const den = 1 - b * b
-    if (Math.abs(den) < 1e-6) return len
-    const t = (b * e - d) / den
+  const start = (ray: Ray): DragState | null => {
+    const parts = useStore.getState().parts
+    const anchor = worldPort(parts, pipeId, end === 1 ? 0 : 1)
+    const moving = worldPort(parts, pipeId, end)
+    if (!anchor || !moving) return null
+    const u = moving.clone().sub(anchor).normalize()
+    const t0 = rayParam(ray, anchor, u)
+    if (t0 === null) return null
+    return { parts, L0: len, t0, anchor, u }
+  }
+
+  const apply = (d: DragState, ray: Ray, fine: boolean): void => {
+    const t = rayParam(ray, d.anchor, d.u)
+    if (t === null) return
     const step = fine ? 0.125 : useStore.getState().snap
-    return Math.max(1, Math.round(t / step) * step)
+    const L = Math.max(1, Math.round((d.L0 + t - d.t0) / step) * step)
+    let next = d.parts.map((p) => (p.id === pipeId ? { ...p, length: L } : p))
+    // держим неподвижный конец на месте, сдвигая всю систему
+    const now = worldPort(next, pipeId, end === 1 ? 0 : 1)
+    if (now) {
+      const shift = d.anchor.clone().sub(now)
+      if (shift.lengthSq() > 1e-8) {
+        const root = rootOf(next, pipeId)
+        const rp = new Vector3(...(root.pos ?? [0, 0, 0])).add(shift)
+        next = next.map((p) => (p.id === root.id ? { ...p, pos: [rp.x, rp.y, rp.z] as V3 } : p))
+      }
+    }
+    useStore.getState().dragTo({ parts: next })
   }
 
   return (
-    <group position={end} quaternion={xf.quat}>
+    <group position={at} quaternion={quat}>
       <group ref={grip}>
         <mesh renderOrder={13}>
-          <sphereGeometry args={[0.3, 16, 12]} />
-          <meshBasicMaterial color={drag || hover ? '#fde68a' : '#2dd4bf'} depthTest={false} transparent opacity={0.95} />
+          <sphereGeometry args={[0.28, 16, 12]} />
+          <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.95} />
         </mesh>
-        <mesh renderOrder={13} position={[0, 0, 0.75]} rotation={[Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.32, 0.6, 20]} />
-          <meshBasicMaterial color={drag || hover ? '#fde68a' : '#2dd4bf'} depthTest={false} transparent opacity={0.95} />
+        <mesh renderOrder={13} position={[0, 0, 0.7]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.3, 0.6, 20]} />
+          <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.95} />
         </mesh>
-        <mesh renderOrder={13} position={[0, 0, -0.75]} rotation={[-Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.32, 0.6, 20]} />
-          <meshBasicMaterial color={drag || hover ? '#fde68a' : '#2dd4bf'} depthTest={false} transparent opacity={0.95} />
+        <mesh renderOrder={13} position={[0, 0, -0.7]} rotation={[-Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.3, 0.6, 20]} />
+          <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.95} />
         </mesh>
         <mesh
           userData={{ portHit: true }}
           onPointerDown={(e) => {
             e.stopPropagation()
+            const d = start(e.ray)
+            if (!d) return
             ;(e.target as Element).setPointerCapture(e.pointerId)
             if (controls) controls.enabled = false
             useStore.getState().beginDrag()
-            setDrag(true)
+            setDrag(d)
           }}
           onPointerMove={(e) => {
             if (!drag) return
             e.stopPropagation()
-            const L = lengthFromRay(e.ray, e.nativeEvent.shiftKey)
-            const s = useStore.getState()
-            if (Math.abs(L - len) > 1e-6) s.dragTo({ parts: s.parts.map((p) => (p.id === part.id ? { ...p, length: L } : p)) })
+            apply(drag, e.ray, e.nativeEvent.shiftKey)
           }}
           onPointerUp={(e) => {
             if (!drag) return
             e.stopPropagation()
             ;(e.target as Element).releasePointerCapture(e.pointerId)
             if (controls) controls.enabled = true
-            setDrag(false)
+            setDrag(null)
             useStore.getState().endDrag()
-            useStore.setState({ lastPipe: useStore.getState().parts.find((p) => p.id === part.id)?.length ?? len })
+            const L = useStore.getState().parts.find((p) => p.id === pipeId)?.length
+            if (L) useStore.setState({ lastPipe: L })
           }}
+          onClick={(e) => e.stopPropagation()}
           onPointerOver={() => {
             setHover(true)
             setCursor('grab')
@@ -384,16 +437,52 @@ function PipeLengthHandle({ part, xf }: { part: Part; xf: Xf }) {
             if (!drag) setCursor('auto')
           }}
         >
-          <sphereGeometry args={[1.3, 16, 12]} />
+          <sphereGeometry args={[0.95, 16, 12]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
         </mesh>
       </group>
       {(drag || hover) && (
-        <Html position={[0, 0, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none', transform: 'translateY(-34px)' }}>
+        <Html center zIndexRange={[20, 10]} style={{ pointerEvents: 'none', transform: 'translateY(-34px)' }}>
           <div className="dim drag">{formatLength(len)}</div>
         </Html>
       )}
     </group>
+  )
+}
+
+// Ручки для выбранной детали: у трубы — на обоих концах, у фитинга — вдоль каждой подключённой трубы
+function LengthHandles({ model }: { model: Model }) {
+  const parts = useStore((s) => s.parts)
+  const selectedId = useStore((s) => s.selectedId)
+  const sel = parts.find((p) => p.id === selectedId)
+  if (!sel) return null
+  const handles: { pipeId: string; end: 0 | 1; at: Vector3; dir: Vector3; key: string }[] = []
+  const byKey = new Map(model.ports.map((w) => [portKey(w.partId, w.index), w]))
+  if (sel.kind === 'pipe') {
+    for (const end of [0, 1] as const) {
+      const w = byKey.get(portKey(sel.id, end))
+      if (w) handles.push({ pipeId: sel.id, end, at: w.pos.clone().addScaledVector(w.dir, 0.6), dir: w.dir, key: `${sel.id}:${end}` })
+    }
+  } else {
+    model.ports
+      .filter((w) => w.partId === sel.id)
+      .forEach((w) => {
+        const other = model.links.get(portKey(w.partId, w.index))
+        if (!other) return
+        const [oid, oi] = other.split(':')
+        if (parts.find((p) => p.id === oid)?.kind !== 'pipe') return
+        const face = w.def.depth ? w.def.face ?? w.def.depth : 0
+        // стрелка у раструба фитинга, направлена вдоль трубы (от трубы — удлинение)
+        const off = face + Math.max(1.5, hubR(w.size, w.def.fam) * 1.6)
+        handles.push({ pipeId: oid, end: Number(oi) as 0 | 1, at: w.pos.clone().addScaledVector(w.dir, off), dir: w.dir.clone().negate(), key: other })
+      })
+  }
+  return (
+    <>
+      {handles.map((h) => (
+        <LengthHandle key={h.key} pipeId={h.pipeId} end={h.end} at={h.at} dir={h.dir} />
+      ))}
+    </>
   )
 }
 
@@ -462,8 +551,6 @@ export function Scene({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const showDims = useStore((s) => s.showDims)
   const select = useStore((s) => s.select)
-  const selectedId = useStore((s) => s.selectedId)
-  const selPipe = parts.find((p) => p.id === selectedId && p.kind === 'pipe')
   return (
     <Canvas
       camera={{ position: [60, 45, 70], fov: 40, near: 0.05, far: 10000 }}
@@ -496,7 +583,7 @@ export function Scene({ model }: { model: Model }) {
       </group>
       <EnvLayer model={model} />
       <PortMarkers model={model} />
-      {selPipe && <PipeLengthHandle part={selPipe} xf={model.xfs.get(selPipe.id)!} />}
+      <LengthHandles model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
       <OrbitControls makeDefault enableDamping={false} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />

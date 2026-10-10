@@ -177,7 +177,11 @@ export function EnvLayer({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const selectedId = useStore((s) => s.selectedId)
   const pens = usePenetrations(model)
-  const root = parts.find((p) => p.id === selectedId && !p.parent)
+  const moveSystem = useStore((s) => s.moveSystem)
+  const sel = parts.find((p) => p.id === selectedId)
+  const byId = new Map(parts.map((p) => [p.id, p]))
+  let root = moveSystem ? sel : undefined
+  while (root?.parent && byId.get(root.parent.id)) root = byId.get(root.parent.id)
   return (
     <>
       {mode !== 'hidden' && env.map((it) => <EnvObject key={it.id} it={it} />)}

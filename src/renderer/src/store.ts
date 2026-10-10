@@ -87,6 +87,7 @@ interface State {
   envMode: EnvMode
   snap: number // шаг перемещения, дюймы
   dragStart: Snapshot | null
+  moveSystem: boolean // показать стрелки перемещения всей системы труб
   selectedId: string | null
   activePort: PortRef | null
   paletteSize: SizeId
@@ -109,6 +110,7 @@ interface State {
   selectEnv: (id: string | null) => void
   setEnvMode: (m: EnvMode) => void
   setSnap: (n: number) => void
+  setMoveSystem: (v: boolean) => void
   beginDrag: () => void
   dragTo: (patch: { env?: EnvItem[]; parts?: Part[] }) => void
   endDrag: () => void
@@ -173,6 +175,7 @@ export const useStore = create<State>((set, get) => ({
   envMode: 'solid',
   snap: 1,
   dragStart: null,
+  moveSystem: false,
   selectedId: null,
   activePort: null,
   paletteSize: '1-1/2',
@@ -213,6 +216,7 @@ export const useStore = create<State>((set, get) => ({
   selectEnv: (id) => set({ selectedEnv: id, selectedId: id ? null : get().selectedId, activePort: id ? null : get().activePort }),
   setEnvMode: (envMode) => set({ envMode }),
   setSnap: (snap) => set({ snap }),
+  setMoveSystem: (moveSystem) => set({ moveSystem }),
   // Перетаскивание гизмо: живое обновление без истории, одна запись в историю по окончании
   beginDrag: () => set((s) => ({ dragStart: { parts: s.parts, env: s.env } })),
   dragTo: (patch) => set(patch),
@@ -336,7 +340,7 @@ export const useStore = create<State>((set, get) => ({
     set({ activePort: firstOpen(out, id) })
   },
 
-  select: (id) => set({ selectedId: id, activePort: id ? get().activePort : null, selectedEnv: id ? null : get().selectedEnv }),
+  select: (id) => set({ moveSystem: false, selectedId: id, activePort: id ? get().activePort : null, selectedEnv: id ? null : get().selectedEnv }),
   selectPort: (ref) => set({ activePort: ref, selectedId: ref ? ref.id : get().selectedId, selectedEnv: ref ? null : get().selectedEnv, message: null }),
 
   undo: () => {

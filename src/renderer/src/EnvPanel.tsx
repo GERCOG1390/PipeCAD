@@ -243,6 +243,8 @@ export function EnvInspector({ it }: { it: EnvItem }) {
 // Положение всей системы труб — для любой выбранной детали
 export function SystemPosition({ part, parts }: { part: Part; parts: Part[] }) {
   const updatePart = useStore((s) => s.updatePart)
+  const moveSystem = useStore((s) => s.moveSystem)
+  const setMoveSystem = useStore((s) => s.setMoveSystem)
   const byId = new Map(parts.map((p) => [p.id, p]))
   let root = part
   while (root.parent && byId.get(root.parent.id)) root = byId.get(root.parent.id)!
@@ -264,11 +266,9 @@ export function SystemPosition({ part, parts }: { part: Part; parts: Part[] }) {
           />
         ))}
       </div>
-      {root.id === part.id ? (
-        <div className="muted small">Можно тянуть стрелками в 3D.</div>
-      ) : (
-        <div className="muted small">Это первая деталь системы. Выбери её, чтобы тянуть стрелками.</div>
-      )}
+      <button className={'wide' + (moveSystem ? ' on' : '')} onClick={() => setMoveSystem(!moveSystem)}>
+        {moveSystem ? 'Готово — скрыть стрелки' : 'Двигать всю систему стрелками'}
+      </button>
     </>
   )
 }
