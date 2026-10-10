@@ -1,5 +1,7 @@
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, session } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen, session } from 'electron'
+import { spawn } from 'child_process'
+import { readFile, unlink, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
 import { join } from 'path'
 
 const PROJECT_FILTERS = [{ name: 'Проект PipeCAD', extensions: ['pipe'] }]
@@ -37,15 +39,69 @@ ipcMain.handle('project:save', async (_e, args: { path: string | null; content: 
   return path
 })
 
-// Видео окна: сохраняем записанный ролик
+// ---------- Видео ----------
+// На время записи окно ставим ровно 1280×720 (содержимое), чтобы захват шёл пиксель в пиксель
+const REC_W = 1280
+const REC_H = 720
+let recSaved: { bounds: Electron.Rectangle; max: boolean } | null = null
+
+ipcMain.handle('rec:prepare', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return 1
+  if (!recSaved) recSaved = { bounds: win.getBounds(), max: win.isMaximized() }
+  if (win.isMaximized()) win.unmaximize()
+  win.setMinimumSize(800, 500)
+  win.setContentSize(REC_W, REC_H)
+  return screen.getDisplayMatching(win.getBounds()).scaleFactor
+})
+
+ipcMain.handle('rec:restore', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win || !recSaved) return
+  win.setMinimumSize(1000, 640)
+  win.setBounds(recSaved.bounds)
+  if (recSaved.max) win.maximize()
+  recSaved = null
+})
+
+// Перекодируем запись встроенным ffmpeg: H.264 высокого качества, 1280×720, 30 к/с, обычный (не фрагментированный) MP4
+function transcode(input: string, output: string): Promise<boolean> {
+  let bin: string | null = null
+  try {
+    bin = (require('ffmpeg-static') as string).replace('app.asar', 'app.asar.unpacked')
+  } catch {
+    bin = null
+  }
+  if (!bin) return Promise.resolve(false)
+  const vf = `scale=${REC_W}:${REC_H}:flags=lanczos:force_original_aspect_ratio=decrease,pad=${REC_W}:${REC_H}:(ow-iw)/2:(oh-ih)/2:color=0x15181c,format=yuv420p`
+  const args = ['-y', '-i', input, '-vf', vf, '-r', '30', '-c:v', 'libx264', '-preset', 'slow', '-crf', '15', '-tune', 'animation', '-profile:v', 'high', '-movflags', '+faststart', '-an', output]
+  return new Promise((res) => {
+    const p = spawn(bin!, args, { windowsHide: true })
+    p.on('error', () => res(false))
+    p.on('close', (code) => res(code === 0))
+  })
+}
+
 ipcMain.handle('video:save', async (_e, args: { data: Uint8Array; ext: string }) => {
   const d = new Date()
   const pad = (n: number): string => String(n).padStart(2, '0')
-  const name = `PipeCAD ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}-${pad(d.getMinutes())}.${args.ext}`
-  const r = await dialog.showSaveDialog({ defaultPath: join(app.getPath('videos'), name), filters: [{ name: 'Видео', extensions: [args.ext] }] })
+  const name = `PipeCAD ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}-${pad(d.getMinutes())}.mp4`
+  const r = await dialog.showSaveDialog({ defaultPath: join(app.getPath('videos'), name), filters: [{ name: 'Видео MP4', extensions: ['mp4'] }] })
   if (r.canceled || !r.filePath) return null
-  await writeFile(r.filePath, Buffer.from(args.data))
+  const raw = join(tmpdir(), `pipecad-rec-${Date.now()}.${args.ext}`)
+  await writeFile(raw, Buffer.from(args.data))
+  const ok = await transcode(raw, r.filePath)
+  if (!ok) await writeFile(r.filePath, Buffer.from(args.data)) // без ffmpeg — сохраняем как записали
+  await unlink(raw).catch(() => undefined)
   return r.filePath
+})
+
+// Для автотеста: перекодировать без диалога
+ipcMain.handle('video:transcodeTest', async (_e, args: { data: Uint8Array; ext: string; out: string }) => {
+  const raw = join(tmpdir(), `pipecad-rec-test.${args.ext}`)
+  await writeFile(raw, Buffer.from(args.data))
+  await writeFile(args.out.replace(/\.mp4$/, `.raw.${args.ext}`), Buffer.from(args.data))
+  return transcode(raw, args.out)
 })
 
 ipcMain.handle('file:export', async (_e, args: { defaultName: string; content: string; ext: string; label: string }) => {

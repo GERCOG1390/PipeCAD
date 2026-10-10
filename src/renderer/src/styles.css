@@ -141,3 +141,16 @@ td.bad { color: #f87171; }
 .main.replaying .left, .main.replaying .side { pointer-events: none; opacity: 0.45; }
 button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #ef4444; color: #fff; opacity: 1; }
 .toolbar button.off { color: var(--muted); border-style: dashed; }
+.toolbar { scrollbar-width: none; }
+.toolbar::-webkit-scrollbar { display: none; }
+/* узкое окно (в т.ч. при записи видео 1280×720) — компактнее */
+@media (max-width: 1360px) {
+  .toolbar { gap: 3px; padding: 7px 8px; }
+  .toolbar button { padding: 4px 6px; font-size: 12px; }
+  .toolbar .muted { display: none; }
+  .brand { margin-right: 4px; font-size: 14px; }
+  .palette { width: 220px; }
+  .side { width: 270px; }
+}
+.tag { white-space: nowrap; }
+@media (max-width: 1360px) { .size-card { padding: 7px 8px; } .size-tags { gap: 3px; } .tag { padding: 0 4px; } }
