@@ -45,6 +45,7 @@ export interface Part {
   attach: number
   roll: number
   rot?: V3
+  pos?: V3 // положение корневой детали (вся система труб)
 }
 
 export type Group = 'common' | 'pressure' | 'dwv'

@@ -21,7 +21,7 @@ export function computeTransforms(parts: Part[]): Map<string, Xf> {
     let xf: Xf
     if (!par || visiting.has(p.id)) {
       const r = p.rot ?? [0, 0, 0]
-      xf = { pos: new Vector3(), quat: new Quaternion().setFromEuler(new Euler(r[0] * DEG, r[1] * DEG, r[2] * DEG)) }
+      xf = { pos: new Vector3(...(p.pos ?? [0, 0, 0])), quat: new Quaternion().setFromEuler(new Euler(r[0] * DEG, r[1] * DEG, r[2] * DEG)) }
     } else {
       visiting.add(p.id)
       const px = calc(par)

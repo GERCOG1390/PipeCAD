@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { DEFAULT_PIPE, FITTINGS, Part, PartKind, PortDef, SizeId, V3, defaultSize2, fittingDef, mates, portsOf, sizeIndex } from './catalog'
+import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, portKey } from './geometry'
 import { formatLength } from './units'
 
@@ -66,13 +67,26 @@ export interface ProjectFile {
   app: 'pipecad'
   version: 1
   parts: Part[]
+  env?: EnvItem[]
   stick?: number
 }
 
+interface Snapshot {
+  parts: Part[]
+  env: EnvItem[]
+}
+
+export type EnvMode = 'solid' | 'ghost' | 'hidden'
+
 interface State {
   parts: Part[]
-  past: Part[][]
-  future: Part[][]
+  env: EnvItem[]
+  past: Snapshot[]
+  future: Snapshot[]
+  selectedEnv: string | null
+  envMode: EnvMode
+  snap: number // шаг перемещения, дюймы
+  dragStart: Snapshot | null
   selectedId: string | null
   activePort: PortRef | null
   paletteSize: SizeId
@@ -87,6 +101,17 @@ interface State {
   view: { tick: number; dir: V3 | null } // dir null — "показать всё" с текущего ракурса
 
   commit: (parts: Part[]) => void
+  commitEnv: (env: EnvItem[]) => void
+  addEnv: (p: Preset, at?: V3) => void
+  updateEnv: (id: string, patch: Partial<EnvItem>) => void
+  deleteEnv: (id: string) => void
+  duplicateEnv: (id: string) => void
+  selectEnv: (id: string | null) => void
+  setEnvMode: (m: EnvMode) => void
+  setSnap: (n: number) => void
+  beginDrag: () => void
+  dragTo: (patch: { env?: EnvItem[]; parts?: Part[] }) => void
+  endDrag: () => void
   addPart: (kind: PartKind, size2?: SizeId) => void
   updatePart: (id: string, patch: Partial<Part>) => void
   deletePart: (id: string) => void
@@ -141,8 +166,13 @@ export const subtreeSize = (parts: Part[], id: string): number => subtree(parts,
 
 export const useStore = create<State>((set, get) => ({
   parts: [],
+  env: [],
   past: [],
   future: [],
+  selectedEnv: null,
+  envMode: 'solid',
+  snap: 1,
+  dragStart: null,
   selectedId: null,
   activePort: null,
   paletteSize: '1-1/2',
@@ -156,7 +186,38 @@ export const useStore = create<State>((set, get) => ({
   message: null,
   view: { tick: 0, dir: null },
 
-  commit: (parts) => set((s) => ({ parts, past: [...s.past.slice(-199), s.parts], future: [], dirty: true })),
+  commit: (parts) => set((s) => ({ parts, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true })),
+  commitEnv: (env) => set((s) => ({ env, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true })),
+
+  addEnv: (p, at) => {
+    const c = at ?? [0, 0, 0]
+    const id = newId()
+    const it = normalize({ id, type: p.type, L: p.L, W: p.W, H: p.H, o: { ...p.o }, rotY: 0, pos: [0, 0, 0] })
+    const snap = (v: number): number => Math.round(v)
+    it.pos = [snap(c[0] - it.L / 2), baseY(p), snap(c[2] - it.W / 2)]
+    get().commitEnv([...get().env, it])
+    set({ selectedEnv: id, selectedId: null, activePort: null, message: null })
+  },
+  updateEnv: (id, patch) => get().commitEnv(get().env.map((e) => (e.id === id ? normalize({ ...e, ...patch, o: { ...e.o, ...(patch.o ?? {}) } }) : e))),
+  deleteEnv: (id) => {
+    get().commitEnv(get().env.filter((e) => e.id !== id))
+    set({ selectedEnv: null })
+  },
+  duplicateEnv: (id) => {
+    const e = get().env.find((x) => x.id === id)
+    if (!e) return
+    const copy: EnvItem = { ...e, id: newId(), o: { ...e.o }, pos: [e.pos[0] + 12, e.pos[1], e.pos[2] + 12] }
+    get().commitEnv([...get().env, copy])
+    set({ selectedEnv: copy.id })
+  },
+  selectEnv: (id) => set({ selectedEnv: id, selectedId: id ? null : get().selectedId, activePort: id ? null : get().activePort }),
+  setEnvMode: (envMode) => set({ envMode }),
+  setSnap: (snap) => set({ snap }),
+  // Перетаскивание гизмо: живое обновление без истории, одна запись в историю по окончании
+  beginDrag: () => set((s) => ({ dragStart: { parts: s.parts, env: s.env } })),
+  dragTo: (patch) => set(patch),
+  endDrag: () =>
+    set((s) => (s.dragStart ? { past: [...s.past.slice(-199), s.dragStart], future: [], dragStart: null, dirty: true } : {})),
 
   addPart: (kind, size2) => {
     const { parts, activePort, selectedId, paletteSize, reducerTo, lastPipe } = get()
@@ -173,6 +234,7 @@ export const useStore = create<State>((set, get) => ({
         notes.push(`«${def.ru}» не бывает ${paletteSize}" — поставил ${part.size}"`)
       }
       part.size2 = defaultSize2(kind, part.size, size2 ?? reducerTo)
+      part.pos = [0, 12, 0] // система труб начинается на высоте 1' над уровнем 0
     } else {
       let target = activePort && isOpen(parts, activePort) ? activePort : null
       if (!target && selectedId) target = firstOpen(parts, selectedId)
@@ -274,21 +336,21 @@ export const useStore = create<State>((set, get) => ({
     set({ activePort: firstOpen(out, id) })
   },
 
-  select: (id) => set({ selectedId: id, activePort: id ? get().activePort : null }),
-  selectPort: (ref) => set({ activePort: ref, selectedId: ref ? ref.id : get().selectedId, message: null }),
+  select: (id) => set({ selectedId: id, activePort: id ? get().activePort : null, selectedEnv: id ? null : get().selectedEnv }),
+  selectPort: (ref) => set({ activePort: ref, selectedId: ref ? ref.id : get().selectedId, selectedEnv: ref ? null : get().selectedEnv, message: null }),
 
   undo: () => {
-    const { past, parts, future } = get()
+    const { past, parts, env, future } = get()
     if (!past.length) return
     const prev = past[past.length - 1]
-    set({ parts: prev, past: past.slice(0, -1), future: [parts, ...future], dirty: true })
+    set({ parts: prev.parts, env: prev.env, past: past.slice(0, -1), future: [{ parts, env }, ...future], dirty: true })
     fixSelection()
   },
 
   redo: () => {
-    const { past, parts, future } = get()
+    const { past, parts, env, future } = get()
     if (!future.length) return
-    set({ parts: future[0], past: [...past, parts], future: future.slice(1), dirty: true })
+    set({ parts: future[0].parts, env: future[0].env, past: [...past, { parts, env }], future: future.slice(1), dirty: true })
     fixSelection()
   },
 
@@ -301,11 +363,13 @@ export const useStore = create<State>((set, get) => ({
   setMessage: (message) => set({ message }),
 
   newProject: () =>
-    set({ parts: [], past: [], future: [], selectedId: null, activePort: null, filePath: null, dirty: false, message: null }),
+    set({ parts: [], env: [], past: [], future: [], selectedEnv: null, selectedId: null, activePort: null, filePath: null, dirty: false, message: null }),
 
   loadProject: (f, path) => {
     set({
       parts: f.parts,
+      env: (f.env ?? []).map(normalize),
+      selectedEnv: null,
       past: [],
       future: [],
       selectedId: null,
@@ -322,17 +386,17 @@ export const useStore = create<State>((set, get) => ({
 }))
 
 function fixSelection(): void {
-  const { parts, selectedId, activePort } = useStore.getState()
+  const { parts, env, selectedId, activePort, selectedEnv } = useStore.getState()
   const ids = new Set(parts.map((p) => p.id))
   const sel = selectedId && ids.has(selectedId) ? selectedId : null
   let ap = activePort && ids.has(activePort.id) ? activePort : null
   if (ap && !buildModel(parts).open.some((w) => portKey(w.partId, w.index) === portKey(ap!.id, ap!.port))) ap = null
-  useStore.setState({ selectedId: sel, activePort: ap })
+  useStore.setState({ selectedId: sel, activePort: ap, selectedEnv: selectedEnv && env.some((e) => e.id === selectedEnv) ? selectedEnv : null })
 }
 
 export function serialize(): string {
-  const { parts, stick } = useStore.getState()
-  const f: ProjectFile = { app: 'pipecad', version: 1, parts, stick }
+  const { parts, env, stick } = useStore.getState()
+  const f: ProjectFile = { app: 'pipecad', version: 1, parts, env, stick }
   return JSON.stringify(f, null, 1)
 }
 

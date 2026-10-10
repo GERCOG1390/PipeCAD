@@ -5,6 +5,7 @@ function gcd(a: number, b: number): number {
 }
 
 export function formatLength(inches: number): string {
+  if (Math.round(inches * 16) < 0) return '-' + formatLength(-inches)
   const n16 = Math.round(inches * 16)
   const ft = Math.floor(n16 / 192)
   const rest = n16 - ft * 192
@@ -23,6 +24,10 @@ export function formatLength(inches: number): string {
 export function parseLength(input: string): number | null {
   let s = input.trim().replace(/[″”]/g, '"').replace(/[′’]/g, "'").replace(',', '.')
   if (!s) return null
+  if (s.startsWith('-')) {
+    const v = parseLength(s.slice(1))
+    return v === null ? null : -v
+  }
   let ft = 0
   const fm = s.match(/^(\d+(?:\.\d+)?)\s*'\s*(.*)$/)
   if (fm) {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FITTINGS, FittingDef, Group, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
 import { Bom, bomCsv } from './bom'
+import { EnvBomSection, EnvInspector, SystemPosition } from './EnvPanel'
+import { Penetration, envBom } from './environment'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
 import { formatLength, parseLength } from './units'
@@ -227,12 +229,12 @@ export function Palette({ model }: { model: Model }) {
   )
 }
 
-function LengthInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+export function LengthInput({ value, onCommit, min = 0.25 }: { value: number; onCommit: (v: number) => void; min?: number }) {
   const [text, setText] = useState(formatLength(value))
   useEffect(() => setText(formatLength(value)), [value])
   const commit = (): void => {
     const v = parseLength(text)
-    if (v === null || v < 0.25 || v > 12000) setText(formatLength(value))
+    if (v === null || v < min || v > 12000) setText(formatLength(value))
     else if (Math.abs(v - value) > 1e-6) onCommit(v)
     else setText(formatLength(value))
   }
@@ -262,9 +264,13 @@ export function Inspector({ model }: { model: Model }) {
   const cycleAttach = useStore((s) => s.cycleAttach)
   const deletePart = useStore((s) => s.deletePart)
   const setMessage = useStore((s) => s.setMessage)
+  const env = useStore((s) => s.env)
+  const selectedEnv = useStore((s) => s.selectedEnv)
   const part = parts.find((p) => p.id === selectedId)
+  const envItem = env.find((e) => e.id === selectedEnv)
+  if (envItem) return <EnvInspector it={envItem} />
 
-  if (!part) return <div className="empty">Ничего не выбрано. Кликни по детали.</div>
+  if (!part) return <div className="empty">Ничего не выбрано. Кликни по детали или объекту.</div>
   const def = fittingDef(part.kind)
 
   // Заход фитинга на конце трубы: проекция порта соседа на его ось (от центра до дна раструба)
@@ -339,6 +345,8 @@ export function Inspector({ model }: { model: Model }) {
         </>
       )}
 
+      <SystemPosition part={part} parts={parts} />
+
       <label>Поворот</label>
       {part.parent ? (
         <div className="row">
@@ -369,15 +377,16 @@ export function Inspector({ model }: { model: Model }) {
   )
 }
 
-export function BomPanel({ bom }: { bom: Bom }) {
+export function BomPanel({ bom, pens }: { bom: Bom; pens: Penetration[] }) {
+  const envItems = useStore((s) => s.env)
   const stick = useStore((s) => s.stick)
   const setStick = useStore((s) => s.setStick)
   const setMessage = useStore((s) => s.setMessage)
   const exportCsv = async (): Promise<void> => {
-    const path = await window.api.exportFile({ defaultName: 'pvc-materials.csv', content: bomCsv(bom, stick), ext: 'csv', label: 'CSV (Excel)' })
+    const path = await window.api.exportFile({ defaultName: 'pvc-materials.csv', content: bomCsv(bom, stick, envBom(envItems), pens), ext: 'csv', label: 'CSV (Excel)' })
     if (path) setMessage(`Список сохранён: ${path}`)
   }
-  const empty = !bom.pipes.length && !bom.fittings.length
+  const empty = !bom.pipes.length && !bom.fittings.length && !envItems.length
   const fitTotal = useMemo(() => bom.fittings.reduce((a, f) => a + f.qty, 0), [bom])
   return (
     <div className="bom">
@@ -433,6 +442,7 @@ export function BomPanel({ bom }: { bom: Bom }) {
           <div className="muted small">
             Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей){bom.threads ? ` · резьбовых: ${bom.threads} (лента/герметик)` : ''}
           </div>
+          <EnvBomSection pens={pens} />
           <button className="wide" onClick={exportCsv}>
             Экспорт в Excel (CSV)
           </button>

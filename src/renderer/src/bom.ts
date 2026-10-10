@@ -1,4 +1,5 @@
 import { Part, SIZES, SizeId, bomLines, fittingDef } from './catalog'
+import { EnvBomLine, Penetration } from './environment'
 import { Model, portKey } from './geometry'
 import { formatLength } from './units'
 
@@ -88,7 +89,7 @@ export function computeBom(parts: Part[], model: Model, stick: number): Bom {
   return { pipes, fittings, joints, threads }
 }
 
-export function bomCsv(bom: Bom, stick: number): string {
+export function bomCsv(bom: Bom, stick: number, env: EnvBomLine[] = [], pens: Penetration[] = []): string {
   const q = (s: string): string => `"${s.replace(/"/g, '""')}"`
   const rows: string[] = ['Item,Charlotte Part,Qty,Unit,Notes']
   for (const p of bom.pipes) {
@@ -97,5 +98,7 @@ export function bomCsv(bom: Bom, stick: number): string {
   for (const f of bom.fittings) rows.push([q(f.name), q(f.pn ?? ''), f.qty, 'ea', ''].join(','))
   rows.push([q('Solvent welds (joints)'), '', bom.joints, 'ea', q('primer + cement')].join(','))
   if (bom.threads) rows.push([q('Threaded joints'), '', bom.threads, 'ea', q('PTFE tape / thread sealant')].join(','))
+  for (const e of env) rows.push([q(e.name), '', e.unit === 'куб. ярд' ? e.qty.toFixed(2) : e.qty, q(e.unit), q(e.ru)].join(','))
+  for (const p of pens) rows.push([q('Penetration: ' + p.where), '', 1, 'ea', q(p.note)].join(','))
   return '﻿' + rows.join('\r\n')
 }

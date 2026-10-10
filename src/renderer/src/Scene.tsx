@@ -24,10 +24,13 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Part, PathSeg, Shape, SizeId, buildPart, hubR, sizeLabel, sizeSpec } from './catalog'
 import { Model, Xf, portKey } from './geometry'
+import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { formatLength } from './units'
 
 const UP = new Vector3(0, 1, 0)
+// Точка, куда смотрит камера — сюда ставятся новые объекты окружения
+export const viewTarget = new Vector3()
 const PVC = '#e8e8e1'
 
 // ---------- материалы (общие на все детали) ----------
@@ -317,7 +320,7 @@ export function Scene({ model }: { model: Model }) {
       <directionalLight position={[-90, 30, -40]} intensity={0.35} color="#cfe3ff" />
       <directionalLight position={[0, -60, 20]} intensity={0.15} />
       <Grid
-        position={[0, -8, 0]}
+        position={[0, -0.02, 0]}
         infiniteGrid
         cellSize={12}
         sectionSize={60}
@@ -333,9 +336,10 @@ export function Scene({ model }: { model: Model }) {
           <PartMesh key={p.id} part={p} xf={model.xfs.get(p.id)!} />
         ))}
       </group>
+      <EnvLayer model={model} />
       <PortMarkers model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
-      <OrbitControls makeDefault enableDamping={false} />
+      <OrbitControls makeDefault enableDamping={false} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
         <GizmoViewport labelColor="white" axisHeadScale={0.9} />

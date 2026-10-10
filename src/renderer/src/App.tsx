@@ -4,6 +4,8 @@ import { computeBom } from './bom'
 import { buildModel } from './geometry'
 import { BomPanel, Inspector, Palette } from './Panels'
 import { Scene } from './Scene'
+import { EnvModeSwitch, EnvPalette } from './EnvPanel'
+import { usePenetrations } from './EnvScene'
 import { ProjectFile, serialize, useStore } from './store'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -46,10 +48,18 @@ export function App() {
   const canRedo = useStore((s) => s.future.length > 0)
   const st = useStore.getState()
   const [tab, setTab] = useState<'props' | 'bom'>('props')
+  const [left, setLeft] = useState<'pipes' | 'env'>('pipes')
+  const env = useStore((s) => s.env)
+  const selectedEnv = useStore((s) => s.selectedEnv)
 
   const model = useMemo(() => buildModel(parts), [parts])
   const bom = useMemo(() => computeBom(parts, model, stick), [parts, model, stick])
   const openEnds = model.open.length
+  const pens = usePenetrations(model)
+  const badPens = pens.filter((p) => !p.ok).length
+  useEffect(() => {
+    if (selectedEnv) setTab('props')
+  }, [selectedEnv])
 
   // Черновик на случай закрытия без сохранения
   useEffect(() => {
@@ -57,7 +67,7 @@ export function App() {
       const raw = localStorage.getItem(DRAFT_KEY)
       if (raw) {
         const d = JSON.parse(raw) as { file: ProjectFile; path: string | null }
-        if (d.file?.parts?.length) {
+        if (d.file?.parts?.length || d.file?.env?.length) {
           useStore.getState().loadProject(d.file, d.path)
           useStore.setState({ dirty: true })
         }
@@ -72,7 +82,7 @@ export function App() {
     } catch {
       /* ignore */
     }
-  }, [parts, stick, filePath])
+  }, [parts, env, stick, filePath])
 
   useEffect(() => {
     const name = filePath ? filePath.split(/[\\/]/).pop() : 'Новый проект'
@@ -90,8 +100,9 @@ export function App() {
       if (e.ctrlKey && e.code === 'KeyS') return (e.preventDefault(), void save(e.shiftKey))
       if (e.ctrlKey && e.code === 'KeyO') return (e.preventDefault(), void open())
       if (e.ctrlKey) return
+      if ((k === 'delete' || k === 'backspace') && s.selectedEnv) return s.deleteEnv(s.selectedEnv)
       if ((k === 'delete' || k === 'backspace') && s.selectedId) return s.deletePart(s.selectedId)
-      if (k === 'escape') return s.select(null)
+      if (k === 'escape') return (s.select(null), s.selectEnv(null))
       if (e.code === 'KeyR' && s.selectedId) return s.rollPart(s.selectedId, e.shiftKey ? -90 : 90)
       if (k === 'home') return s.setView(null)
       const hit = KIND_KEYS.find((x) => e.code === `Key${x.key}`)
@@ -117,16 +128,16 @@ export function App() {
         <button onClick={() => confirmDiscard() && st.newProject()}>Новый</button>
         <button onClick={() => void open()}>Открыть</button>
         <button onClick={() => void save()}>Сохранить</button>
-        <button onClick={() => void save(true)}>Сохранить как…</button>
+        <button onClick={() => void save(true)} title="Сохранить как… (Ctrl+Shift+S)">…</button>
         <span className="sep" />
         <button disabled={!canUndo} onClick={st.undo} title="Ctrl+Z">
-          ↶ Отменить
+          ↶
         </button>
         <button disabled={!canRedo} onClick={st.redo} title="Ctrl+Y">
-          ↷ Вернуть
+          ↷
         </button>
         <span className="sep" />
-        <button onClick={() => st.setView(null)} title="Home">Показать всё</button>
+        <button onClick={() => st.setView(null)} title="Показать всё (Home)">Всё</button>
         <button onClick={() => st.setView([1, 0.8, 1.2])}>3D</button>
         <button onClick={() => st.setView([0, 1, 0])}>Сверху</button>
         <button onClick={() => st.setView([0, 0, 1])}>Спереди</button>
@@ -138,12 +149,25 @@ export function App() {
         <button className={showPorts ? 'on' : ''} onClick={st.togglePorts} title="Показывать свободные концы">
           Концы
         </button>
+        <span className="sep" />
+        <span className="muted small">Стройка:</span>
+        <EnvModeSwitch />
       </header>
       <div className="main">
-        <Palette model={model} />
+        <div className="left">
+          <div className="tabs">
+            <button className={left === 'pipes' ? 'on' : ''} onClick={() => setLeft('pipes')}>
+              Трубы
+            </button>
+            <button className={left === 'env' ? 'on' : ''} onClick={() => setLeft('env')}>
+              Стройка
+            </button>
+          </div>
+          {left === 'pipes' ? <Palette model={model} /> : <EnvPalette />}
+        </div>
         <div className="viewport">
           <Scene model={model} />
-          {parts.length === 0 && (
+          {parts.length === 0 && env.length === 0 && (
             <div className="welcome">
               <h2>Начни с первой детали</h2>
               <p>Слева выбери размер трубы — откроется каталог фитингов этого размера. Начни с «Трубы» (клавиша P).</p>
@@ -159,13 +183,14 @@ export function App() {
               Материалы
             </button>
           </div>
-          <div className="side-body">{tab === 'props' ? <Inspector model={model} /> : <BomPanel bom={bom} />}</div>
+          <div className="side-body">{tab === 'props' ? <Inspector model={model} /> : <BomPanel bom={bom} pens={pens} />}</div>
         </aside>
       </div>
       <footer className="status">
         <span>Деталей: {parts.length}</span>
         <span className={openEnds ? 'warn' : ''}>Открытых концов: {openEnds}</span>
         <span>Склеек: {bom.joints}</span>
+        {pens.length > 0 && <span className={badPens ? 'err' : ''}>Проходов через конструкции: {pens.length}{badPens ? ` (слишком больших: ${badPens})` : ''}</span>}
         {model.bad.length > 0 && <span className="err">Неправильных соединений: {model.bad.length}</span>}
         {message && <span className="msg">{message}</span>}
       </footer>
