@@ -87,7 +87,7 @@ interface State {
   view: { tick: number; dir: V3 | null } // dir null — "показать всё" с текущего ракурса
 
   commit: (parts: Part[]) => void
-  addPart: (kind: PartKind) => void
+  addPart: (kind: PartKind, size2?: SizeId) => void
   updatePart: (id: string, patch: Partial<Part>) => void
   deletePart: (id: string) => void
   rollPart: (id: string, deg: number) => void
@@ -158,7 +158,7 @@ export const useStore = create<State>((set, get) => ({
 
   commit: (parts) => set((s) => ({ parts, past: [...s.past.slice(-199), s.parts], future: [], dirty: true })),
 
-  addPart: (kind) => {
+  addPart: (kind, size2) => {
     const { parts, activePort, selectedId, paletteSize, reducerTo, lastPipe } = get()
     const def = fittingDef(kind)
     const id = newId()
@@ -172,7 +172,7 @@ export const useStore = create<State>((set, get) => ({
         part.size = [...def.sizes].sort((a, b) => Math.abs(sizeIndex(a) - sizeIndex(paletteSize)) - Math.abs(sizeIndex(b) - sizeIndex(paletteSize)))[0]
         notes.push(`«${def.ru}» не бывает ${paletteSize}" — поставил ${part.size}"`)
       }
-      part.size2 = defaultSize2(kind, part.size, reducerTo)
+      part.size2 = defaultSize2(kind, part.size, size2 ?? reducerTo)
     } else {
       let target = activePort && isOpen(parts, activePort) ? activePort : null
       if (!target && selectedId) target = firstOpen(parts, selectedId)
@@ -187,7 +187,11 @@ export const useStore = create<State>((set, get) => ({
           set({ message: 'К этому концу подключается трубка сифона (tubular), а не PVC' })
           return
         }
-        const cands = sizeCandidates(kind, pport.size, reducerTo)
+        let cands = sizeCandidates(kind, pport.size, size2 ?? reducerTo)
+        // Явно выбранный второй размер (кнопка «× 3/4» в каталоге)
+        if (size2) cands = cands.filter((c) => c.size2 === size2 || (c.size === size2 && c.size2 === pport.size) || (!c.size2 && size2 === c.size))
+        // Каталог открыт на другом размере, чем выбранный конец: сначала варианты-переходы на этот размер
+        if (paletteSize !== pport.size) cands.sort((a, b) => Number(b.size === paletteSize || b.size2 === paletteSize) - Number(a.size === paletteSize || a.size2 === paletteSize))
         if (!cands.length) {
           set({ message: `Charlotte не выпускает «${def.ru}» под ${pport.size}"` })
           return

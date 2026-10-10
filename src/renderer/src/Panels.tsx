@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FITTINGS, FittingDef, Group, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel } from './catalog'
+import { FITTINGS, FittingDef, Group, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
 import { Bom, bomCsv } from './bom'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
@@ -67,12 +67,6 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: 'dwv', title: 'DWV — канализация' }
 ]
 
-// Можно ли поставить деталь на конец данного размера (в т.ч. через второй размер переходника)
-function fitsSize(def: FittingDef, size: SizeId): boolean {
-  if (def.sizes.includes(size)) return true
-  return !!def.size2 && def.sizes.some((s) => def.size2!.options(s).includes(size))
-}
-
 function readOpen(): Record<string, boolean> {
   try {
     return JSON.parse(localStorage.getItem('pipecad.groups') ?? '{}')
@@ -85,14 +79,19 @@ export function Palette({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const activePort = useStore((s) => s.activePort)
   const paletteSize = useStore((s) => s.paletteSize)
-  const reducerTo = useStore((s) => s.reducerTo)
   const addPart = useStore((s) => s.addPart)
   const setPaletteSize = useStore((s) => s.setPaletteSize)
-  const setReducerTo = useStore((s) => s.setReducerTo)
+  const [step, setStep] = useState<'size' | 'catalog'>(parts.length ? 'catalog' : 'size')
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen)
   const portSize = activePort ? model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.size : undefined
-  const curSize = parts.length ? portSize : paletteSize
+
+  // Выбрали свободный конец — каталог переключается на его размер
+  useEffect(() => {
+    if (!portSize) return
+    setPaletteSize(portSize)
+    setStep('catalog')
+  }, [portSize])
 
   const toggle = (k: string): void => {
     const next = { ...open, [k]: !(open[k] ?? true) }
@@ -104,41 +103,98 @@ export function Palette({ model }: { model: Model }) {
     }
   }
 
+  const chooseSize = (s: SizeId): void => {
+    setPaletteSize(s)
+    setStep('catalog')
+  }
+
+  if (step === 'size') {
+    return (
+      <aside className="palette">
+        <div className="step-title">
+          <span className="step-num">1</span>Размер трубы и фитингов
+        </div>
+        <div className="size-grid">
+          {SIZES.map((s) => {
+            const count = Object.values(FITTINGS).filter((d) => d.group !== 'common' && d.sizes.includes(s.id)).length
+            return (
+              <button key={s.id} className={`size-card${s.id === paletteSize ? ' on' : ''}`} onClick={() => chooseSize(s.id)}>
+                <span className="size-big">{sizeLabel(s.id)}</span>
+                <span className="size-sub">OD {s.od.toFixed(3)}"</span>
+                <span className="size-tags">
+                  <span className="tag">Sch 40</span>
+                  {s.dwv > 0 && <span className="tag dwv">DWV</span>}
+                </span>
+                <span className="size-count">{count} фит.</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="help">
+          <b>Как собирать</b>
+          <p>Выбери размер — откроется каталог фитингов этого размера. Деталь встаёт на выбранный (оранжевый) конец, следующий конец выбирается сам.</p>
+          <p>ЛКМ — вращать, ПКМ — двигать, колесо — зум. R — повернуть на 90°, Del — удалить, Ctrl+Z — отменить.</p>
+        </div>
+      </aside>
+    )
+  }
+
+  const size = paletteSize
   const q = query.trim().toLowerCase()
   const match = (d: FittingDef): boolean => !q || d.ru.toLowerCase().includes(q) || d.en.toLowerCase().includes(q) || (d.pn ?? '').toLowerCase().includes(q)
+  const inSize = (d: FittingDef): boolean => d.sizes.includes(size)
 
   const item = (kind: string) => {
     const d = FITTINGS[kind]
-    const ok = !curSize || fitsSize(d, curSize)
+    const extra = d.size2 ? d.size2.options(size).filter((x) => x !== size) : []
     return (
-      <button key={kind} className="kind" disabled={!ok} onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · Charlotte ${d.pn}` : ''}${d.key ? ` · клавиша ${d.key}` : ''}`}>
-        <KindIcon kind={kind} />
-        <span>{d.ru}</span>
-        {d.key && <kbd>{d.key}</kbd>}
-      </button>
+      <div key={kind} className="kind-row">
+        <button className="kind" onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · Charlotte ${d.pn}` : ''}${d.key ? ` · клавиша ${d.key}` : ''}`}>
+          <KindIcon kind={kind} />
+          <span>
+            {d.ru}
+            {d.pn && <small> #{d.pn}</small>}
+          </span>
+          {d.key && <kbd>{d.key}</kbd>}
+        </button>
+        {extra.length > 0 && (
+          <div className="chips">
+            {extra.map((x) => (
+              <button key={x} className="chip" onClick={() => addPart(kind, x)} title={`${sizeLabel(size)} × ${sizeLabel(x)}`}>
+                × {x}"
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     )
   }
 
   return (
     <aside className="palette">
-      <div className="section-title">Размер</div>
-      {parts.length === 0 ? (
-        <SizeSelect value={paletteSize} onChange={setPaletteSize} />
-      ) : (
-        <div className="hint">
-          {portSize ? (
-            <>
-              От выбранного конца: <b>{sizeLabel(portSize)}</b>
-            </>
-          ) : (
-            'Выбери зелёную точку — конец, к которому присоединять'
-          )}
+      <div className="step-title">
+        <span className="step-num">2</span>Каталог фитингов
+      </div>
+      <div className="size-head">
+        <span className="size-badge">{sizeLabel(size)}</span>
+        <div className="size-head-text">
+          <div>PVC Sch 40{sizeSpec(size).dwv > 0 ? ' · DWV' : ''}</div>
+          <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · Charlotte</div>
+        </div>
+        <button className="link" onClick={() => setStep('size')}>
+          Изменить
+        </button>
+      </div>
+      {parts.length > 0 && !portSize && <div className="hint">Выбери зелёную точку — конец, к которому присоединять</div>}
+      {portSize && portSize !== size && (
+        <div className="hint warn-box">
+          Выбран конец {sizeLabel(portSize)} — детали {sizeLabel(size)} встанут через переход, если он есть
         </div>
       )}
       <input className="search" placeholder="Поиск: тройник, wye, 2300…" value={query} onChange={(e) => setQuery(e.target.value)} />
       <div className="kinds">{match(FITTINGS.pipe) && item('pipe')}</div>
       {GROUPS.map((g) => {
-        const kinds = Object.keys(FITTINGS).filter((k) => FITTINGS[k].group === g.id && match(FITTINGS[k]))
+        const kinds = Object.keys(FITTINGS).filter((k) => FITTINGS[k].group === g.id && inSize(FITTINGS[k]) && match(FITTINGS[k]))
         if (!kinds.length) return null
         const cats = [...new Set(kinds.map((k) => FITTINGS[k].cat))]
         const gOpen = q ? true : open[g.id] ?? true
@@ -147,6 +203,7 @@ export function Palette({ model }: { model: Model }) {
             <button className="group-head" onClick={() => toggle(g.id)}>
               <span className="chev">{gOpen ? '▾' : '▸'}</span>
               {g.title}
+              <span className="count">{kinds.length}</span>
             </button>
             {gOpen &&
               cats.map((c) => {
@@ -165,14 +222,7 @@ export function Palette({ model }: { model: Model }) {
           </div>
         )
       })}
-      <div className="section-title">Второй размер (переходы)</div>
-      <SizeSelect value={reducerTo} onChange={setReducerTo} />
-      <div className="help">
-        <b>Как собирать</b>
-        <p>Выбери деталь — она встанет на оранжевый конец. Следующий конец выберется сам, так можно собирать цепочкой.</p>
-        <p>Зелёная точка — раструб или гладкий конец, синяя — резьба.</p>
-        <p>ЛКМ — вращать, ПКМ — двигать, колесо — зум. R — повернуть на 90°, Del — удалить, Ctrl+Z — отменить.</p>
-      </div>
+      {sizeSpec(size).dwv === 0 && !q && <div className="muted small">DWV-фитинги в размере {sizeLabel(size)} не выпускаются.</div>}
     </aside>
   )
 }
