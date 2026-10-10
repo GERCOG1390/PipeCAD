@@ -130,3 +130,4 @@ td.bad { color: #f87171; }
 .toolbar .sep { margin: 0 3px; flex-shrink: 0; }
 .toolbar .muted { white-space: nowrap; }
 .dim.drag { color: #0b1514; background: #fde68a; border-color: #f59e0b; font-weight: 700; font-size: 13px; }
+.wide.branch { margin-top: 0; border-style: dashed; }

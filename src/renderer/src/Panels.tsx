@@ -83,6 +83,9 @@ export function Palette({ model }: { model: Model }) {
   const paletteSize = useStore((s) => s.paletteSize)
   const addPart = useStore((s) => s.addPart)
   const setPaletteSize = useStore((s) => s.setPaletteSize)
+  const placing = useStore((s) => s.placing)
+  const newBranch = useStore((s) => s.newBranch)
+  const cancelPlacing = useStore((s) => s.cancelPlacing)
   const [step, setStep] = useState<'size' | 'catalog'>(parts.length ? 'catalog' : 'size')
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen)
@@ -187,7 +190,12 @@ export function Palette({ model }: { model: Model }) {
           Изменить
         </button>
       </div>
-      {parts.length > 0 && !portSize && <div className="hint">Выбери зелёную точку — конец, к которому присоединять</div>}
+      {parts.length > 0 && (
+        <button className={'wide branch' + (placing ? ' on' : '')} onClick={() => (placing ? cancelPlacing() : newBranch())}>
+          {placing ? '✕ Отменить установку' : '＋ Новая ветка (поставить отдельно)'}
+        </button>
+      )}
+      {parts.length > 0 && !portSize && !placing && <div className="hint">Выбери зелёную точку — конец, к которому присоединять, или начни новую ветку: выбери деталь и кликни на пол</div>}
       {portSize && portSize !== size && (
         <div className="hint warn-box">
           Выбран конец {sizeLabel(portSize)} — детали {sizeLabel(size)} встанут через переход, если он есть

@@ -101,6 +101,10 @@ export function App() {
       if (e.ctrlKey && e.code === 'KeyS') return (e.preventDefault(), void save(e.shiftKey))
       if (e.ctrlKey && e.code === 'KeyO') return (e.preventDefault(), void open())
       if (e.ctrlKey) return
+      if (s.placing) {
+        if (k === 'escape') return s.cancelPlacing()
+        if (e.code === 'KeyR') return s.turnPlacing(e.shiftKey ? -90 : 90)
+      }
       if ((k === 'delete' || k === 'backspace') && s.selectedEnv) return s.deleteEnv(s.selectedEnv)
       if ((k === 'delete' || k === 'backspace') && s.selectedId) return s.deletePart(s.selectedId)
       if (k === 'escape') return (s.select(null), s.selectEnv(null))

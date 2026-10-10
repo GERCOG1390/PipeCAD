@@ -12,6 +12,7 @@ import {
   DoubleSide,
   Group,
   Mesh,
+  Plane,
   Ray,
   LatheGeometry,
   MeshStandardMaterial,
@@ -26,20 +27,23 @@ import {
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Part, PathSeg, Shape, SizeId, V3, buildPart, hubR, sizeLabel, sizeSpec } from './catalog'
-import { Model, WorldPort, Xf, buildModel, portKey } from './geometry'
+import { Model, WorldPort, Xf, buildModel, computeTransforms, portKey } from './geometry'
+import { placementFor } from './placement'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { formatLength } from './units'
 
 const UP = new Vector3(0, 1, 0)
+// идёт установка детали или только что поставили (клик не должен ничего выбирать)
+export const busyPlacing = (): boolean => !!useStore.getState().placing || Date.now() - useStore.getState().placedAt < 400
 // Точка, куда смотрит камера — сюда ставятся новые объекты окружения
 export const viewTarget = new Vector3()
 const PVC = '#e8e8e1'
 
 // ---------- материалы (общие на все детали) ----------
 const mats = new Map<string, MeshStandardMaterial>()
-function mat(color: string, selected: boolean, o: { metal?: boolean; flat?: boolean } = {}): MeshStandardMaterial {
-  const key = `${color}|${selected}|${o.metal}|${o.flat}`
+function mat(color: string, selected: boolean, o: { metal?: boolean; flat?: boolean; ghost?: boolean } = {}): MeshStandardMaterial {
+  const key = `${color}|${selected}|${o.metal}|${o.flat}|${o.ghost}`
   let m = mats.get(key)
   if (!m) {
     m = new MeshStandardMaterial({
@@ -49,7 +53,10 @@ function mat(color: string, selected: boolean, o: { metal?: boolean; flat?: bool
       side: DoubleSide,
       flatShading: !!o.flat,
       emissive: selected ? '#0d9488' : '#000000',
-      emissiveIntensity: selected ? 0.35 : 0
+      emissiveIntensity: selected ? 0.35 : 0,
+      transparent: !!o.ghost,
+      opacity: o.ghost ? 0.55 : 1,
+      depthWrite: !o.ghost
     })
     mats.set(key, m)
   }
@@ -157,7 +164,7 @@ function printTexture(size: SizeId): CanvasTexture {
   return t
 }
 
-function PipeBody({ size, len, selected }: { size: SizeId; len: number; selected: boolean }) {
+function PipeBody({ size, len, selected, ghost }: { size: SizeId; len: number; selected: boolean; ghost?: boolean }) {
   const s = sizeSpec(size)
   const ro = s.od / 2
   const ri = ro - s.wall
@@ -176,7 +183,7 @@ function PipeBody({ size, len, selected }: { size: SizeId; len: number; selected
   useEffect(() => () => (body.dispose(), print.dispose(), tex.dispose()), [body, print, tex])
   return (
     <>
-      <mesh geometry={body} material={mat(PVC, selected)} quaternion={quatTo(new Vector3(0, 0, 1))} />
+      <mesh geometry={body} material={mat(PVC, selected, { ghost })} quaternion={quatTo(new Vector3(0, 0, 1))} raycast={ghost ? () => null : undefined} />
       <mesh geometry={print} position={[0, 0, len / 2]} quaternion={quatTo(new Vector3(0, 0, 1))}>
         <meshStandardMaterial map={tex} transparent roughness={0.4} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
       </mesh>
@@ -184,7 +191,7 @@ function PipeBody({ size, len, selected }: { size: SizeId; len: number; selected
   )
 }
 
-function PartMesh({ part, xf, open }: { part: Part; xf: Xf; open: WorldPort[] }) {
+function PartMesh({ part, xf, open, ghost }: { part: Part; xf: Xf; open: WorldPort[]; ghost?: boolean }) {
   const selected = useStore((s) => s.selectedId === part.id)
   const select = useStore((s) => s.select)
   const selectPort = useStore((s) => s.selectPort)
@@ -193,7 +200,7 @@ function PartMesh({ part, xf, open }: { part: Part; xf: Xf; open: WorldPort[] })
   useEffect(() => () => geos.forEach((g) => g.geom.dispose()), [geos])
   const pipe = built.shapes.find((s): s is Extract<Shape, { t: 'pipe' }> => s.t === 'pipe')
   const onClick = (e: ThreeEvent<MouseEvent>): void => {
-    if (e.delta > 4) return
+    if (e.delta > 4 || busyPlacing()) return
     // по метке конца (даже если она за деталью) кликаем в метку, а не в деталь
     if (e.intersections.some((i) => i.object.userData.portHit)) return
     e.stopPropagation()
@@ -213,9 +220,9 @@ function PartMesh({ part, xf, open }: { part: Part; xf: Xf; open: WorldPort[] })
   }
   return (
     <group position={xf.pos} quaternion={xf.quat} onClick={onClick}>
-      {pipe && <PipeBody size={pipe.size} len={pipe.len} selected={selected} />}
+      {pipe && <PipeBody size={pipe.size} len={pipe.len} selected={selected} ghost={ghost} />}
       {geos.map((g, i) => (
-        <mesh key={i} geometry={g.geom} position={g.pos} quaternion={g.quat} material={mat(g.color, selected, { metal: g.metal, flat: g.flat })} />
+        <mesh key={i} geometry={g.geom} position={g.pos} quaternion={g.quat} material={mat(g.color, selected, { metal: g.metal, flat: g.flat, ghost })} raycast={ghost ? () => null : undefined} />
       ))}
     </group>
   )
@@ -226,7 +233,7 @@ const setCursor = (c: string): void => {
 }
 
 // Метка свободного конца: видимое кольцо + невидимая крупная зона клика (не меньше ~20 px на экране)
-function PortMarker({ w, active, onPick }: { w: WorldPort; active: boolean; onPick: () => void }) {
+function PortMarker({ w, active, onPick, disabled }: { w: WorldPort; active: boolean; onPick: () => void; disabled?: boolean }) {
   const [hover, setHover] = useState(false)
   const hit = useRef<Mesh>(null)
   const { camera } = useThree()
@@ -257,6 +264,7 @@ function PortMarker({ w, active, onPick }: { w: WorldPort; active: boolean; onPi
       <mesh
         ref={hit}
         userData={{ portHit: true }}
+        raycast={disabled ? () => null : undefined}
         onClick={(e) => {
           if (e.delta > 4) return
           e.stopPropagation()
@@ -281,6 +289,7 @@ function PortMarker({ w, active, onPick }: { w: WorldPort; active: boolean; onPi
 
 function PortMarkers({ model }: { model: Model }) {
   const show = useStore((s) => s.showPorts)
+  const placing = useStore((s) => !!s.placing)
   const active = useStore((s) => s.activePort)
   const selectPort = useStore((s) => s.selectPort)
   const badPorts = model.ports.filter((w) => model.bad.includes(portKey(w.partId, w.index)))
@@ -299,6 +308,7 @@ function PortMarkers({ model }: { model: Model }) {
           w={w}
           active={!!active && portKey(active.id, active.port) === portKey(w.partId, w.index)}
           onPick={() => selectPort({ id: w.partId, port: w.index })}
+          disabled={placing}
         />
       ))}
     </>
@@ -486,6 +496,78 @@ function LengthHandles({ model }: { model: Model }) {
   )
 }
 
+// ---------- Установка новой ветки ----------
+const floorPlane = new Plane(new Vector3(0, 1, 0), 0)
+function PlacementLayer() {
+  const placing = useStore((s) => s.placing)
+  const turn = useStore((s) => s.placeTurn)
+  const paletteSize = useStore((s) => s.paletteSize)
+  const { camera, raycaster, pointer, scene, gl } = useThree()
+  const [hit, setHit] = useState<V3 | null>(null)
+  const hitRef = useRef<V3 | null>(null)
+
+  useFrame(() => {
+    if (!placing) return
+    raycaster.setFromCamera(pointer, camera)
+    const envRoot = scene.getObjectByName('env')
+    const hits = envRoot ? raycaster.intersectObject(envRoot, true) : []
+    let p: Vector3 | undefined = hits[0]?.point
+    if (!p) {
+      const q = new Vector3()
+      p = raycaster.ray.intersectPlane(floorPlane, q) ?? undefined
+    }
+    if (!p) return
+    const step = useStore.getState().snap
+    const v: V3 = [Math.round(p.x / step) * step, p.y, Math.round(p.z / step) * step]
+    const prev = hitRef.current
+    if (!prev || prev[0] !== v[0] || Math.abs(prev[1] - v[1]) > 1e-3 || prev[2] !== v[2]) {
+      hitRef.current = v
+      setHit(v)
+    }
+  })
+
+  // клик (без перетаскивания камеры) ставит деталь
+  useEffect(() => {
+    if (!placing) return
+    const el = gl.domElement
+    let down: [number, number] | null = null
+    const onDown = (e: PointerEvent): void => {
+      if (e.button === 0) down = [e.clientX, e.clientY]
+    }
+    const onUp = (e: PointerEvent): void => {
+      if (e.button !== 0 || !down) return
+      const moved = Math.hypot(e.clientX - down[0], e.clientY - down[1])
+      down = null
+      if (moved < 5 && hitRef.current && useStore.getState().placing) useStore.getState().placeAt(hitRef.current)
+    }
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointerup', onUp)
+    el.style.cursor = 'crosshair'
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      el.removeEventListener('pointerup', onUp)
+      el.style.cursor = ''
+    }
+  }, [placing, gl])
+
+  const ghost = useMemo(() => {
+    if (!placing || !hit) return null
+    const s = useStore.getState()
+    return placementFor(placing, hit, { id: '__ghost', size: paletteSize, reducerTo: s.reducerTo, lastPipe: s.lastPipe, turn })
+  }, [placing, hit, turn, paletteSize])
+  if (!placing || !ghost || !hit) return null
+  const xf = computeTransforms([ghost]).get(ghost.id)!
+  return (
+    <>
+      <PartMesh part={ghost} xf={xf} open={[]} ghost />
+      <mesh position={[hit[0], hit[1] + 0.02, hit[2]]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={12}>
+        <ringGeometry args={[1.6, 2, 40]} />
+        <meshBasicMaterial color="#f59e0b" depthTest={false} transparent opacity={0.9} side={DoubleSide} />
+      </mesh>
+    </>
+  )
+}
+
 function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
   return (
     <>
@@ -556,7 +638,7 @@ export function Scene({ model }: { model: Model }) {
       camera={{ position: [60, 45, 70], fov: 40, near: 0.05, far: 10000 }}
       dpr={[1, 2]}
       gl={{ antialias: true, toneMappingExposure: 0.95 }}
-      onPointerMissed={(e) => e.button === 0 && select(null)}
+      onPointerMissed={(e) => e.button === 0 && !busyPlacing() && select(null)}
     >
       <color attach="background" args={['#1a1e23']} />
       <EnvSetup />
@@ -584,6 +666,7 @@ export function Scene({ model }: { model: Model }) {
       <EnvLayer model={model} />
       <PortMarkers model={model} />
       <LengthHandles model={model} />
+      <PlacementLayer />
       {showDims && <DimLabels model={model} parts={parts} />}
       <OrbitControls makeDefault enableDamping={false} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />

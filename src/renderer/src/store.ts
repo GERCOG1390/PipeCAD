@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { DEFAULT_PIPE, FITTINGS, Part, PartKind, PortDef, SizeId, V3, defaultSize2, fittingDef, mates, portsOf, sizeIndex } from './catalog'
 import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, portKey } from './geometry'
+import { Placing, placementFor } from './placement'
 import { formatLength } from './units'
 
 // Короткий отрезок между двумя раструбами: обе глубины + 1/2" видимой трубы, с округлением до 1/4"
@@ -88,6 +89,9 @@ interface State {
   snap: number // шаг перемещения, дюймы
   dragStart: Snapshot | null
   moveSystem: boolean // показать стрелки перемещения всей системы труб
+  placing: Placing | null // режим установки новой ветки
+  placeTurn: number // поворот устанавливаемой детали вокруг вертикали
+  placedAt: number // время последней установки: тот же клик не должен ничего выбирать
   selectedId: string | null
   activePort: PortRef | null
   paletteSize: SizeId
@@ -111,6 +115,11 @@ interface State {
   setEnvMode: (m: EnvMode) => void
   setSnap: (n: number) => void
   setMoveSystem: (v: boolean) => void
+  startPlacing: (p: Placing) => void
+  cancelPlacing: () => void
+  turnPlacing: (deg: number) => void
+  placeAt: (at: V3) => void
+  newBranch: () => void
   beginDrag: () => void
   dragTo: (patch: { env?: EnvItem[]; parts?: Part[] }) => void
   endDrag: () => void
@@ -176,6 +185,9 @@ export const useStore = create<State>((set, get) => ({
   snap: 1,
   dragStart: null,
   moveSystem: false,
+  placing: null,
+  placeTurn: 0,
+  placedAt: 0,
   selectedId: null,
   activePort: null,
   paletteSize: '1-1/2',
@@ -217,6 +229,19 @@ export const useStore = create<State>((set, get) => ({
   setEnvMode: (envMode) => set({ envMode }),
   setSnap: (snap) => set({ snap }),
   setMoveSystem: (moveSystem) => set({ moveSystem }),
+  startPlacing: (placing) =>
+    set({ placing, selectedId: null, activePort: null, selectedEnv: null, message: 'Кликни на пол или поверхность, куда поставить деталь. R — повернуть, Esc — отмена' }),
+  cancelPlacing: () => set({ placing: null, message: null }),
+  turnPlacing: (deg) => set((s) => ({ placeTurn: (((s.placeTurn + deg) % 360) + 360) % 360 })),
+  placeAt: (at) => {
+    const { placing, paletteSize, reducerTo, lastPipe, placeTurn, parts } = get()
+    if (!placing) return
+    const part = placementFor(placing, at, { id: newId(), size: paletteSize, reducerTo, lastPipe, turn: placeTurn })
+    const next = [...parts, part]
+    get().commit(next)
+    set({ placing: null, placedAt: Date.now(), selectedId: part.id, activePort: firstOpen(next, part.id), message: null })
+  },
+  newBranch: () => set({ selectedId: null, activePort: null, selectedEnv: null, message: 'Новая ветка: выбери деталь в каталоге и кликни, куда её поставить' }),
   // Перетаскивание гизмо: живое обновление без истории, одна запись в историю по окончании
   beginDrag: () => set((s) => ({ dragStart: { parts: s.parts, env: s.env } })),
   dragTo: (patch) => set(patch),
@@ -232,6 +257,10 @@ export const useStore = create<State>((set, get) => ({
 
     const added: Part[] = []
     const notes: string[] = []
+    if (!parts.length && get().env.length) {
+      get().startPlacing({ kind, size2 })
+      return
+    }
     if (!parts.length) {
       if (!def.sizes.includes(part.size)) {
         part.size = [...def.sizes].sort((a, b) => Math.abs(sizeIndex(a) - sizeIndex(paletteSize)) - Math.abs(sizeIndex(b) - sizeIndex(paletteSize)))[0]
@@ -243,7 +272,7 @@ export const useStore = create<State>((set, get) => ({
       let target = activePort && isOpen(parts, activePort) ? activePort : null
       if (!target && selectedId) target = firstOpen(parts, selectedId)
       if (!target) {
-        set({ message: 'Сначала выбери открытый конец — зелёную точку на модели' })
+        get().startPlacing({ kind, size2 })
         return
       }
       let all = parts

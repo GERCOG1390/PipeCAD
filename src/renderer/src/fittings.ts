@@ -60,6 +60,8 @@ export interface FittingDef {
   sizes: SizeId[]
   size2?: { label: string; options: (s: SizeId) => SizeId[]; optional?: boolean; reversible?: boolean }
   build: (p: Part) => Built
+  // установка отдельной веткой: поворот (градусы, порядок YXZ) и «верх вровень с поверхностью» (локальная Z верхней плоскости)
+  place?: { rot: V3; flushTop?: (p: Part) => number }
   bom?: (p: Part) => { name: string; pn?: string }[]
 }
 
@@ -1325,6 +1327,7 @@ export const FITTINGS: Record<string, FittingDef> = {
     pn: '800',
     sizes: keysOf(DW.D_CLOSET),
     build: (p) => closetFlange(p.size, DW.D_CLOSET[p.size]!, false),
+    place: { rot: [-90, 0, 0], flushTop: (p) => DW.D_CLOSET[p.size]![1] },
     bom: (p) => [{ name: `4" x ${sizeLabel(p.size)} PVC DWV Closet Flange`, pn: '800' }]
   },
   closetAdj: {
@@ -1336,6 +1339,7 @@ export const FITTINGS: Record<string, FittingDef> = {
     pn: '811',
     sizes: keysOf(DW.D_CLOSET_ADJ),
     build: (p) => closetFlange(p.size, DW.D_CLOSET_ADJ[p.size]!, true),
+    place: { rot: [-90, 0, 0], flushTop: (p) => DW.D_CLOSET_ADJ[p.size]![1] },
     bom: (p) => [{ name: `4" x ${sizeLabel(p.size)} PVC DWV Closet Flange, Adjustable w/ Metal Ring`, pn: '811' }]
   }
 }

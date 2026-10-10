@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { Part, V3, sizeSpec } from './catalog'
 import { Board, EnvItem, Mat, Penetration, boardsOf, findPenetrations } from './environment'
 import { Model } from './geometry'
+import { busyPlacing } from './Scene'
 import { useStore } from './store'
 import { EnvLook, TILE, envMaterial } from './textures'
 
@@ -81,7 +82,7 @@ function EnvObject({ it }: { it: EnvItem }) {
   const snap = useStore((s) => s.snap)
   const [obj, setObj] = useState<Group | null>(null)
   const onPick = (e: ThreeEvent<MouseEvent>): void => {
-    if (e.delta > 4) return
+    if (e.delta > 4 || busyPlacing()) return
     e.stopPropagation()
     selectEnv(it.id)
   }
@@ -184,7 +185,7 @@ export function EnvLayer({ model }: { model: Model }) {
   while (root?.parent && byId.get(root.parent.id)) root = byId.get(root.parent.id)
   return (
     <>
-      {mode !== 'hidden' && env.map((it) => <EnvObject key={it.id} it={it} />)}
+      <group name="env">{mode !== 'hidden' && env.map((it) => <EnvObject key={it.id} it={it} />)}</group>
       {mode !== 'hidden' && <PenetrationMarks list={pens} />}
       {root && <SystemMover root={root} />}
     </>
