@@ -66,7 +66,8 @@ function SizeSelect({ value, onChange, only, disabled }: { value: SizeId; onChan
 
 const GROUPS: { id: Group; title: string }[] = [
   { id: 'pressure', title: 'Напорные Sch 40' },
-  { id: 'dwv', title: 'DWV — канализация' }
+  { id: 'dwv', title: 'DWV — канализация' },
+  { id: 'copper', title: 'Медь — пайка (NIBCO Wrot)' }
 ]
 
 function readOpen(): Record<string, boolean> {
@@ -89,6 +90,7 @@ export function Palette({ model }: { model: Model }) {
   const joining = useStore((s) => s.joining)
   const startJoin = useStore((s) => s.startJoin)
   const [step, setStep] = useState<'size' | 'catalog'>(parts.length ? 'catalog' : 'size')
+  const [mat, setMat] = useState<'pvc' | 'cu'>(sizeSpec(paletteSize).mat)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen)
   const portSize = activePort ? model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.size : undefined
@@ -110,26 +112,36 @@ export function Palette({ model }: { model: Model }) {
     }
   }
 
+  useEffect(() => setMat(sizeSpec(paletteSize).mat), [paletteSize])
   const chooseSize = (s: SizeId): void => {
     setPaletteSize(s)
     setStep('catalog')
   }
 
   if (step === 'size') {
+    void 0
     return (
       <aside className="palette">
         <div className="step-title">
-          <span className="step-num">1</span>Размер трубы и фитингов
+          <span className="step-num">1</span>Материал и размер
+        </div>
+        <div className="tabs mat-tabs">
+          <button className={mat === 'pvc' ? 'on' : ''} onClick={() => setMat('pvc')}>
+            PVC
+          </button>
+          <button className={mat === 'cu' ? 'on cu' : 'cu'} onClick={() => setMat('cu')}>
+            Медь (Copper)
+          </button>
         </div>
         <div className="size-grid">
-          {SIZES.map((s) => {
+          {SIZES.filter((s) => s.mat === mat).map((s) => {
             const count = Object.values(FITTINGS).filter((d) => d.group !== 'common' && d.sizes.includes(s.id)).length
             return (
               <button key={s.id} className={`size-card${s.id === paletteSize ? ' on' : ''}`} onClick={() => chooseSize(s.id)}>
                 <span className="size-big">{sizeLabel(s.id)}</span>
                 <span className="size-sub">OD {s.od.toFixed(3)}"</span>
                 <span className="size-tags">
-                  <span className="tag">Sch 40</span>
+                  {s.mat === 'cu' ? <span className="tag cu">Type L</span> : <span className="tag">Sch 40</span>}
                   {s.dwv > 0 && <span className="tag dwv">DWV</span>}
                 </span>
                 <span className="size-count">{count} фит.</span>
@@ -185,8 +197,8 @@ export function Palette({ model }: { model: Model }) {
       <div className="size-head">
         <span className="size-badge">{sizeLabel(size)}</span>
         <div className="size-head-text">
-          <div>PVC Sch 40{sizeSpec(size).dwv > 0 ? ' · DWV' : ''}</div>
-          <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · Charlotte</div>
+          <div>{sizeSpec(size).mat === 'cu' ? 'Медь Type L · пайка' : `PVC Sch 40${sizeSpec(size).dwv > 0 ? ' · DWV' : ''}`}</div>
+          <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · {sizeSpec(size).mat === 'cu' ? 'NIBCO' : 'Charlotte'}</div>
         </div>
         <button className="link" onClick={() => setStep('size')}>
           Изменить
@@ -239,7 +251,7 @@ export function Palette({ model }: { model: Model }) {
           </div>
         )
       })}
-      {sizeSpec(size).dwv === 0 && !q && <div className="muted small">DWV-фитинги в размере {sizeLabel(size)} не выпускаются.</div>}
+      {sizeSpec(size).dwv === 0 && sizeSpec(size).mat === 'pvc' && !q && <div className="muted small">DWV-фитинги в размере {sizeLabel(size)} не выпускаются.</div>}
     </aside>
   )
 }
@@ -518,7 +530,7 @@ export function BomPanel({ bom, pens }: { bom: Bom; pens: Penetration[] }) {
       {!empty && (
         <>
           <div className="muted small">
-            Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей){bom.threads ? ` · резьбовых: ${bom.threads} (лента/герметик)` : ''}
+            Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей){bom.solder ? ` · паек: ${bom.solder} (припой + флюс)` : ''}{bom.threads ? ` · резьбовых: ${bom.threads} (лента/герметик)` : ''}
           </div>
           <EnvBomSection pens={pens} />
           <button className="wide" onClick={exportCsv}>

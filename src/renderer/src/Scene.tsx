@@ -41,6 +41,9 @@ export const busyPlacing = (): boolean => !!useStore.getState().placing || Date.
 // Точка, куда смотрит камера — сюда ставятся новые объекты окружения
 export const viewTarget = new Vector3()
 const PVC = '#e8e8e1'
+const COPPER = '#c27a52'
+const COPPER_TUBE = '#b8714a'
+const isCopper = (s: SizeId): boolean => sizeSpec(s).mat === 'cu'
 
 // ---------- материалы (общие на все детали) ----------
 const mats = new Map<string, MeshStandardMaterial>()
@@ -49,9 +52,9 @@ function mat(color: string, selected: boolean, o: { metal?: boolean; flat?: bool
   let m = mats.get(key)
   if (!m) {
     m = new MeshStandardMaterial({
-      color: selected && color === PVC ? '#8fdcd3' : color,
-      roughness: o.metal ? 0.28 : 0.48,
-      metalness: o.metal ? 0.85 : 0,
+      color: selected && (color === PVC || color === COPPER || color === COPPER_TUBE) ? '#8fdcd3' : color,
+      roughness: o.metal ? 0.32 : 0.48,
+      metalness: o.metal ? 0.9 : 0,
       side: DoubleSide,
       flatShading: !!o.flat,
       emissive: selected ? '#0d9488' : '#000000',
@@ -154,10 +157,11 @@ function printTexture(size: SizeId): CanvasTexture {
   ctx.clearRect(0, 0, W, H)
   ctx.translate(W / 2, H)
   ctx.rotate(-Math.PI / 2)
-  ctx.fillStyle = '#22408a'
+  const cu = isCopper(size)
+  ctx.fillStyle = cu ? '#1d4ed8' : '#22408a'
   ctx.font = 'bold 34px Arial, sans-serif'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`CHARLOTTE®  PVC SCH 40  ${sizeLabel(size)}  ASTM D1785 / D2665  NSF-pw-dwv  MADE IN USA`, 40, 0)
+  ctx.fillText(cu ? `TYPE L  ${sizeLabel(size)}  COPPER WATER TUBE  ASTM B88  NSF-61  MADE IN USA` : `CHARLOTTE®  PVC SCH 40  ${sizeLabel(size)}  ASTM D1785 / D2665  NSF-pw-dwv  MADE IN USA`, 40, 0)
   t = new CanvasTexture(cv)
   t.colorSpace = SRGBColorSpace
   t.wrapT = RepeatWrapping
@@ -185,7 +189,7 @@ function PipeBody({ size, len, selected, ghost }: { size: SizeId; len: number; s
   useEffect(() => () => (body.dispose(), print.dispose(), tex.dispose()), [body, print, tex])
   return (
     <>
-      <mesh geometry={body} material={mat(PVC, selected, { ghost })} quaternion={quatTo(new Vector3(0, 0, 1))} raycast={ghost ? () => null : undefined} />
+      <mesh geometry={body} material={isCopper(size) ? mat(COPPER_TUBE, selected, { ghost, metal: true }) : mat(PVC, selected, { ghost })} quaternion={quatTo(new Vector3(0, 0, 1))} raycast={ghost ? () => null : undefined} />
       <mesh geometry={print} position={[0, 0, len / 2]} quaternion={quatTo(new Vector3(0, 0, 1))}>
         <meshStandardMaterial map={tex} transparent roughness={0.4} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
       </mesh>
@@ -198,6 +202,7 @@ function PartMesh({ part, xf, open, ghost }: { part: Part; xf: Xf; open: WorldPo
   const select = useStore((s) => s.select)
   const selectPort = useStore((s) => s.selectPort)
   const built = buildPart(part)
+  const cu = isCopper(part.size)
   const geos = useMemo(() => built.shapes.map(shapeGeo).filter((g): g is Geo => !!g), [built])
   useEffect(() => () => geos.forEach((g) => g.geom.dispose()), [geos])
   const pipe = built.shapes.find((s): s is Extract<Shape, { t: 'pipe' }> => s.t === 'pipe')
@@ -224,7 +229,7 @@ function PartMesh({ part, xf, open, ghost }: { part: Part; xf: Xf; open: WorldPo
     <group position={xf.pos} quaternion={xf.quat} onClick={onClick}>
       {pipe && <PipeBody size={pipe.size} len={pipe.len} selected={selected} ghost={ghost} />}
       {geos.map((g, i) => (
-        <mesh key={i} geometry={g.geom} position={g.pos} quaternion={g.quat} material={mat(g.color, selected, { metal: g.metal, flat: g.flat, ghost })} raycast={ghost ? () => null : undefined} />
+        <mesh key={i} geometry={g.geom} position={g.pos} quaternion={g.quat} material={cu && g.color === PVC ? mat(COPPER, selected, { metal: true, flat: g.flat, ghost }) : mat(g.color, selected, { metal: g.metal || g.color === '#c9a64a', flat: g.flat, ghost })} raycast={ghost ? () => null : undefined} />
       ))}
     </group>
   )

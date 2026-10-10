@@ -2,7 +2,8 @@
 // Размеры берутся из каталогов Charlotte Pipe (data/charlotte*.ts).
 import * as DW from './data/charlotteDwv'
 import * as PR from './data/charlottePressure'
-import { ALL_SIZES, DWV_SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeSpec } from './data/sizes'
+import * as NB from './data/nibcoCopper'
+import { ALL_SIZES, CU_SIZES, DWV_SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeSpec, threadSize } from './data/sizes'
 
 export type V3 = [number, number, number]
 export type PortKind = 'hub' | 'spigot' | 'fpt' | 'mpt' | 'slip'
@@ -49,7 +50,7 @@ export interface Part {
   tie?: { port: number; to: { id: string; port: number } } // соединение этого конца с концом другой ветки
 }
 
-export type Group = 'common' | 'pressure' | 'dwv'
+export type Group = 'common' | 'pressure' | 'dwv' | 'copper'
 export interface FittingDef {
   ru: string
   en: string
@@ -81,12 +82,16 @@ export const arcEnd = (s: Extract<PathSeg, { t: 'arc' }>): V3 =>
 
 // ---------- размеры ----------
 const sp = sizeSpec
-export const hubWall = (s: SizeId, fam: Fam): number => (fam === 'd' && sp(s).dwvWall ? sp(s).dwvWall : pressureHubWall(s))
+// у медного фитинга раструб тонкий, корпус того же диаметра, что раструб
+const cuWall = (s: SizeId): number => Math.max(0.035, sp(s).wall * 1.1)
+export const hubWall = (s: SizeId, fam: Fam): number => (sp(s).mat === 'cu' ? cuWall(s) : fam === 'd' && sp(s).dwvWall ? sp(s).dwvWall : pressureHubWall(s))
 export const hubR = (s: SizeId, fam: Fam): number => sp(s).od / 2 + hubWall(s, fam)
-export const bodyR = (s: SizeId, fam: Fam): number => sp(s).od / 2 + hubWall(s, fam) * 0.45
+export const bodyR = (s: SizeId, fam: Fam): number => sp(s).od / 2 + hubWall(s, fam) * (sp(s).mat === 'cu' ? 1 : 0.45)
 const sockDepth = (s: SizeId, fam: Fam): number => (fam === 'd' ? sp(s).dwv : sp(s).socket)
 // длина резьбы NPT (приблизительно L2 по ASME B1.20.1)
-const NPT: Record<SizeId, number> = { '1/2': 0.53, '3/4': 0.55, '1': 0.68, '1-1/4': 0.71, '1-1/2': 0.72, '2': 0.76, '2-1/2': 1.14, '3': 1.2, '4': 1.3, '6': 1.4 }
+const NPT_T: Partial<Record<SizeId, number>> = { '1/2': 0.53, '3/4': 0.55, '1': 0.68, '1-1/4': 0.71, '1-1/2': 0.72, '2': 0.76, '2-1/2': 1.14, '3': 1.2, '4': 1.3, '6': 1.4 }
+// длина резьбы по номиналу (у медных — по резьбовому номиналу)
+const NPT = new Proxy(NPT_T as Record<SizeId, number>, { get: (t, k: string) => t[k as SizeId] ?? t[threadSize(k as SizeId)] ?? 0.55 })
 
 // ---------- порты ----------
 const hub = (pos: V3, dir: V3, size: SizeId, fam: Fam, o: Partial<PortDef> = {}): PortDef => ({ pos, dir, size, kind: 'hub', depth: sockDepth(size, fam), fam, ...o })
@@ -117,6 +122,11 @@ function hubProfile(p: PortDef): [number, number][] {
   const c = 0.02 + s.od * 0.012
   const lip = 0.01 + s.od * 0.007
   const tap = 0.08 + s.od * 0.06
+  if (s.mat === 'cu' && p.kind === 'hub') {
+    // медный раструб: гладкий, с лёгким раструбом на входе, без бурта
+    const fl = 0.012 + s.od * 0.006
+    return [[ri, -tap - 0.05], [ri, 0], [o, 0], [o, face - c], [o + fl, face], [R + fl * 0.6, face], [R + fl, face - c], [R, face - c * 3], [R, -tap - 0.05]]
+  }
   const inner: [number, number][] =
     p.kind === 'fpt' ? sawtooth(o, o - 0.6 * pitchOf(p.size), 0, face - c, pitchOf(p.size)) : [[o, 0], [o, face - c]]
   return [
@@ -229,6 +239,24 @@ const pairOpts = (m: Map<string, unknown>, main: SizeId, side: 'a' | 'b' = 'a'):
   [...m.keys()].map((k) => k.split('|') as [SizeId, SizeId]).filter((p) => (side === 'a' ? p[0] : p[1]) === main).map((p) => (side === 'a' ? p[1] : p[0]))
 const incrPartners = (s: SizeId): SizeId[] => [...pairOpts(DW.D_INCREASER, s, 'a'), ...pairOpts(DW.D_INCREASER, s, 'b')]
 const smaller = (s: SizeId, pool: SizeId[]): SizeId[] => pool.filter((x) => sizeIndex(x) < sizeIndex(s))
+const cuKeys = (t: object): SizeId[] => CU_SIZES.filter((s) => s in t)
+const cuRedPartners = (s: SizeId): SizeId[] => [...pairOpts(NB.CU_REDUCER, s, 'a'), ...pairOpts(NB.CU_REDUCER, s, 'b')]
+const BRASS = '#c9a64a'
+
+// Медное колено: C — от оси до упора; street: B — от оси до торца гладкого (Ftg) конца
+function cuBend(size: SizeId, angDeg: number, Cc: number, f: number, B?: number): Built {
+  const ang = (angDeg * Math.PI) / 180
+  const u = outDir(ang)
+  const br = bodyR(size, 'p')
+  const face = sp(size).socket + 0.04
+  if (B === undefined) return finalize({ ports: [hub(mul(NZ, Cc), NZ, size, 'p', { face }), hub(mul(u, Cc), u, size, 'p', { face })], shapes: [tube(br, ...bendPath(ang, Cc, Cc, f))] })
+  const stub = Math.min(sp(size).socket + 0.05, B * 0.8)
+  return finalize({
+    ports: [spig(mul(NZ, B), NZ, size, 'p', stub), hub(mul(u, Cc), u, size, 'p', { face })],
+    shapes: [tube(br, ...bendPath(ang, Math.max(Cc, B - stub), Cc, f))]
+  })
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -305,6 +333,7 @@ function capBuilt(size: SizeId, fam: Fam, L: number, S: number, threaded: boolea
 
 const P = 'pressure'
 const D = 'dwv'
+const CU = 'copper'
 
 export const FITTINGS: Record<string, FittingDef> = {
   pipe: {
@@ -314,13 +343,250 @@ export const FITTINGS: Record<string, FittingDef> = {
     cat: 'Труба',
     icon: 'pipe',
     key: 'P',
-    sizes: PRESSURE_SIZES,
+    sizes: [...PRESSURE_SIZES, ...CU_SIZES],
     build: (p) => ({
       ports: [spig(O, NZ, p.size, 'p', 0, { bare: true }), spig([0, 0, p.length ?? DEFAULT_PIPE], Z, p.size, 'p', 0, { bare: true })],
       shapes: [{ t: 'pipe', size: p.size, len: p.length ?? DEFAULT_PIPE }]
     }),
-    bom: (p) => [{ name: `${sizeLabel(p.size)} PVC Sch 40 Pipe` }]
+    bom: (p) => [{ name: sp(p.size).mat === 'cu' ? `${sizeLabel(p.size)} Type L Copper Tube (ASTM B88)` : `${sizeLabel(p.size)} PVC Sch 40 Pipe` }]
   },
+  // ----------------------------- МЕДЬ (NIBCO Wrot, пайка) -----------------------------
+  cu90: {
+    ru: 'Колено 90°',
+    en: '90° Elbow C x C',
+    group: CU,
+    cat: 'Колена',
+    icon: 'ell90',
+    pn: '607',
+    sizes: cuKeys(NB.CU_90),
+    build: (p) => cuBend(p.size, 90, NB.CU_90[p.size]![0], 0.85)
+  },
+  cu90lr: {
+    ru: 'Колено 90° длинное',
+    en: '90° Elbow Long Radius C x C',
+    group: CU,
+    cat: 'Колена',
+    icon: 'long90',
+    pn: '607-LT',
+    sizes: cuKeys(NB.CU_90_LR),
+    build: (p) => cuBend(p.size, 90, NB.CU_90_LR[p.size]![0], 0.95)
+  },
+  cu90st: {
+    ru: 'Колено 90° street (Ftg × C)',
+    en: '90° Fitting Elbow Ftg x C',
+    group: CU,
+    cat: 'Колена',
+    icon: 'st90',
+    pn: '607-2',
+    sizes: cuKeys(NB.CU_90_ST),
+    build: (p) => {
+      const [B, Cc] = NB.CU_90_ST[p.size]!
+      return cuBend(p.size, 90, Cc, 0.85, B)
+    }
+  },
+  cu45: {
+    ru: 'Колено 45°',
+    en: '45° Elbow C x C',
+    group: CU,
+    cat: 'Колена',
+    icon: 'ell45',
+    pn: '606',
+    sizes: cuKeys(NB.CU_45),
+    build: (p) => cuBend(p.size, 45, NB.CU_45[p.size]![0], 0.8)
+  },
+  cu45st: {
+    ru: 'Колено 45° street (Ftg × C)',
+    en: '45° Fitting Elbow Ftg x C',
+    group: CU,
+    cat: 'Колена',
+    icon: 'st45',
+    pn: '606-2',
+    sizes: cuKeys(NB.CU_45_ST),
+    build: (p) => {
+      const [B, Cc] = NB.CU_45_ST[p.size]!
+      return cuBend(p.size, 45, Cc, 0.8, B)
+    }
+  },
+  cuTee: {
+    ru: 'Тройник',
+    en: 'Tee C x C x C',
+    group: CU,
+    cat: 'Тройники',
+    icon: 'tee',
+    pn: '611',
+    sizes: cuKeys(NB.CU_TEE),
+    size2: { label: 'Размер отвода', optional: true, options: (s) => [s, ...pairOpts(NB.CU_TEE_RED, s)] },
+    build: (p) => {
+      const s = p.size
+      const b = p.size2 ?? s
+      const red = b !== s ? NB.CU_TEE_RED.get(`${s}|${b}`) : undefined
+      const [Cc, G] = red ?? NB.CU_TEE[s]!
+      return teeLike(s, 'p', Cc, Cc, [{ dir: X, G, size: b }])
+    },
+    bom: (p) => {
+      const b = p.size2 && p.size2 !== p.size ? p.size2 : undefined
+      return [{ name: b ? `${sizeLabel(p.size)} x ${sizeLabel(p.size)} x ${sizeLabel(b)} Wrot Copper Tee C x C x C` : `${sizeLabel(p.size)} Wrot Copper Tee C x C x C`, pn: '611' }]
+    }
+  },
+  cuCross: {
+    ru: 'Крестовина (литая)',
+    en: 'Cross C x C x C x C - Cast',
+    group: CU,
+    cat: 'Тройники',
+    icon: 'cross',
+    pn: '735',
+    sizes: cuKeys(NB.CU_CROSS),
+    build: (p) => {
+      const A = NB.CU_CROSS[p.size]![0]
+      return teeLike(p.size, 'p', A, A, [{ dir: X, G: A, size: p.size }, { dir: NX, G: A, size: p.size }])
+    }
+  },
+  cuCoupling: {
+    ru: 'Муфта (с упором)',
+    en: 'Coupling with Dimpled Tube Stop C x C',
+    group: CU,
+    cat: 'Муфты и адаптеры',
+    icon: 'coupling',
+    pn: '600-DS',
+    sizes: cuKeys(NB.CU_COUPLING),
+    build: (p) => {
+      const A = NB.CU_COUPLING[p.size]![0]
+      const f = sp(p.size).socket + 0.04
+      return coaxial([hub([0, 0, -A / 2], NZ, p.size, 'p', { face: f }), hub([0, 0, A / 2], Z, p.size, 'p', { face: f })], [])
+    }
+  },
+  cuReducer: {
+    ru: 'Муфта переходная',
+    en: 'Reducing Coupling C x C',
+    group: CU,
+    cat: 'Муфты и адаптеры',
+    icon: 'reducer',
+    pn: '600',
+    sizes: CU_SIZES.filter((s) => cuRedPartners(s).length),
+    size2: { label: 'Второй размер', reversible: true, options: (s) => cuRedPartners(s) },
+    build: (p) => {
+      const a = p.size
+      const b = p.size2 ?? cuRedPartners(a)[0]
+      const [big, small] = sizeIndex(a) > sizeIndex(b) ? [a, b] : [b, a]
+      const A = NB.CU_REDUCER.get(`${big}|${small}`)?.[0] ?? 0.4
+      const zA = -A / 2
+      const zB = A / 2
+      return coaxial(
+        [hub([0, 0, zA], NZ, a, 'p'), hub([0, 0, zB], Z, b, 'p')],
+        [lathe(O, Z, [[sp(a).od / 2 - sp(a).wall, zA], [hubR(a, 'p'), zA - 0.02], [hubR(b, 'p'), zB + 0.02], [sp(b).od / 2 - sp(b).wall, zB]])]
+      )
+    },
+    bom: (p) => {
+      const b = p.size2 ?? p.size
+      const [big, small] = sizeIndex(p.size) > sizeIndex(b) ? [p.size, b] : [b, p.size]
+      return [{ name: `${sizeLabel(big)} x ${sizeLabel(small)} Wrot Copper Reducing Coupling C x C`, pn: '600' }]
+    }
+  },
+  cuUnion: {
+    ru: 'Разъёмная муфта (union)',
+    en: 'Union C x C',
+    group: CU,
+    cat: 'Муфты и адаптеры',
+    icon: 'union',
+    pn: '633-W',
+    sizes: cuKeys(NB.CU_UNION),
+    build: (p) => {
+      const s = p.size
+      const A = NB.CU_UNION[s]![0]
+      const R = hubR(s, 'p')
+      const f = sp(s).socket + 0.06
+      return coaxial(
+        [hub([0, 0, -A / 2], NZ, s, 'p', { face: f }), hub([0, 0, A / 2], Z, s, 'p', { face: f })],
+        [
+          { t: 'prism', at: [0, 0, -A / 2 - f * 0.45], dir: Z, sides: 6, r: R * 1.55, h: A + f * 0.9, color: BRASS },
+          lathe([0, 0, A / 2 + f * 0.45], Z, [[R * 1.05, 0], [R * 1.3, 0], [R * 1.3, f * 0.4], [R * 1.05, f * 0.4]], { color: BRASS, metal: true })
+        ]
+      )
+    }
+  },
+  cuFa: {
+    ru: 'Адаптер FPT (female)',
+    en: 'Adapter C x F',
+    group: CU,
+    cat: 'Муфты и адаптеры',
+    icon: 'fa',
+    pn: '603',
+    sizes: cuKeys(NB.CU_FA),
+    build: (p) => {
+      const s = p.size
+      const th = threadSize(s)
+      const A = NB.CU_FA[s]![0]
+      const T = Math.min(NPT[th] ?? 0.55, A - 0.1)
+      const Rh = sp(th).od / 2 + 0.06 + sp(th).od * 0.04
+      return finalize({
+        ports: [hub(O, NZ, s, 'p'), fpt([0, 0, A - T], Z, th, 'p', T, { face: T, R: Rh, bare: true })],
+        shapes: [
+          lathe(O, Z, [[sp(s).od / 2, 0], [hubR(s, 'p'), 0], [Rh * 0.98, A - T - 0.05], [sp(th).od / 2 - 0.02, A - T - 0.05]]),
+          { t: 'prism', at: [0, 0, A - T - 0.05], dir: Z, sides: 6, r: Rh * 1.12, h: T + 0.05 },
+          lathe([0, 0, A - T], Z, [[sp(th).od / 2 - 0.6 * pitchOf(th) - 0.02, -0.02], ...sawtooth(sp(th).od / 2, sp(th).od / 2 - 0.6 * pitchOf(th), 0, T, pitchOf(th)), [sp(th).od / 2 + 0.02, T + 0.002]])
+        ]
+      })
+    },
+    bom: (p) => [{ name: `${sizeLabel(p.size)} Wrot Copper Adapter C x F (FPT)`, pn: '603' }]
+  },
+  cuMa: {
+    ru: 'Адаптер MPT (male)',
+    en: 'Adapter C x M',
+    group: CU,
+    cat: 'Муфты и адаптеры',
+    icon: 'ma',
+    pn: '604',
+    sizes: cuKeys(NB.CU_MA),
+    build: (p) => {
+      const s = p.size
+      const th = threadSize(s)
+      const B = NB.CU_MA[s]![0]
+      const T = Math.min(NPT[th] ?? 0.55, B - 0.08)
+      return finalize({
+        ports: [hub(O, NZ, s, 'p'), mpt([0, 0, B], Z, th, 'p', T)],
+        shapes: [lathe(O, Z, [[sp(s).od / 2, 0], [hubR(s, 'p'), 0], [hubR(s, 'p'), B - T], [sp(th).od / 2 - 0.05, B - T]])]
+      })
+    },
+    bom: (p) => [{ name: `${sizeLabel(p.size)} Wrot Copper Adapter C x M (MPT)`, pn: '604' }]
+  },
+  cuCap: {
+    ru: 'Заглушка',
+    en: 'Tube Cap C',
+    group: CU,
+    cat: 'Заглушки и арматура',
+    icon: 'cap',
+    pn: '617',
+    sizes: cuKeys(NB.CU_CAP),
+    build: (p) => {
+      const N = NB.CU_CAP[p.size]![0]
+      const S = sp(p.size).socket
+      return capBuilt(p.size, 'p', S + N + 0.06, S, false)
+    }
+  },
+  cuValve: {
+    ru: 'Шаровый кран (пайка)',
+    en: 'Ball Valve Sweat x Sweat (Lead-Free Brass)',
+    group: CU,
+    cat: 'Заглушки и арматура',
+    icon: 'valve',
+    sizes: CU_SIZES.slice(0, 6),
+    build: (p) => {
+      const s = p.size
+      const od = sp(s).od
+      const g = od * 0.95 + 0.35
+      const R = hubR(s, 'p')
+      return finalize({
+        ports: [hub([0, 0, -g], NZ, s, 'p', { face: sp(s).socket + 0.12 }), hub([0, 0, g], Z, s, 'p', { face: sp(s).socket + 0.12 })],
+        shapes: [
+          { t: 'prism', at: [0, 0, -g + 0.05], dir: Z, sides: 8, r: R * 1.75, h: g * 2 - 0.1, color: BRASS },
+          lathe(O, Y, [[R * 0.35, 0], [R * 0.35, R * 2.3], [0.001, R * 2.3]], { color: BRASS, metal: true }),
+          { t: 'box', at: [R * 1.8, R * 2.45, 0], dir: Y, size: [R * 5, R * 0.35, R * 0.9], color: '#c8352e' }
+        ]
+      })
+    },
+    bom: (p) => [{ name: `${sizeLabel(p.size)} Lead-Free Brass Ball Valve Sweat x Sweat` }]
+  },
+
 
   // ----------------------------- НАПОРНЫЕ Sch 40 -----------------------------
   elbow90: {
@@ -1385,7 +1651,7 @@ export const portsOf = (p: Part): PortDef[] => buildPart(p).ports
 export function bomLines(p: Part): { name: string; pn?: string }[] {
   const def = fittingDef(p.kind)
   if (def.bom) return def.bom(p)
-  const fam = def.group === 'dwv' ? 'PVC DWV' : 'PVC Sch 40'
+  const fam = def.group === 'dwv' ? 'PVC DWV' : def.group === 'copper' ? 'Wrot Copper' : 'PVC Sch 40'
   const pn = def.group === 'pressure' ? (pressurePn(p.kind, p.size) ?? def.pn) : def.pn
   return [{ name: `${sizeLabel(p.size)} ${fam} ${def.en}`, pn }]
 }

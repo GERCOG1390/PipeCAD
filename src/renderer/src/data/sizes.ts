@@ -2,7 +2,11 @@
 // Трубы: ASTM D1785 Sch 40. Раструбы напорных фитингов: ASTM D2466 (Charlotte DC-PR),
 // раструбы DWV: ASTM D2665 (Charlotte DC-DWV, Hub dimensions).
 
-export type SizeId = '1/2' | '3/4' | '1' | '1-1/4' | '1-1/2' | '2' | '2-1/2' | '3' | '4' | '6'
+export type PvcSizeId = '1/2' | '3/4' | '1' | '1-1/4' | '1-1/2' | '2' | '2-1/2' | '3' | '4' | '6'
+// Медь (номинальный размер водяной трубы): отдельные id, чтобы медь 1/2" (OD 5/8") не стыковалась с PVC 1/2"
+export type CuSizeId = 'cu1/2' | 'cu3/4' | 'cu1' | 'cu1-1/4' | 'cu1-1/2' | 'cu2' | 'cu2-1/2' | 'cu3' | 'cu4'
+export type SizeId = PvcSizeId | CuSizeId
+export type Material = 'pvc' | 'cu'
 
 export interface SizeSpec {
   id: SizeId
@@ -12,25 +16,42 @@ export interface SizeSpec {
   dwv: number // глубина раструба DWV (0 — DWV в этом размере нет)
   dwvWall: number // стенка раструба DWV
   tpi: number // NPT: ниток на дюйм
+  mat: Material
 }
 
 export const SIZES: SizeSpec[] = [
-  { id: '1/2', od: 0.84, wall: 0.109, socket: 0.688, dwv: 0, dwvWall: 0, tpi: 14 },
-  { id: '3/4', od: 1.05, wall: 0.113, socket: 0.719, dwv: 0, dwvWall: 0, tpi: 14 },
-  { id: '1', od: 1.315, wall: 0.133, socket: 0.875, dwv: 0, dwvWall: 0, tpi: 11.5 },
-  { id: '1-1/4', od: 1.66, wall: 0.14, socket: 0.938, dwv: 0.687, dwvWall: 0.156, tpi: 11.5 },
-  { id: '1-1/2', od: 1.9, wall: 0.145, socket: 1.094, dwv: 0.687, dwvWall: 0.156, tpi: 11.5 },
-  { id: '2', od: 2.375, wall: 0.154, socket: 1.156, dwv: 0.75, dwvWall: 0.156, tpi: 11.5 },
-  { id: '2-1/2', od: 2.875, wall: 0.203, socket: 1.75, dwv: 0, dwvWall: 0, tpi: 8 },
-  { id: '3', od: 3.5, wall: 0.216, socket: 1.875, dwv: 1.5, dwvWall: 0.218, tpi: 8 },
-  { id: '4', od: 4.5, wall: 0.237, socket: 2.0, dwv: 1.75, dwvWall: 0.25, tpi: 8 },
-  { id: '6', od: 6.625, wall: 0.28, socket: 3.0, dwv: 3.0, dwvWall: 0.281, tpi: 8 }
+  { id: '1/2', od: 0.84, wall: 0.109, socket: 0.688, dwv: 0, dwvWall: 0, tpi: 14, mat: 'pvc' },
+  { id: '3/4', od: 1.05, wall: 0.113, socket: 0.719, dwv: 0, dwvWall: 0, tpi: 14, mat: 'pvc' },
+  { id: '1', od: 1.315, wall: 0.133, socket: 0.875, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'pvc' },
+  { id: '1-1/4', od: 1.66, wall: 0.14, socket: 0.938, dwv: 0.687, dwvWall: 0.156, tpi: 11.5, mat: 'pvc' },
+  { id: '1-1/2', od: 1.9, wall: 0.145, socket: 1.094, dwv: 0.687, dwvWall: 0.156, tpi: 11.5, mat: 'pvc' },
+  { id: '2', od: 2.375, wall: 0.154, socket: 1.156, dwv: 0.75, dwvWall: 0.156, tpi: 11.5, mat: 'pvc' },
+  { id: '2-1/2', od: 2.875, wall: 0.203, socket: 1.75, dwv: 0, dwvWall: 0, tpi: 8, mat: 'pvc' },
+  { id: '3', od: 3.5, wall: 0.216, socket: 1.875, dwv: 1.5, dwvWall: 0.218, tpi: 8, mat: 'pvc' },
+  { id: '4', od: 4.5, wall: 0.237, socket: 2.0, dwv: 1.75, dwvWall: 0.25, tpi: 8, mat: 'pvc' },
+  { id: '6', od: 6.625, wall: 0.28, socket: 3.0, dwv: 3.0, dwvWall: 0.281, tpi: 8, mat: 'pvc' },
+  // Медная труба ASTM B88 Type L (OD = номинал + 1/8"), глубина пайки — NIBCO, Chart 1 «Solder Cup Depth»
+  { id: 'cu1/2', od: 0.625, wall: 0.04, socket: 0.5, dwv: 0, dwvWall: 0, tpi: 14, mat: 'cu' },
+  { id: 'cu3/4', od: 0.875, wall: 0.045, socket: 0.75, dwv: 0, dwvWall: 0, tpi: 14, mat: 'cu' },
+  { id: 'cu1', od: 1.125, wall: 0.05, socket: 0.91, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'cu' },
+  { id: 'cu1-1/4', od: 1.375, wall: 0.055, socket: 0.97, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'cu' },
+  { id: 'cu1-1/2', od: 1.625, wall: 0.06, socket: 1.09, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'cu' },
+  { id: 'cu2', od: 2.125, wall: 0.07, socket: 1.34, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'cu' },
+  { id: 'cu2-1/2', od: 2.625, wall: 0.08, socket: 1.47, dwv: 0, dwvWall: 0, tpi: 8, mat: 'cu' },
+  { id: 'cu3', od: 3.125, wall: 0.09, socket: 1.66, dwv: 0, dwvWall: 0, tpi: 8, mat: 'cu' },
+  { id: 'cu4', od: 4.125, wall: 0.11, socket: 2.16, dwv: 0, dwvWall: 0, tpi: 8, mat: 'cu' }
 ]
 
 const BY_ID = new Map(SIZES.map((s) => [s.id, s]))
 export const sizeSpec = (id: SizeId): SizeSpec => BY_ID.get(id)!
 export const sizeIndex = (id: SizeId): number => SIZES.findIndex((s) => s.id === id)
-export const sizeLabel = (id: SizeId): string => `${id}"`
+export const nominal = (id: SizeId): string => id.replace(/^cu/, '')
+export const sizeLabel = (id: SizeId): string => `${nominal(id)}"`
+export const isCu = (id: SizeId): boolean => id.startsWith('cu')
+export const CU_SIZES: SizeId[] = SIZES.filter((s) => s.mat === 'cu').map((s) => s.id)
+export const PVC_SIZES: SizeId[] = SIZES.filter((s) => s.mat === 'pvc').map((s) => s.id)
+// Резьба NPT меди и PVC одного номинала совместима: резьбовой конец медного адаптера имеет PVC-номинал
+export const threadSize = (id: SizeId): PvcSizeId => nominal(id) as PvcSizeId
 export const ALL_SIZES: SizeId[] = SIZES.map((s) => s.id)
 export const DWV_SIZES: SizeId[] = SIZES.filter((s) => s.dwv > 0).map((s) => s.id)
 

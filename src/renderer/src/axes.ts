@@ -36,6 +36,11 @@ export function takeoffOf(kind: string, size: SizeId): number | null {
 export function fittingFor(turn: number, size: SizeId, dwv: boolean): Guide['fit'] {
   const k = ANGLE_KINDS.find((x) => Math.abs(x.angle - turn) < 1.5)
   if (!k) return undefined
+  if (size.startsWith('cu')) {
+    const ck = k.angle === 90 ? 'cu90' : k.angle === 45 ? 'cu45' : undefined
+    const t = ck ? takeoffOf(ck, size) : null
+    return ck && t !== null ? { kind: ck, ru: k.ru, takeoff: t } : undefined
+  }
   const kind = (dwv ? k.dwv : k.pressure) ?? (dwv ? undefined : k.dwv)
   if (!kind) return undefined
   const t = takeoffOf(kind, size)

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DEFAULT_PIPE, FITTINGS, Part, PartKind, PortDef, SizeId, V3, defaultSize2, fittingDef, mates, portsOf, sizeIndex } from './catalog'
+import { DEFAULT_PIPE, FITTINGS, isCu, Part, PartKind, PortDef, SizeId, V3, defaultSize2, fittingDef, mates, portsOf, sizeIndex } from './catalog'
 import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, computeTransforms, portKey } from './geometry'
 import { Euler } from 'three'
@@ -19,6 +19,9 @@ function sizeCandidates(kind: string, portSize: SizeId, wanted: SizeId): { size:
   const def = fittingDef(kind)
   const out: { size: SizeId; size2?: SizeId }[] = []
   if (def.sizes.includes(portSize)) out.push({ size: portSize, size2: defaultSize2(kind, portSize, wanted) })
+  // резьба: медный адаптер того же номинала (NPT совместима)
+  const cuAlt = ('cu' + portSize) as SizeId
+  if (!isCu(portSize) && def.sizes.includes(cuAlt)) out.push({ size: cuAlt, size2: defaultSize2(kind, cuAlt, wanted) })
   if (def.size2) {
     const mains = def.sizes.filter((s) => s !== portSize && def.size2!.options(s).includes(portSize))
     mains.sort((a, b) => (a === wanted ? -1 : b === wanted ? 1 : 0))
@@ -39,14 +42,24 @@ function famNear(parts: Part[], id: string, kind: string): 'p' | 'd' {
 }
 
 // Переходная деталь, когда концы не стыкуются: раструб-раструб, труба-труба, резьба
-function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: number }, famHint: 'p' | 'd'): { part: Part; free: number; note: string } | null {
-  const base = { id: newId(), size: to.size, roll: 0, parent: target }
+function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: number }, famHint: 'p' | 'd', wantCu = false): { part: Part; free: number; note: string } | null {
+  const cu = isCu(to.size) || (wantCu && (to.kind === 'fpt' || to.kind === 'mpt'))
+  const base = { id: newId(), size: (cu && !isCu(to.size) ? 'cu' + to.size : to.size) as SizeId, roll: 0, parent: target }
   const pick = (a: string, b: string): string => (fittingDef(a).sizes.includes(to.size) ? a : b)
   let part: Part
   let note: string
   if (to.kind === 'hub') {
     part = { ...base, kind: 'pipe', attach: 0, length: nippleLength(to.depth, nextDepth) }
     note = `раструб в раструб не клеится — добавил ниппель ${formatLength(part.length!)}`
+  } else if (to.kind === 'spigot' && cu) {
+    part = { ...base, kind: 'cuCoupling', attach: 0 }
+    note = 'труба к трубе — добавил медную муфту'
+  } else if (to.kind === 'fpt' && cu) {
+    part = { ...base, kind: 'cuMa', attach: 0 }
+    note = 'в резьбу FPT — добавил медный адаптер MPT (604)'
+  } else if (to.kind === 'mpt' && cu) {
+    part = { ...base, kind: 'cuFa', attach: 0 }
+    note = 'на резьбу MPT — добавил медный адаптер FPT (603)'
   } else if (to.kind === 'spigot') {
     part = { ...base, kind: famHint === 'd' ? pick('dcoup', 'coupling') : pick('coupling', 'dcoup'), attach: 0 }
     note = 'труба к трубе — добавил муфту'
@@ -57,7 +70,7 @@ function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: 
     part = { ...base, kind: pick('pfa', 'dfa'), attach: 0 }
     note = 'на резьбу MPT — добавил адаптер FPT'
   } else return null
-  if (!fittingDef(part.kind).sizes.includes(to.size)) return null
+  if (!fittingDef(part.kind).sizes.includes(part.size)) return null
   part.attach = Math.max(0, matchPort(part, to))
   const free = portsOf(part).findIndex((_, i) => i !== part.attach)
   return { part, free, note }
@@ -392,7 +405,8 @@ export const useStore = create<State>((set, get) => ({
           break
         }
         const sample = { ...part, ...cands[0] }
-        const adapter = adapterFor(pport, Math.max(...portsOf(sample).map((p) => p.depth)), target!, famNear(all, target!.id, kind))
+        const wantCu = def.group === 'copper' || (def.group === 'common' && isCu(paletteSize))
+        const adapter = adapterFor(pport, Math.max(...portsOf(sample).map((p) => p.depth)), target!, famNear(all, target!.id, kind), wantCu)
         if (!adapter || step > 2) {
           set({ message: 'Эти концы нельзя соединить напрямую' })
           return

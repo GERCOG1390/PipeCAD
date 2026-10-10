@@ -26,6 +26,7 @@ export interface Bom {
   fittings: FittingLine[]
   joints: number // склейки (раструб + гладкий конец)
   threads: number // резьбовые соединения
+  solder: number // паяные соединения (медь)
 }
 
 // Раскрой палок: First Fit Decreasing.
@@ -80,13 +81,15 @@ export function computeBom(parts: Part[], model: Model, stick: number): Bom {
   const byKey = new Map(model.ports.map((w) => [portKey(w.partId, w.index), w]))
   let joints = 0
   let threads = 0
+  let solder = 0
   model.links.forEach((b, a) => {
     if (a > b) return
     const k = byKey.get(a)?.def.kind
     if (k === 'fpt' || k === 'mpt') threads++
+    else if (byKey.get(a)?.def.size.startsWith('cu')) solder++
     else joints++
   })
-  return { pipes, fittings, joints, threads }
+  return { pipes, fittings, joints, threads, solder }
 }
 
 export function bomCsv(bom: Bom, stick: number, env: EnvBomLine[] = [], pens: Penetration[] = []): string {
@@ -97,6 +100,7 @@ export function bomCsv(bom: Bom, stick: number, env: EnvBomLine[] = [], pens: Pe
   }
   for (const f of bom.fittings) rows.push([q(f.name), q(f.pn ?? ''), f.qty, 'ea', ''].join(','))
   rows.push([q('Solvent welds (joints)'), '', bom.joints, 'ea', q('primer + cement')].join(','))
+  if (bom.solder) rows.push([q('Soldered joints (copper)'), '', bom.solder, 'ea', q('lead-free solder + flux')].join(','))
   if (bom.threads) rows.push([q('Threaded joints'), '', bom.threads, 'ea', q('PTFE tape / thread sealant')].join(','))
   for (const e of env) rows.push([q(e.name), '', e.unit === 'куб. ярд' ? e.qty.toFixed(2) : e.qty, q(e.unit), q(e.ru)].join(','))
   for (const p of pens) rows.push([q('Penetration: ' + p.where), '', 1, 'ea', q(p.note)].join(','))
