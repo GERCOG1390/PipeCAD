@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FITTINGS, FittingDef, Group, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
+import { FITTINGS, FittingDef, Group, Part, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
 import { Bom, bomCsv } from './bom'
 import { EnvBomSection, EnvInspector, SystemPosition } from './EnvPanel'
 import { Penetration, envBom } from './environment'
@@ -270,6 +270,72 @@ export function LengthInput({ value, onCommit, min = 0.25 }: { value: number; on
   )
 }
 
+// Поворот детали с шагом 1°: у присоединённой — вокруг оси подключения, у первой детали ветки — вокруг вертикали
+const norm360 = (v: number): number => ((Math.round(v) % 360) + 360) % 360
+export const angleOf = (p: Part): number => (p.parent ? p.roll : p.rot?.[1] ?? 0)
+export function withAngle(p: Part, deg: number): Part {
+  const v = norm360(deg)
+  if (p.parent) return { ...p, roll: v }
+  const r = p.rot ?? [0, 0, 0]
+  return { ...p, rot: [r[0], v, r[2]] }
+}
+
+function RotationControl({ part }: { part: Part }) {
+  const updatePart = useStore((s) => s.updatePart)
+  const angle = Math.round(angleOf(part) * 10) / 10
+  const [text, setText] = useState(String(angle))
+  useEffect(() => setText(String(angle)), [angle])
+  const set = (deg: number): void => {
+    const next = withAngle(part, deg)
+    updatePart(part.id, part.parent ? { roll: next.roll } : { rot: next.rot })
+  }
+  const live = (deg: number): void => {
+    const s = useStore.getState()
+    s.dragTo({ parts: s.parts.map((p) => (p.id === part.id ? withAngle(p, deg) : p)) })
+  }
+  return (
+    <>
+      <label>{part.parent ? 'Поворот вокруг оси подключения' : 'Поворот вокруг вертикали'}</label>
+      <div className="row rot-row">
+        <button onClick={() => set(angle - 5)}>−5°</button>
+        <button onClick={() => set(angle - 1)}>−1°</button>
+        <input
+          className="len rot-input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => {
+            const v = parseFloat(text.replace(',', '.').replace('°', ''))
+            if (Number.isFinite(v)) set(v)
+            else setText(String(angle))
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        />
+        <button onClick={() => set(angle + 1)}>+1°</button>
+        <button onClick={() => set(angle + 5)}>+5°</button>
+      </div>
+      <input
+        type="range"
+        className="rot-slider"
+        min={0}
+        max={359}
+        step={1}
+        value={norm360(angle)}
+        onPointerDown={() => useStore.getState().beginDrag()}
+        onPointerUp={() => useStore.getState().endDrag()}
+        onChange={(e) => live(Number(e.target.value))}
+      />
+      <div className="row">
+        {[-90, -45, 45, 90].map((d) => (
+          <button key={d} onClick={() => set(angle + d)}>
+            {d < 0 ? '⟲' : '⟳'} {Math.abs(d)}°
+          </button>
+        ))}
+      </div>
+      <div className="muted small">Или тяни кольцо вокруг детали в 3D (Shift — шаг 15°)</div>
+    </>
+  )
+}
+
 export function Inspector({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const selectedId = useStore((s) => s.selectedId)
@@ -363,22 +429,13 @@ export function Inspector({ model }: { model: Model }) {
 
       <SystemPosition part={part} parts={parts} />
 
-      <label>Поворот</label>
-      {part.parent ? (
+      <RotationControl part={part} />
+      {!part.parent && (
         <div className="row">
-          <button onClick={() => rollPart(part.id, -90)}>⟲ 90°</button>
-          <button onClick={() => rollPart(part.id, -45)}>⟲ 45°</button>
-          <button onClick={() => rollPart(part.id, 45)}>⟳ 45°</button>
-          <button onClick={() => rollPart(part.id, 90)}>⟳ 90°</button>
-        </div>
-      ) : (
-        <div className="row">
-          <button onClick={() => rotateRoot(part.id, 0, 90)}>X 90°</button>
-          <button onClick={() => rotateRoot(part.id, 1, 90)}>Y 90°</button>
-          <button onClick={() => rotateRoot(part.id, 2, 90)}>Z 90°</button>
+          <button onClick={() => rotateRoot(part.id, 0, 90)}>Наклон X 90°</button>
+          <button onClick={() => rotateRoot(part.id, 2, 90)}>Наклон Z 90°</button>
         </div>
       )}
-      {part.parent && <div className="muted small">Сейчас: {Math.round(part.roll * 10) / 10}° вокруг оси подключения</div>}
 
       {part.parent && (ports.length > 2 || s2?.reversible) && (
         <button className="wide" onClick={() => cycleAttach(part.id)}>

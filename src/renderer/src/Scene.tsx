@@ -26,9 +26,10 @@ import {
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { Part, PathSeg, Shape, SizeId, V3, buildPart, hubR, sizeLabel, sizeSpec } from './catalog'
+import { Part, PathSeg, Shape, SizeId, V3, buildPart, fittingDef, hubR, sizeLabel, sizeSpec } from './catalog'
 import { Model, WorldPort, Xf, buildModel, computeTransforms, portKey } from './geometry'
 import { placementFor } from './placement'
+import { angleOf, withAngle } from './Panels'
 import { computeGuides, mouthOf } from './axes'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
@@ -498,6 +499,109 @@ function LengthHandles({ model }: { model: Model }) {
   )
 }
 
+// ---------- Кольцо поворота выбранного фитинга (шаг 1°, с Shift — 15°) ----------
+function RotateRing({ model }: { model: Model }) {
+  const parts = useStore((s) => s.parts)
+  const selectedId = useStore((s) => s.selectedId)
+  const replaying = useStore((s) => !!s.replay || !!s.placing)
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
+  const [drag, setDrag] = useState<{ start: number; v0: Vector3 } | null>(null)
+  const [hover, setHover] = useState(false)
+  const part = parts.find((p) => p.id === selectedId)
+  useEffect(() => () => setCursor('auto'), [])
+  if (!part || part.kind === 'pipe' || replaying) return null
+
+  // центр и ось вращения
+  let center: Vector3
+  let axis: Vector3
+  if (part.parent) {
+    const w = model.ports.find((x) => x.partId === part.parent!.id && x.index === part.parent!.port)
+    if (!w) return null
+    center = w.pos.clone()
+    axis = w.dir.clone()
+  } else {
+    const xf = model.xfs.get(part.id)
+    if (!xf) return null
+    center = xf.pos.clone()
+    axis = new Vector3(0, 1, 0)
+  }
+  const R = Math.max(2.5, hubR(part.size, fittingDef(part.kind).group === 'dwv' ? 'd' : 'p') * 2.3)
+  const quat = new Quaternion().setFromUnitVectors(tmpZ, axis)
+  const plane = new Plane().setFromNormalAndCoplanarPoint(axis, center)
+  const onPlane = (ray: Ray): Vector3 | null => {
+    const p = ray.intersectPlane(plane, new Vector3())
+    if (!p) return null
+    const v = p.sub(center)
+    return v.lengthSq() < 1e-6 ? null : v.normalize()
+  }
+  const angle = Math.round(angleOf(part))
+  const color = drag || hover ? '#fde68a' : '#a78bfa'
+
+  return (
+    <group position={center} quaternion={quat}>
+      <mesh renderOrder={13}>
+        <torusGeometry args={[R, Math.max(0.07, R * 0.025), 10, 96]} />
+        <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.9} />
+      </mesh>
+      {/* риски каждые 45° */}
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
+        <mesh key={d} renderOrder={13} position={[Math.cos((d * Math.PI) / 180) * R, Math.sin((d * Math.PI) / 180) * R, 0]}>
+          <sphereGeometry args={[Math.max(0.1, R * 0.04), 10, 8]} />
+          <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.9} />
+        </mesh>
+      ))}
+      <mesh
+        userData={{ portHit: true }}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          const v0 = onPlane(e.ray)
+          if (!v0) return
+          ;(e.target as Element).setPointerCapture(e.pointerId)
+          if (controls) controls.enabled = false
+          useStore.getState().beginDrag()
+          setDrag({ start: angleOf(part), v0 })
+        }}
+        onPointerMove={(e) => {
+          if (!drag) return
+          e.stopPropagation()
+          const v = onPlane(e.ray)
+          if (!v) return
+          const a = (Math.atan2(drag.v0.clone().cross(v).dot(axis), drag.v0.dot(v)) * 180) / Math.PI
+          const step = e.nativeEvent.shiftKey ? 15 : 1
+          const deg = Math.round((drag.start + a) / step) * step
+          const s = useStore.getState()
+          s.dragTo({ parts: s.parts.map((p) => (p.id === part.id ? withAngle(p, deg) : p)) })
+        }}
+        onPointerUp={(e) => {
+          if (!drag) return
+          e.stopPropagation()
+          ;(e.target as Element).releasePointerCapture(e.pointerId)
+          if (controls) controls.enabled = true
+          setDrag(null)
+          useStore.getState().endDrag()
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onPointerOver={() => {
+          setHover(true)
+          setCursor('grab')
+        }}
+        onPointerOut={() => {
+          setHover(false)
+          if (!drag) setCursor('auto')
+        }}
+      >
+        <torusGeometry args={[R, Math.max(0.45, R * 0.12), 8, 64]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+      </mesh>
+      {(drag || hover) && (
+        <Html position={[R, 0, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none', transform: 'translate(26px, -18px)' }}>
+          <div className="dim drag">{angle}°</div>
+        </Html>
+      )}
+    </group>
+  )
+}
+
 // ---------- Оси свободных концов и пересечения ----------
 function AxisGuides({ model }: { model: Model }) {
   const show = useStore((s) => s.showAxes)
@@ -749,6 +853,7 @@ export function Scene({ model }: { model: Model }) {
       <EnvLayer model={model} />
       <PortMarkers model={model} />
       <LengthHandles model={model} />
+      <RotateRing model={model} />
       <PlacementLayer />
       <AxisGuides model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
