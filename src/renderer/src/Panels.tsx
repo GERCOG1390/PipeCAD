@@ -1,47 +1,51 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BRANCH_KINDS, dwvAvailable, DWV_ORDER, DWV_SIZES, DwvKind, KINDS, KIND_ORDER, PartKind, PressureKind, SIZES, SizeId, branchPorts, isDwv, portsOf, sizeLabel } from './catalog'
+import { FITTINGS, FittingDef, Group, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel } from './catalog'
 import { Bom, bomCsv } from './bom'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
 import { formatLength, parseLength } from './units'
 
-const ICONS: Record<PressureKind, string> = {
-  pipe: 'M3 10h18v4H3z',
-  elbow90: 'M4 9h8a3 3 0 0 1 3 3v8h-4v-7H4z',
-  elbow45: 'M3 10h8l6-6 3 3-7 7H3z',
-  tee: 'M3 9h18v4h-7v8h-4v-8H3z',
-  cross: 'M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z',
-  coupling: 'M3 10h4V8h10v2h4v4h-4v2H7v-2H3z',
-  reducer: 'M2 8h8l4 2h8v4h-8l-4 2H2z',
-  valve: 'M2 10h6V8h8v2h6v4h-6v2H8v-2H2zM11 3h2v5h-2zM7 2h10v2H7z',
-  cap: 'M3 10h10V8h4a4 4 0 0 1 0 8h-4v-2H3z'
-}
-
-// DWV рисуем линией по оси
-const DWV_ICONS: Record<DwvKind, string> = {
-  dwv90: 'M5 3v7a8 8 0 0 0 8 8h8',
-  dwvLong90: 'M3 2v4a15 15 0 0 0 15 15h4',
-  dwv45: 'M2 15h8q3 0 5-2l6-6',
-  dwv22: 'M2 15h10l10-4',
-  st90: 'M5 1v9a8 8 0 0 0 8 8h8M2 5h6',
+// Иконки — линия по оси детали
+const ICONS: Record<string, string> = {
+  pipe: 'M2 12h20',
+  ell90: 'M6 3v8a2 2 0 0 0 2 2h13',
+  st90: 'M6 1v10a2 2 0 0 0 2 2h13M3 5h6',
+  ell45: 'M2 16h9l9-9',
+  tee: 'M3 9h18M12 9v12',
+  cross: 'M3 12h18M12 3v18',
+  coupling: 'M2 12h20M8 7v10M16 7v10',
+  reducer: 'M2 9h8l4 2h8M2 15h8l4-2h8',
+  union: 'M2 12h20M9 6h6v12H9z',
+  fa: 'M2 12h9M11 7h9v10h-9zM14 7v10M17 7v10',
+  ma: 'M2 12h9M11 8h3v8h-3zM14 10h7M14 14h7M17 10v4M20 10v4',
+  bushing: 'M5 5h14v14H5zM9 9h6v10',
+  cap: 'M2 12h10M12 6h3a6 6 0 0 1 0 12h-3z',
+  plug: 'M3 12h8M11 6h4v12h-4zM15 9h4v6h-4z',
+  valve: 'M2 12h20M8 8l8 8M8 16l8-8M12 3v5M7 3h10',
+  bend90: 'M5 3v7a8 8 0 0 0 8 8h8',
+  long90: 'M3 2v4a15 15 0 0 0 15 15h4',
+  bend45: 'M2 15h8q3 0 5-2l6-6',
   st45: 'M2 15h8q3 0 5-2l6-6M5 11v8',
-  sanTee: 'M10 2v20M22 8h-4a8 8 0 0 0-8 8',
-  dblSanTee: 'M12 2v20M23 7h-3a8 8 0 0 0-8 8M1 7h3a8 8 0 0 1 8 8',
+  bend22: 'M2 15h10l10-4',
+  dbl90: 'M12 22v-8a6 6 0 0 0-6-6H2M12 14a6 6 0 0 1 6-6h4',
+  santee: 'M10 2v20M22 8h-4a8 8 0 0 0-8 8',
+  dblsan: 'M12 2v20M23 7h-3a8 8 0 0 0-8 8M1 7h3a8 8 0 0 1 8 8',
+  cotee: 'M9 2v20M9 12h8M17 8h4v8h-4z',
   wye: 'M9 2v20M9 17l11-11',
+  dblwye: 'M12 2v20M12 17l9-9M12 17l-9-9',
   combo: 'M9 2v20M9 18l6-6q2-2 6-2',
+  dblcombo: 'M12 2v20M12 18l4-4q2-2 6-2M12 18l-4-4q-2-2-6-2',
+  trapad: 'M12 22V12M7 12h10M8 6h8v6H8zM12 2v4',
   cleanout: 'M12 23V11M7 11h10M9.5 5h5v6h-5z',
-  closet: 'M12 23V12M3 11h18',
-  ptrap: 'M22 5h-7v9a4.5 4.5 0 0 1-9 0V2'
+  ptrap: 'M22 5h-7v9a4.5 4.5 0 0 1-9 0V2',
+  return: 'M5 2v10a7 7 0 0 0 14 0V2',
+  closet: 'M12 23V12M3 11h18'
 }
 
-export function KindIcon({ kind }: { kind: PartKind }) {
+export function KindIcon({ kind }: { kind: string }) {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22">
-      {isDwv(kind) ? (
-        <path d={DWV_ICONS[kind]} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      ) : (
-        <path d={ICONS[kind]} fill="currentColor" />
-      )}
+      <path d={ICONS[fittingDef(kind).icon] ?? ICONS.pipe} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -58,6 +62,25 @@ function SizeSelect({ value, onChange, only, disabled }: { value: SizeId; onChan
   )
 }
 
+const GROUPS: { id: Group; title: string }[] = [
+  { id: 'pressure', title: 'Напорные Sch 40' },
+  { id: 'dwv', title: 'DWV — канализация' }
+]
+
+// Можно ли поставить деталь на конец данного размера (в т.ч. через второй размер переходника)
+function fitsSize(def: FittingDef, size: SizeId): boolean {
+  if (def.sizes.includes(size)) return true
+  return !!def.size2 && def.sizes.some((s) => def.size2!.options(s).includes(size))
+}
+
+function readOpen(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem('pipecad.groups') ?? '{}')
+  } catch {
+    return {}
+  }
+}
+
 export function Palette({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const activePort = useStore((s) => s.activePort)
@@ -66,9 +89,35 @@ export function Palette({ model }: { model: Model }) {
   const addPart = useStore((s) => s.addPart)
   const setPaletteSize = useStore((s) => s.setPaletteSize)
   const setReducerTo = useStore((s) => s.setReducerTo)
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState<Record<string, boolean>>(readOpen)
   const portSize = activePort ? model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.size : undefined
   const curSize = parts.length ? portSize : paletteSize
-  const dwvOk = !curSize || DWV_SIZES.includes(curSize)
+
+  const toggle = (k: string): void => {
+    const next = { ...open, [k]: !(open[k] ?? true) }
+    setOpen(next)
+    try {
+      localStorage.setItem('pipecad.groups', JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const q = query.trim().toLowerCase()
+  const match = (d: FittingDef): boolean => !q || d.ru.toLowerCase().includes(q) || d.en.toLowerCase().includes(q) || (d.pn ?? '').toLowerCase().includes(q)
+
+  const item = (kind: string) => {
+    const d = FITTINGS[kind]
+    const ok = !curSize || fitsSize(d, curSize)
+    return (
+      <button key={kind} className="kind" disabled={!ok} onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · Charlotte ${d.pn}` : ''}${d.key ? ` · клавиша ${d.key}` : ''}`}>
+        <KindIcon kind={kind} />
+        <span>{d.ru}</span>
+        {d.key && <kbd>{d.key}</kbd>}
+      </button>
+    )
+  }
 
   return (
     <aside className="palette">
@@ -76,35 +125,53 @@ export function Palette({ model }: { model: Model }) {
       {parts.length === 0 ? (
         <SizeSelect value={paletteSize} onChange={setPaletteSize} />
       ) : (
-        <div className="hint">{portSize ? <>От выбранного конца: <b>{sizeLabel(portSize)}</b></> : 'Выбери зелёную точку — конец, к которому присоединять'}</div>
+        <div className="hint">
+          {portSize ? (
+            <>
+              От выбранного конца: <b>{sizeLabel(portSize)}</b>
+            </>
+          ) : (
+            'Выбери зелёную точку — конец, к которому присоединять'
+          )}
+        </div>
       )}
-      <div className="section-title">Детали Sch 40</div>
-      <div className="kinds">
-        {KIND_ORDER.map((k) => (
-          <button key={k} className="kind" onClick={() => addPart(k)} title={`${KINDS[k].en} — клавиша ${KINDS[k].key}`}>
-            <KindIcon kind={k} />
-            <span>{KINDS[k].ru}</span>
-            <kbd>{KINDS[k].key}</kbd>
-          </button>
-        ))}
-      </div>
-      <div className="section-title">DWV — канализация</div>
-      {!dwvOk ? <div className="hint">DWV-фитинги бывают от 1-1/4" до 6"</div> : <div className="hint">Размеры по каталогу Charlotte Pipe</div>}
-      <div className="kinds">
-        {DWV_ORDER.map((k) => (
-          <button key={k} className="kind" disabled={!!curSize && !dwvAvailable(k, curSize)} onClick={() => addPart(k)} title={KINDS[k].en}>
-            <KindIcon kind={k} />
-            <span>{KINDS[k].ru}</span>
-          </button>
-        ))}
-      </div>
-      <div className="section-title">Переходник на</div>
+      <input className="search" placeholder="Поиск: тройник, wye, 2300…" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="kinds">{match(FITTINGS.pipe) && item('pipe')}</div>
+      {GROUPS.map((g) => {
+        const kinds = Object.keys(FITTINGS).filter((k) => FITTINGS[k].group === g.id && match(FITTINGS[k]))
+        if (!kinds.length) return null
+        const cats = [...new Set(kinds.map((k) => FITTINGS[k].cat))]
+        const gOpen = q ? true : open[g.id] ?? true
+        return (
+          <div key={g.id} className="group">
+            <button className="group-head" onClick={() => toggle(g.id)}>
+              <span className="chev">{gOpen ? '▾' : '▸'}</span>
+              {g.title}
+            </button>
+            {gOpen &&
+              cats.map((c) => {
+                const key = `${g.id}/${c}`
+                const cOpen = q ? true : open[key] ?? true
+                return (
+                  <div key={c} className="cat">
+                    <button className="cat-head" onClick={() => toggle(key)}>
+                      <span className="chev">{cOpen ? '▾' : '▸'}</span>
+                      {c}
+                    </button>
+                    {cOpen && <div className="kinds">{kinds.filter((k) => FITTINGS[k].cat === c).map(item)}</div>}
+                  </div>
+                )
+              })}
+          </div>
+        )
+      })}
+      <div className="section-title">Второй размер (переходы)</div>
       <SizeSelect value={reducerTo} onChange={setReducerTo} />
       <div className="help">
         <b>Как собирать</b>
         <p>Выбери деталь — она встанет на оранжевый конец. Следующий конец выберется сам, так можно собирать цепочкой.</p>
-        <p>ЛКМ — вращать, ПКМ — двигать, колесо — зум.</p>
-        <p>R — повернуть деталь на 90°, Del — удалить, Ctrl+Z — отменить.</p>
+        <p>Зелёная точка — раструб или гладкий конец, синяя — резьба.</p>
+        <p>ЛКМ — вращать, ПКМ — двигать, колесо — зум. R — повернуть на 90°, Del — удалить, Ctrl+Z — отменить.</p>
       </div>
     </aside>
   )
@@ -144,26 +211,43 @@ export function Inspector({ model }: { model: Model }) {
   const rotateRoot = useStore((s) => s.rotateRoot)
   const cycleAttach = useStore((s) => s.cycleAttach)
   const deletePart = useStore((s) => s.deletePart)
+  const setMessage = useStore((s) => s.setMessage)
   const part = parts.find((p) => p.id === selectedId)
 
   if (!part) return <div className="empty">Ничего не выбрано. Кликни по детали.</div>
+  const def = fittingDef(part.kind)
 
-  // Заход фитинга на конце трубы: расстояние от центра соседа до его порта
+  // Заход фитинга на конце трубы: проекция порта соседа на его ось (от центра до дна раструба)
   const takeoff = (port: number): number => {
     const other = model.links.get(portKey(part.id, port))
     if (!other) return 0
     const [oid, oport] = other.split(':')
     const op = parts.find((p) => p.id === oid)
-    if (!op || op.kind === 'pipe' || op.kind === 'cap') return 0
-    // проекция на ось порта: от оси соседнего направления до дна раструба
+    if (!op || op.kind === 'pipe') return 0
     const { pos, dir } = portsOf(op)[Number(oport)]
     return Math.max(0, pos[0] * dir[0] + pos[1] * dir[1] + pos[2] * dir[2])
   }
   const len = part.length ?? 0
   const g0 = part.kind === 'pipe' ? takeoff(0) : 0
   const g1 = part.kind === 'pipe' ? takeoff(1) : 0
-  const nPorts = portsOf(part).length
+  const ports = portsOf(part)
   const sub = subtreeSize(parts, part.id)
+
+  // Смена размера не должна ломать уже подключённые концы
+  const changeSizes = (patch: { size?: SizeId; size2?: SizeId }): void => {
+    const next = { ...part, ...patch }
+    const np = portsOf(next)
+    const broken = ports.some((pt, i) => model.links.has(portKey(part.id, i)) && np[i]?.size !== pt.size)
+    if (broken) {
+      setMessage('Этот конец уже подключён — сначала отсоедини то, что к нему присоединено')
+      return
+    }
+    updatePart(part.id, patch)
+  }
+
+  const s2 = def.size2
+  const s2opts = s2 ? s2.options(part.size) : []
+  const title2 = part.size2 && part.size2 !== part.size ? ` × ${sizeLabel(part.size2)}` : ''
 
   return (
     <div className="inspector">
@@ -171,11 +255,13 @@ export function Inspector({ model }: { model: Model }) {
         <KindIcon kind={part.kind} />
         <div>
           <div className="insp-title">
-            {KINDS[part.kind].ru} {sizeLabel(part.size)}
-            {part.kind === 'reducer' && ` → ${sizeLabel(part.size2 ?? part.size)}`}
-            {BRANCH_KINDS.has(part.kind) && part.size2 && part.size2 !== part.size && ` × ${sizeLabel(part.size2)}`}
+            {def.ru} {sizeLabel(part.size)}
+            {title2}
           </div>
-          <div className="insp-sub">{KINDS[part.kind].en}</div>
+          <div className="insp-sub">
+            {def.en}
+            {def.pn ? ` · Charlotte ${def.pn}` : ''}
+          </div>
         </div>
       </div>
 
@@ -189,30 +275,17 @@ export function Inspector({ model }: { model: Model }) {
         </>
       )}
 
-      {part.kind === 'reducer' && (
-        <>
-          <label>Второй размер</label>
-          <SizeSelect value={part.size2 ?? part.size} onChange={(s) => updatePart(part.id, { size2: s })} />
-        </>
-      )}
-
-      {BRANCH_KINDS.has(part.kind) && (
-        <>
-          <label>Размер отвода</label>
-          <SizeSelect
-            value={part.size2 ?? part.size}
-            only={DWV_SIZES.filter((s) => SIZES.findIndex((x) => x.id === s) <= SIZES.findIndex((x) => x.id === part.size))}
-            disabled={branchPorts(part.kind).some((i) => model.links.has(portKey(part.id, i)))}
-            onChange={(s) => updatePart(part.id, { size2: s })}
-          />
-          {branchPorts(part.kind).some((i) => model.links.has(portKey(part.id, i))) && <div className="muted small">Отвод уже подключён — сначала убери то, что к нему присоединено</div>}
-        </>
-      )}
-
-      {!part.parent && parts.length === 1 && part.kind !== 'reducer' && (
+      {!part.parent && parts.length === 1 && (
         <>
           <label>Размер</label>
-          <SizeSelect value={part.size} only={isDwv(part.kind) ? DWV_SIZES : undefined} onChange={(s) => updatePart(part.id, { size: s })} />
+          <SizeSelect value={part.size} only={def.sizes} onChange={(s) => updatePart(part.id, { size: s, size2: s2 ? (s2.optional ? undefined : s2.options(s)[0]) : undefined })} />
+        </>
+      )}
+
+      {s2 && s2opts.length > 0 && (
+        <>
+          <label>{s2.label}</label>
+          <SizeSelect value={part.size2 ?? (s2.optional ? part.size : s2opts[0])} only={s2opts} onChange={(s) => changeSizes({ size2: s2.optional && s === part.size ? undefined : s })} />
         </>
       )}
 
@@ -233,14 +306,9 @@ export function Inspector({ model }: { model: Model }) {
       )}
       {part.parent && <div className="muted small">Сейчас: {part.roll}° вокруг оси подключения</div>}
 
-      {part.parent && nPorts > 2 && (
+      {part.parent && (ports.length > 2 || s2?.reversible) && (
         <button className="wide" onClick={() => cycleAttach(part.id)}>
-          Подключить другим концом
-        </button>
-      )}
-      {part.parent && part.kind === 'reducer' && (
-        <button className="wide" onClick={() => cycleAttach(part.id)}>
-          Развернуть (сужение ↔ расширение)
+          {s2?.reversible ? 'Развернуть (сужение ↔ расширение)' : 'Подключить другим концом'}
         </button>
       )}
 
@@ -293,22 +361,27 @@ export function BomPanel({ bom }: { bom: Bom }) {
       {bom.fittings.length > 0 && (
         <table>
           <tbody>
-            {bom.fittings.map((f) => (
-              <tr key={f.key}>
-                <td>
-                  {f.name}
-                  <div className="muted small">{f.ru}</div>
-                </td>
-                <td className="qty">{f.qty}</td>
-              </tr>
-            ))}
+            {[...bom.fittings]
+              .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }))
+              .map((f) => (
+                <tr key={f.key}>
+                  <td>
+                    {f.name}
+                    <div className="muted small">
+                      {f.ru}
+                      {f.pn ? ` · #${f.pn}` : ''}
+                    </div>
+                  </td>
+                  <td className="qty">{f.qty}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       )}
       {!empty && (
         <>
           <div className="muted small">
-            Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей)
+            Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей){bom.threads ? ` · резьбовых: ${bom.threads} (лента/герметик)` : ''}
           </div>
           <button className="wide" onClick={exportCsv}>
             Экспорт в Excel (CSV)
@@ -318,3 +391,5 @@ export function BomPanel({ bom }: { bom: Bom }) {
     </div>
   )
 }
+
+export { sizeIndex }

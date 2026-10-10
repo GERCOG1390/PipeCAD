@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { KINDS, KIND_ORDER } from './catalog'
+import { KIND_KEYS } from './catalog'
 import { computeBom } from './bom'
 import { buildModel } from './geometry'
 import { BomPanel, Inspector, Palette } from './Panels'
@@ -41,6 +41,7 @@ export function App() {
   const filePath = useStore((s) => s.filePath)
   const dirty = useStore((s) => s.dirty)
   const showDims = useStore((s) => s.showDims)
+  const showPorts = useStore((s) => s.showPorts)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
   const st = useStore.getState()
@@ -93,8 +94,8 @@ export function App() {
       if (k === 'escape') return s.select(null)
       if (e.code === 'KeyR' && s.selectedId) return s.rollPart(s.selectedId, e.shiftKey ? -90 : 90)
       if (k === 'home') return s.setView(null)
-      const kind = KIND_ORDER.find((x) => KINDS[x].key && e.code === `Key${KINDS[x].key}`)
-      if (kind) s.addPart(kind)
+      const hit = KIND_KEYS.find((x) => e.code === `Key${x.key}`)
+      if (hit) s.addPart(hit.kind)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -133,6 +134,9 @@ export function App() {
         <span className="sep" />
         <button className={showDims ? 'on' : ''} onClick={st.toggleDims}>
           Размеры
+        </button>
+        <button className={showPorts ? 'on' : ''} onClick={st.togglePorts} title="Показывать свободные концы">
+          Концы
         </button>
       </header>
       <div className="main">

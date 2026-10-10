@@ -1,5 +1,5 @@
-import { KINDS, Part, SIZES, SizeId, englishName } from './catalog'
-import { Model } from './geometry'
+import { Part, SIZES, SizeId, bomLines, fittingDef } from './catalog'
+import { Model, portKey } from './geometry'
 import { formatLength } from './units'
 
 const KERF = 0.125 // пропил
@@ -16,13 +16,15 @@ export interface FittingLine {
   key: string
   name: string
   ru: string
+  pn?: string
   qty: number
 }
 
 export interface Bom {
   pipes: PipeLine[]
   fittings: FittingLine[]
-  joints: number
+  joints: number // склейки (раструб + гладкий конец)
+  threads: number // резьбовые соединения
 }
 
 // Раскрой палок: First Fit Decreasing.
@@ -55,10 +57,12 @@ export function computeBom(parts: Part[], model: Model, stick: number): Bom {
       arr.push(p.length ?? 0)
       pipeMap.set(p.size, arr)
     } else {
-      const key = `${p.kind}|${p.size}|${p.kind === 'reducer' ? p.size2 : ''}`
-      const line = fitMap.get(key) ?? { key, name: englishName(p), ru: KINDS[p.kind].ru, qty: 0 }
-      line.qty++
-      fitMap.set(key, line)
+      for (const b of bomLines(p)) {
+        const key = b.name
+        const line = fitMap.get(key) ?? { key, name: b.name, ru: fittingDef(p.kind).ru, pn: b.pn, qty: 0 }
+        line.qty++
+        fitMap.set(key, line)
+      }
     }
   }
   const order = (s: SizeId): number => SIZES.findIndex((x) => x.id === s)
@@ -66,22 +70,32 @@ export function computeBom(parts: Part[], model: Model, stick: number): Bom {
     .sort((a, b) => order(a[0]) - order(b[0]))
     .map(([size, cuts]) => ({
       size,
-      name: englishName({ id: '', kind: 'pipe', size, attach: 0, roll: 0 }),
+      name: bomLines({ id: '', kind: 'pipe', size, attach: 0, roll: 0 })[0].name,
       cuts: [...cuts].sort((a, b) => b - a),
       total: cuts.reduce((a, b) => a + b, 0),
       sticks: sticksNeeded(cuts, stick)
     }))
   const fittings = [...fitMap.values()].sort((a, b) => a.name.localeCompare(b.name))
-  return { pipes, fittings, joints: model.links.size / 2 }
+  const byKey = new Map(model.ports.map((w) => [portKey(w.partId, w.index), w]))
+  let joints = 0
+  let threads = 0
+  model.links.forEach((b, a) => {
+    if (a > b) return
+    const k = byKey.get(a)?.def.kind
+    if (k === 'fpt' || k === 'mpt') threads++
+    else joints++
+  })
+  return { pipes, fittings, joints, threads }
 }
 
 export function bomCsv(bom: Bom, stick: number): string {
   const q = (s: string): string => `"${s.replace(/"/g, '""')}"`
-  const rows: string[] = ['Item,Qty,Unit,Notes']
+  const rows: string[] = ['Item,Charlotte Part,Qty,Unit,Notes']
   for (const p of bom.pipes) {
-    rows.push([q(`${p.name} (${stick / 12}' stick)`), p.sticks, 'stick', q(`total ${formatLength(p.total)}; cuts: ${p.cuts.map(formatLength).join(', ')}`)].join(','))
+    rows.push([q(`${p.name} (${stick / 12}' stick)`), '', p.sticks, 'stick', q(`total ${formatLength(p.total)}; cuts: ${p.cuts.map(formatLength).join(', ')}`)].join(','))
   }
-  for (const f of bom.fittings) rows.push([q(f.name), f.qty, 'ea', ''].join(','))
-  rows.push([q('Solvent welds (joints)'), bom.joints, 'ea', q('primer + cement')].join(','))
+  for (const f of bom.fittings) rows.push([q(f.name), q(f.pn ?? ''), f.qty, 'ea', ''].join(','))
+  rows.push([q('Solvent welds (joints)'), '', bom.joints, 'ea', q('primer + cement')].join(','))
+  if (bom.threads) rows.push([q('Threaded joints'), '', bom.threads, 'ea', q('PTFE tape / thread sealant')].join(','))
   return '﻿' + rows.join('\r\n')
 }

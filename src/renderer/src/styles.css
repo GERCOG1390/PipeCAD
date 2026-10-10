@@ -82,3 +82,13 @@ td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #3a4148; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #4a535b; }
+.search { margin: 2px 0 4px; }
+.group { display: flex; flex-direction: column; gap: 4px; }
+.group-head, .cat-head { display: flex; align-items: center; gap: 6px; background: none; border: none; padding: 4px 2px; text-align: left; }
+.group-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-top: 6px; }
+.cat-head { color: var(--muted); font-size: 12px; }
+.group-head:hover, .cat-head:hover { background: none !important; color: var(--text); }
+.chev { width: 10px; display: inline-block; }
+.cat { display: flex; flex-direction: column; gap: 4px; padding-left: 6px; }
+.kind:disabled { opacity: 0.32; }
+.palette { width: 250px; }

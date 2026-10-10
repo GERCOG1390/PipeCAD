@@ -1,5 +1,5 @@
 import { Euler, Quaternion, Vector3 } from 'three'
-import { Part, PortDef, SizeId, portsOf } from './catalog'
+import { Part, PortDef, SizeId, mates, portsOf } from './catalog'
 
 export interface Xf {
   pos: Vector3
@@ -95,7 +95,7 @@ export function buildModel(parts: Part[]): Model {
     for (let j = i + 1; j < free.length; j++) {
       const a = free[i]
       const b = free[j]
-      if (a.partId === b.partId || a.size !== b.size || !!a.def.spigot === !!b.def.spigot) continue
+      if (a.partId === b.partId || a.size !== b.size || !mates(a.def.kind, b.def.kind)) continue
       const ka = portKey(a.partId, a.index)
       const kb = portKey(b.partId, b.index)
       if (links.has(ka) || links.has(kb)) continue
@@ -113,7 +113,7 @@ export function buildModel(parts: Part[]): Model {
     if (a > b) return
     const wa = byKey.get(a)
     const wb = byKey.get(b)
-    if (wa && wb && (!!wa.def.spigot === !!wb.def.spigot || wa.size !== wb.size)) bad.push(a)
+    if (wa && wb && (!mates(wa.def.kind, wb.def.kind) || wa.size !== wb.size)) bad.push(a)
   })
   return { xfs, ports, links, open, bad }
 }
