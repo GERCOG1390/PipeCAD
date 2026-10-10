@@ -76,4 +76,9 @@ td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; 
 
 .status { display: flex; gap: 18px; padding: 5px 12px; background: var(--panel); border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .status .warn { color: var(--warn); }
+.status .err { color: var(--danger); }
 .status .msg { margin-left: auto; color: var(--text); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3a4148; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4a535b; }

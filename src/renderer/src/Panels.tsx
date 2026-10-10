@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { KINDS, KIND_ORDER, PartKind, SIZES, SizeId, portsOf, sizeLabel } from './catalog'
+import { BRANCH_KINDS, CLOSET_SIZES, DWV_ORDER, DWV_SIZES, DwvKind, KINDS, KIND_ORDER, PartKind, PressureKind, SIZES, SizeId, branchPorts, isDwv, portsOf, sizeLabel } from './catalog'
 import { Bom, bomCsv } from './bom'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
 import { formatLength, parseLength } from './units'
 
-const ICONS: Record<PartKind, string> = {
+const ICONS: Record<PressureKind, string> = {
   pipe: 'M3 10h18v4H3z',
   elbow90: 'M4 9h8a3 3 0 0 1 3 3v8h-4v-7H4z',
   elbow45: 'M3 10h8l6-6 3 3-7 7H3z',
@@ -17,18 +17,39 @@ const ICONS: Record<PartKind, string> = {
   cap: 'M3 10h10V8h4a4 4 0 0 1 0 8h-4v-2H3z'
 }
 
+// DWV рисуем линией по оси
+const DWV_ICONS: Record<DwvKind, string> = {
+  dwv90: 'M5 3v7a8 8 0 0 0 8 8h8',
+  dwvLong90: 'M3 2v4a15 15 0 0 0 15 15h4',
+  dwv45: 'M2 15h8q3 0 5-2l6-6',
+  dwv22: 'M2 15h10l10-4',
+  st90: 'M5 1v9a8 8 0 0 0 8 8h8M2 5h6',
+  st45: 'M2 15h8q3 0 5-2l6-6M5 11v8',
+  sanTee: 'M10 2v20M22 8h-4a8 8 0 0 0-8 8',
+  dblSanTee: 'M12 2v20M23 7h-3a8 8 0 0 0-8 8M1 7h3a8 8 0 0 1 8 8',
+  wye: 'M9 2v20M9 17l11-11',
+  combo: 'M9 2v20M9 18l6-6q2-2 6-2',
+  cleanout: 'M12 23V11M7 11h10M9.5 5h5v6h-5z',
+  closet: 'M12 23V12M3 11h18',
+  ptrap: 'M22 5h-7v9a4.5 4.5 0 0 1-9 0V2'
+}
+
 export function KindIcon({ kind }: { kind: PartKind }) {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22">
-      <path d={ICONS[kind]} fill="currentColor" />
+      {isDwv(kind) ? (
+        <path d={DWV_ICONS[kind]} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d={ICONS[kind]} fill="currentColor" />
+      )}
     </svg>
   )
 }
 
-function SizeSelect({ value, onChange }: { value: SizeId; onChange: (s: SizeId) => void }) {
+function SizeSelect({ value, onChange, only, disabled }: { value: SizeId; onChange: (s: SizeId) => void; only?: SizeId[]; disabled?: boolean }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as SizeId)}>
-      {SIZES.map((s) => (
+    <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value as SizeId)}>
+      {SIZES.filter((s) => !only || only.includes(s.id)).map((s) => (
         <option key={s.id} value={s.id}>
           {sizeLabel(s.id)}
         </option>
@@ -46,6 +67,8 @@ export function Palette({ model }: { model: Model }) {
   const setPaletteSize = useStore((s) => s.setPaletteSize)
   const setReducerTo = useStore((s) => s.setReducerTo)
   const portSize = activePort ? model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.size : undefined
+  const curSize = parts.length ? portSize : paletteSize
+  const dwvOk = !curSize || DWV_SIZES.includes(curSize)
 
   return (
     <aside className="palette">
@@ -62,6 +85,16 @@ export function Palette({ model }: { model: Model }) {
             <KindIcon kind={k} />
             <span>{KINDS[k].ru}</span>
             <kbd>{KINDS[k].key}</kbd>
+          </button>
+        ))}
+      </div>
+      <div className="section-title">DWV — канализация</div>
+      {!dwvOk && <div className="hint">DWV-фитинги бывают от 1-1/4" до 6"</div>}
+      <div className="kinds">
+        {DWV_ORDER.map((k) => (
+          <button key={k} className="kind" disabled={!dwvOk || (k === 'closet' && !!curSize && !CLOSET_SIZES.includes(curSize))} onClick={() => addPart(k)} title={KINDS[k].en}>
+            <KindIcon kind={k} />
+            <span>{KINDS[k].ru}</span>
           </button>
         ))}
       </div>
@@ -139,6 +172,7 @@ export function Inspector({ model }: { model: Model }) {
           <div className="insp-title">
             {KINDS[part.kind].ru} {sizeLabel(part.size)}
             {part.kind === 'reducer' && ` → ${sizeLabel(part.size2 ?? part.size)}`}
+            {BRANCH_KINDS.has(part.kind) && part.size2 && part.size2 !== part.size && ` × ${sizeLabel(part.size2)}`}
           </div>
           <div className="insp-sub">{KINDS[part.kind].en}</div>
         </div>
@@ -161,10 +195,23 @@ export function Inspector({ model }: { model: Model }) {
         </>
       )}
 
+      {BRANCH_KINDS.has(part.kind) && (
+        <>
+          <label>Размер отвода</label>
+          <SizeSelect
+            value={part.size2 ?? part.size}
+            only={DWV_SIZES.filter((s) => SIZES.findIndex((x) => x.id === s) <= SIZES.findIndex((x) => x.id === part.size))}
+            disabled={branchPorts(part.kind).some((i) => model.links.has(portKey(part.id, i)))}
+            onChange={(s) => updatePart(part.id, { size2: s })}
+          />
+          {branchPorts(part.kind).some((i) => model.links.has(portKey(part.id, i))) && <div className="muted small">Отвод уже подключён — сначала убери то, что к нему присоединено</div>}
+        </>
+      )}
+
       {!part.parent && parts.length === 1 && part.kind !== 'reducer' && (
         <>
           <label>Размер</label>
-          <SizeSelect value={part.size} onChange={(s) => updatePart(part.id, { size: s })} />
+          <SizeSelect value={part.size} only={isDwv(part.kind) ? DWV_SIZES : undefined} onChange={(s) => updatePart(part.id, { size: s })} />
         </>
       )}
 

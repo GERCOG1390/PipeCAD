@@ -1,9 +1,9 @@
 import { GizmoHelper, GizmoViewport, Grid, Html, OrbitControls } from '@react-three/drei'
 import { Canvas, ThreeEvent, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { Box3, Quaternion, Vector3 } from 'three'
+import { Box3, Curve, CurvePath, Quaternion, TubeGeometry, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { Part, V3, hubRadius, portsOf, sizeSpec } from './catalog'
+import { Part, PathSeg, Tube, V3, dwvLayout, hubRadius, isDwv, portsOf, sizeSpec } from './catalog'
 import { Model, Xf, portKey } from './geometry'
 import { useStore } from './store'
 import { formatLength } from './units'
@@ -35,7 +35,64 @@ function Seg({ a, b, r, color }: { a: V3; b: V3; r: number; color: string }) {
 
 const add = (a: V3, b: V3, k = 1): V3 => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k]
 
+class SegCurve extends Curve<Vector3> {
+  constructor(private seg: PathSeg) {
+    super()
+  }
+  getPoint(t: number, target = new Vector3()): Vector3 {
+    const s = this.seg
+    if (s.t === 'line') return target.set(...s.a).lerp(new Vector3(...s.b), t)
+    const phi = s.ang * t
+    return target.set(...s.a).addScaledVector(new Vector3(...s.t0), s.r * Math.sin(phi)).addScaledVector(new Vector3(...s.n), s.r * (1 - Math.cos(phi)))
+  }
+}
+
+function TubeMesh({ tube, color }: { tube: Tube; color: string }) {
+  const geom = useMemo(() => {
+    const path = new CurvePath<Vector3>()
+    tube.segs.forEach((s) => {
+      if (s.t === 'line' && new Vector3(...s.a).distanceTo(new Vector3(...s.b)) < 1e-4) return
+      path.add(new SegCurve(s))
+    })
+    const arcs = tube.segs.filter((s) => s.t === 'arc').length
+    return new TubeGeometry(path, Math.max(4, arcs * 40 + tube.segs.length * 2), tube.r, 32, false)
+  }, [tube])
+  useEffect(() => () => geom.dispose(), [geom])
+  return (
+    <mesh geometry={geom}>
+      <meshStandardMaterial color={color} roughness={0.42} metalness={0.02} />
+    </mesh>
+  )
+}
+
+function DwvBody({ part, color }: { part: Part; color: string }) {
+  const layout = useMemo(() => dwvLayout(part), [part])
+  return (
+    <>
+      {layout.tubes.map((t, i) => (
+        <TubeMesh key={i} tube={t} color={color} />
+      ))}
+      {layout.ports
+        .filter((pt) => !pt.spigot)
+        .map((pt, i) => (
+          <Seg key={i} a={add(pt.pos, pt.dir, -0.15)} b={add(pt.pos, pt.dir, pt.depth)} r={hubRadius(pt.size)} color={color} />
+        ))}
+      {layout.extras.map((x, i) =>
+        x.shape === 'disc' ? (
+          <Seg key={i} a={x.pos} b={add(x.pos, [0, 0, 1], x.h)} r={x.r} color={color} />
+        ) : (
+          <mesh key={i} position={add(x.pos, [0, 0, 1], x.h / 2)}>
+            <boxGeometry args={[x.r * 2, x.r * 2, x.h]} />
+            <meshStandardMaterial color={color} roughness={0.5} />
+          </mesh>
+        )
+      )}
+    </>
+  )
+}
+
 function PartBody({ part, color }: { part: Part; color: string }) {
+  if (isDwv(part.kind)) return <DwvBody part={part} color={color} />
   const ports = portsOf(part)
   if (part.kind === 'pipe') {
     return <Seg a={[0, 0, 0]} b={[0, 0, part.length ?? 0]} r={sizeSpec(part.size).od / 2} color={color} />
@@ -64,7 +121,7 @@ function PartBody({ part, color }: { part: Part; color: string }) {
         </mesh>
       )}
       {ports.map((pt, i) => (
-        <Seg key={i} a={[0, 0, 0]} b={add(pt.pos, pt.dir, sizeSpec(pt.size).socket)} r={hubRadius(pt.size)} color={color} />
+        <Seg key={i} a={[0, 0, 0]} b={add(pt.pos, pt.dir, pt.depth)} r={hubRadius(pt.size)} color={color} />
       ))}
       {part.kind === 'valve' && (
         <>
@@ -101,12 +158,17 @@ function PartMesh({ part, xf }: { part: Part; xf: Xf }) {
 function PortMarkers({ model, parts }: { model: Model; parts: Part[] }) {
   const active = useStore((s) => s.activePort)
   const selectPort = useStore((s) => s.selectPort)
-  const kinds = useMemo(() => new Map(parts.map((p) => [p.id, p.kind])), [parts])
+  const badPorts = model.ports.filter((w) => model.bad.includes(portKey(w.partId, w.index)))
   return (
     <>
+      {badPorts.map((w) => (
+        <mesh key={'bad' + portKey(w.partId, w.index)} position={w.pos} renderOrder={11}>
+          <sphereGeometry args={[hubRadius(w.size) * 1.15, 20, 14]} />
+          <meshBasicMaterial color="#e2574c" depthTest={false} transparent opacity={0.55} />
+        </mesh>
+      ))}
       {model.open.map((w) => {
-        const isPipe = kinds.get(w.partId) === 'pipe'
-        const pos = w.pos.clone().addScaledVector(w.dir, isPipe ? 0 : sizeSpec(w.size).socket)
+        const pos = w.pos.clone().addScaledVector(w.dir, w.def.depth)
         const isActive = active && portKey(active.id, active.port) === portKey(w.partId, w.index)
         const r = Math.max(0.28, hubRadius(w.size) * 0.55)
         return (

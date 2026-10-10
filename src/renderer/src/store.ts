@@ -1,6 +1,10 @@
 import { create } from 'zustand'
-import { DEFAULT_PIPE, Part, PartKind, SIZES, SizeId, V3, portsOf } from './catalog'
+import { DEFAULT_PIPE, CLOSET_SIZES, DWV_SIZES, Part, PartKind, SIZES, SizeId, V3, isDwv, portsOf } from './catalog'
 import { buildModel, portKey } from './geometry'
+import { formatLength } from './units'
+
+// Короткий отрезок между двумя раструбами: обе глубины + 1/2" видимой трубы, с округлением до 1/4"
+const nippleLength = (d1: number, d2: number): number => Math.ceil((d1 + d2 + 0.5) * 4) / 4
 
 export interface PortRef {
   id: string
@@ -104,6 +108,8 @@ export const useStore = create<State>((set, get) => ({
     const part: Part = { id, kind, size: paletteSize, attach: 0, roll: 0 }
     if (kind === 'pipe') part.length = lastPipe
 
+    const added: Part[] = []
+    let message: string | null = null
     if (parts.length) {
       let target = activePort && isOpen(parts, activePort) ? activePort : null
       if (!target && selectedId) target = firstOpen(parts, selectedId)
@@ -112,16 +118,42 @@ export const useStore = create<State>((set, get) => ({
         return
       }
       const parent = parts.find((p) => p.id === target!.id)!
-      part.size = portsOf(parent)[target.port].size
-      part.parent = target
-    }
-    if (kind === 'reducer') {
+      const pport = portsOf(parent)[target.port]
+      part.size = pport.size
+      if (isDwv(kind) && !DWV_SIZES.includes(part.size)) {
+        set({ message: `DWV-фитинги бывают от 1-1/4", а этот конец ${pport.size}"` })
+        return
+      }
+      if (kind === 'closet' && !CLOSET_SIZES.includes(part.size)) {
+        set({ message: 'Фланец унитаза бывает только 3" и 4"' })
+        return
+      }
+      if (kind === 'reducer') part.size2 = reducerTo !== part.size ? reducerTo : SIZES.find((s) => s.id !== part.size)!.id
+      // Раструб принимает только гладкий конец. Ищем подходящий конец у новой детали,
+      // а если такого нет — вставляем ниппель (раструб-раструб) или муфту (труба-труба).
+      const fits = portsOf(part).findIndex((pt) => !!pt.spigot !== !!pport.spigot && pt.size === part.size)
+      if (fits >= 0) {
+        part.attach = fits
+        part.parent = target
+      } else {
+        const adapter: Part = pport.spigot
+          ? { id: newId(), kind: 'coupling', size: part.size, attach: 0, roll: 0, parent: target }
+          : { id: newId(), kind: 'pipe', size: part.size, attach: 0, roll: 0, parent: target, length: nippleLength(pport.depth, Math.max(...portsOf(part).map((pt) => pt.depth))) }
+        added.push(adapter)
+        part.parent = { id: adapter.id, port: 1 }
+        part.attach = Math.max(0, portsOf(part).findIndex((pt) => !!pt.spigot === !pport.spigot))
+        message = pport.spigot ? 'Труба к трубе — добавил муфту' : `Раструб в раструб не клеится — добавил ниппель ${formatLength(adapter.length!)}`
+      }
+    } else if (kind === 'reducer') {
       part.size2 = reducerTo !== part.size ? reducerTo : SIZES.find((s) => s.id !== part.size)!.id
+    } else if (isDwv(kind) && !DWV_SIZES.includes(part.size)) {
+      set({ message: 'DWV-фитинги бывают от 1-1/4"' })
+      return
     }
 
-    const next = [...parts, part]
+    const next = [...parts, ...added, part]
     get().commit(next)
-    set({ selectedId: id, activePort: firstOpen(next, id, part.attach), message: null })
+    set({ selectedId: id, activePort: firstOpen(next, id, part.attach), message })
   },
 
   updatePart: (id, patch) => {

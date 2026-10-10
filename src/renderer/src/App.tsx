@@ -93,7 +93,7 @@ export function App() {
       if (k === 'escape') return s.select(null)
       if (e.code === 'KeyR' && s.selectedId) return s.rollPart(s.selectedId, e.shiftKey ? -90 : 90)
       if (k === 'home') return s.setView(null)
-      const kind = KIND_ORDER.find((x) => e.code === `Key${KINDS[x].key}`)
+      const kind = KIND_ORDER.find((x) => KINDS[x].key && e.code === `Key${KINDS[x].key}`)
       if (kind) s.addPart(kind)
     }
     window.addEventListener('keydown', onKey)
@@ -162,6 +162,7 @@ export function App() {
         <span>Деталей: {parts.length}</span>
         <span className={openEnds ? 'warn' : ''}>Открытых концов: {openEnds}</span>
         <span>Склеек: {bom.joints}</span>
+        {model.bad.length > 0 && <span className="err">Неправильных соединений: {model.bad.length}</span>}
         {message && <span className="msg">{message}</span>}
       </footer>
     </div>

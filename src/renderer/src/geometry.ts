@@ -59,6 +59,7 @@ export interface Model {
   ports: WorldPort[]
   links: Map<string, string> // "id:port" -> "id:port"
   open: WorldPort[]
+  bad: string[] // раструб в раструб, гладкий в гладкий или разные размеры (ключ одной стороны)
 }
 
 export function buildModel(parts: Part[]): Model {
@@ -94,7 +95,7 @@ export function buildModel(parts: Part[]): Model {
     for (let j = i + 1; j < free.length; j++) {
       const a = free[i]
       const b = free[j]
-      if (a.partId === b.partId || a.size !== b.size) continue
+      if (a.partId === b.partId || a.size !== b.size || !!a.def.spigot === !!b.def.spigot) continue
       const ka = portKey(a.partId, a.index)
       const kb = portKey(b.partId, b.index)
       if (links.has(ka) || links.has(kb)) continue
@@ -106,5 +107,13 @@ export function buildModel(parts: Part[]): Model {
   }
 
   const open = ports.filter((w) => !links.has(portKey(w.partId, w.index)))
-  return { xfs, ports, links, open }
+  const byKey = new Map(ports.map((w) => [portKey(w.partId, w.index), w]))
+  const bad: string[] = []
+  links.forEach((b, a) => {
+    if (a > b) return
+    const wa = byKey.get(a)
+    const wb = byKey.get(b)
+    if (wa && wb && (!!wa.def.spigot === !!wb.def.spigot || wa.size !== wb.size)) bad.push(a)
+  })
+  return { xfs, ports, links, open, bad }
 }
