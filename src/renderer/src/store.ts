@@ -1,9 +1,11 @@
 import { create } from 'zustand'
-import { DEFAULT_PIPE, CLOSET_SIZES, DWV_SIZES, Part, PartKind, SIZES, SizeId, V3, isDwv, portsOf } from './catalog'
+import { DEFAULT_PIPE, DwvKind, KINDS, Part, PartKind, SIZES, SizeId, V3, dwvAvailable, isDwv, portsOf } from './catalog'
 import { buildModel, portKey } from './geometry'
 import { formatLength } from './units'
 
 // Короткий отрезок между двумя раструбами: обе глубины + 1/2" видимой трубы, с округлением до 1/4"
+const notMade = (kind: DwvKind, size: SizeId): string => `Charlotte не выпускает «${KINDS[kind].ru}» ${size}"`
+
 const nippleLength = (d1: number, d2: number): number => Math.ceil((d1 + d2 + 0.5) * 4) / 4
 
 export interface PortRef {
@@ -120,12 +122,8 @@ export const useStore = create<State>((set, get) => ({
       const parent = parts.find((p) => p.id === target!.id)!
       const pport = portsOf(parent)[target.port]
       part.size = pport.size
-      if (isDwv(kind) && !DWV_SIZES.includes(part.size)) {
-        set({ message: `DWV-фитинги бывают от 1-1/4", а этот конец ${pport.size}"` })
-        return
-      }
-      if (kind === 'closet' && !CLOSET_SIZES.includes(part.size)) {
-        set({ message: 'Фланец унитаза бывает только 3" и 4"' })
+      if (isDwv(kind) && !dwvAvailable(kind, part.size)) {
+        set({ message: notMade(kind, part.size) })
         return
       }
       if (kind === 'reducer') part.size2 = reducerTo !== part.size ? reducerTo : SIZES.find((s) => s.id !== part.size)!.id
@@ -146,8 +144,8 @@ export const useStore = create<State>((set, get) => ({
       }
     } else if (kind === 'reducer') {
       part.size2 = reducerTo !== part.size ? reducerTo : SIZES.find((s) => s.id !== part.size)!.id
-    } else if (isDwv(kind) && !DWV_SIZES.includes(part.size)) {
-      set({ message: 'DWV-фитинги бывают от 1-1/4"' })
+    } else if (isDwv(kind) && !dwvAvailable(kind, part.size)) {
+      set({ message: notMade(kind, part.size) })
       return
     }
 
@@ -270,3 +268,6 @@ export function serialize(): string {
   const f: ProjectFile = { app: 'pipecad', version: 1, parts, stick }
   return JSON.stringify(f, null, 1)
 }
+
+// Для автотестов через DevTools
+;(window as unknown as { pipecad: typeof useStore }).pipecad = useStore

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BRANCH_KINDS, CLOSET_SIZES, DWV_ORDER, DWV_SIZES, DwvKind, KINDS, KIND_ORDER, PartKind, PressureKind, SIZES, SizeId, branchPorts, isDwv, portsOf, sizeLabel } from './catalog'
+import { BRANCH_KINDS, dwvAvailable, DWV_ORDER, DWV_SIZES, DwvKind, KINDS, KIND_ORDER, PartKind, PressureKind, SIZES, SizeId, branchPorts, isDwv, portsOf, sizeLabel } from './catalog'
 import { Bom, bomCsv } from './bom'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
@@ -89,10 +89,10 @@ export function Palette({ model }: { model: Model }) {
         ))}
       </div>
       <div className="section-title">DWV — канализация</div>
-      {!dwvOk && <div className="hint">DWV-фитинги бывают от 1-1/4" до 6"</div>}
+      {!dwvOk ? <div className="hint">DWV-фитинги бывают от 1-1/4" до 6"</div> : <div className="hint">Размеры по каталогу Charlotte Pipe</div>}
       <div className="kinds">
         {DWV_ORDER.map((k) => (
-          <button key={k} className="kind" disabled={!dwvOk || (k === 'closet' && !!curSize && !CLOSET_SIZES.includes(curSize))} onClick={() => addPart(k)} title={KINDS[k].en}>
+          <button key={k} className="kind" disabled={!!curSize && !dwvAvailable(k, curSize)} onClick={() => addPart(k)} title={KINDS[k].en}>
             <KindIcon kind={k} />
             <span>{KINDS[k].ru}</span>
           </button>
@@ -155,8 +155,9 @@ export function Inspector({ model }: { model: Model }) {
     const [oid, oport] = other.split(':')
     const op = parts.find((p) => p.id === oid)
     if (!op || op.kind === 'pipe' || op.kind === 'cap') return 0
-    const [x, y, z] = portsOf(op)[Number(oport)].pos
-    return Math.hypot(x, y, z)
+    // проекция на ось порта: от оси соседнего направления до дна раструба
+    const { pos, dir } = portsOf(op)[Number(oport)]
+    return Math.max(0, pos[0] * dir[0] + pos[1] * dir[1] + pos[2] * dir[2])
   }
   const len = part.length ?? 0
   const g0 = part.kind === 'pipe' ? takeoff(0) : 0

@@ -3,7 +3,7 @@ import { Canvas, ThreeEvent, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { Box3, Curve, CurvePath, Quaternion, TubeGeometry, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { Part, PathSeg, Tube, V3, dwvLayout, hubRadius, isDwv, portsOf, sizeSpec } from './catalog'
+import { Part, PathSeg, Tube, V3, dwvHubRadius, dwvLayout, hubRadius, isDwv, portsOf, sizeSpec } from './catalog'
 import { Model, Xf, portKey } from './geometry'
 import { useStore } from './store'
 import { formatLength } from './units'
@@ -75,7 +75,7 @@ function DwvBody({ part, color }: { part: Part; color: string }) {
       {layout.ports
         .filter((pt) => !pt.spigot)
         .map((pt, i) => (
-          <Seg key={i} a={add(pt.pos, pt.dir, -0.15)} b={add(pt.pos, pt.dir, pt.depth)} r={hubRadius(pt.size)} color={color} />
+          <Seg key={i} a={add(pt.pos, pt.dir, -0.15)} b={add(pt.pos, pt.dir, pt.depth)} r={dwvHubRadius(pt.size)} color={color} />
         ))}
       {layout.extras.map((x, i) =>
         x.shape === 'disc' ? (

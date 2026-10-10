@@ -1,5 +1,5 @@
 // Справочник PVC Schedule 40. Все размеры в дюймах.
-// Напорные: трубы ASTM D1785, фитинги D2466. Канализация: DWV, ASTM D2665.
+// Напорные: трубы ASTM D1785, фитинги D2466. Канализация: DWV, ASTM D2665, размеры Charlotte Pipe.
 // od — наружный диаметр трубы, socket/dwv — глубина раструба напорного/DWV фитинга,
 // g90/g45/gCoup — от центра фитинга до дна раструба (заход, "take-off").
 // Заходы примерные, у разных производителей отличаются на 1/16–1/8".
@@ -194,22 +194,159 @@ const plus = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 export const arcEnd = (s: Extract<PathSeg, { t: 'arc' }>): V3 =>
   plus(s.a, plus(mul(s.t0, s.r * Math.sin(s.ang)), mul(s.n, s.r * (1 - Math.cos(s.ang)))))
 
-const DWV_G: Partial<Record<DwvKind, [number, number, number]>> = {
-  // [k·od + b, доля дуги в заходе]
-  dwv90: [0.8, 0.2, 0.75],
-  st90: [0.8, 0.2, 0.75],
-  dwvLong90: [1.6, 0.5, 0.92],
-  dwv45: [0.38, 0.2, 0.6],
-  st45: [0.38, 0.2, 0.6],
-  dwv22: [0.2, 0.15, 0.5]
+// Размеры Charlotte Pipe PVC DWV (каталог DC-DWV609). Все расстояния — до дна раструба.
+// bend90/long90/b45/b22: A — от центра до дна раструба.
+// st90/st45: [A — сторона раструба, B — от центра до торца гладкого конца].
+// san/dbl: [A — от оси ствола до дна бокового раструба = от оси отвода до дна нижнего, B — между доньями верхнего и нижнего].
+// wye: [A — между доньями верх/низ, B — от пересечения осей до дна нижнего, C — от пересечения по оси отвода].
+// combo: [A — от оси ствола до дна отвода, B — между доньями верх/низ, C — высота оси отвода над дном нижнего].
+// trap: [A — от оси входа до дна выхода, B — высота оси выхода над низом колена, C — высота дна входа над низом колена].
+// wall — толщина стенки раструба (Hub dimensions, D).
+type DwvSizeId = '1-1/4' | '1-1/2' | '2' | '3' | '4' | '6'
+interface ChRow {
+  bend90: number
+  st90: [number, number]
+  long90?: number
+  b45: number
+  st45: [number, number]
+  b22?: number
+  san: [number, number]
+  dbl?: [number, number]
+  wye: [number, number, number]
+  combo?: [number, number, number]
+  trap?: [number, number, number]
+  wall: number
 }
-const BEND_ANG: Partial<Record<DwvKind, number>> = {
-  dwv90: 90,
-  st90: 90,
-  dwvLong90: 90,
-  dwv45: 45,
-  st45: 45,
-  dwv22: 22.5
+export const CHARLOTTE: Record<DwvSizeId, ChRow> = {
+  '1-1/4': {
+    bend90: 1.5625,
+    st90: [1.625, 2.3125],
+    b45: 1,
+    st45: [1, 1.75],
+    san: [1.5625, 2.3125],
+    wye: [3.625, 1.0625, 2.5625],
+    wall: 0.156
+  },
+  '1-1/2': {
+    bend90: 1.75,
+    st90: [1.75, 2.5],
+    long90: 2.75,
+    b45: 1.125,
+    st45: [1.125, 1.875],
+    b22: 0.5,
+    san: [1.75, 2.75],
+    dbl: [1.75, 2.75],
+    wye: [4, 1.125, 2.875],
+    combo: [3.9375, 3.5, 3.9375],
+    trap: [4.625, 3.859, 1.484],
+    wall: 0.156
+  },
+  '2': {
+    bend90: 2.3125,
+    st90: [2.3125, 3.1875],
+    long90: 3.25,
+    b45: 1.5,
+    st45: [1.5, 2.1875],
+    b22: 0.6875,
+    san: [2.3125, 3.6875],
+    dbl: [2.3125, 3.6875],
+    wye: [5, 1.375, 3.625],
+    combo: [5.125, 4.4375, 5.125],
+    trap: [6.594, 4.75, 2.25],
+    wall: 0.156
+  },
+  '3': {
+    bend90: 3.0625,
+    st90: [3.0625, 4.5625],
+    long90: 4.0625,
+    b45: 1.75,
+    st45: [1.75, 3.25],
+    b22: 0.8125,
+    san: [3.0625, 4.875],
+    dbl: [3.0625, 4.875],
+    wye: [6.625, 1.625, 5],
+    combo: [7.5625, 6.5, 7.5625],
+    trap: [8.9375, 6.844, 3.0625],
+    wall: 0.218
+  },
+  '4': {
+    bend90: 3.875,
+    st90: [3.875, 5.625],
+    long90: 4.9375,
+    b45: 2.1875,
+    st45: [2.1875, 3.9375],
+    b22: 1,
+    san: [3.875, 6.125],
+    dbl: [3.875, 6.125],
+    wye: [8.25, 1.875, 6.375],
+    combo: [10, 8.5, 10],
+    trap: [11.203, 8.1875, 3.6875],
+    wall: 0.25
+  },
+  '6': {
+    bend90: 5,
+    st90: [5.1875, 8.125],
+    long90: 9,
+    b45: 2.0625,
+    st45: [2.0625, 5.078],
+    b22: 1.5,
+    san: [5, 8.5],
+    wye: [10.1875, 1.75, 8.4375],
+    trap: [18.53, 12.9375, 5.4375],
+    wall: 0.281
+  }
+}
+
+const ch = (size: SizeId): ChRow | undefined => CHARLOTTE[size as DwvSizeId]
+
+// Выпускает ли Charlotte такой фитинг в этом размере
+export function dwvAvailable(kind: DwvKind, size: SizeId): boolean {
+  const r = ch(size)
+  if (!r) return false
+  switch (kind) {
+    case 'dwvLong90':
+      return !!r.long90
+    case 'dwv22':
+      return !!r.b22
+    case 'dblSanTee':
+      return !!r.dbl
+    case 'combo':
+      return !!r.combo
+    case 'ptrap':
+      return !!r.trap
+    case 'closet':
+      return CLOSET_SIZES.includes(size)
+    default:
+      return true
+  }
+}
+
+export const dwvHubRadius = (size: SizeId): number => sizeSpec(size).od / 2 + (ch(size)?.wall ?? 0.15) + 0.02
+
+function bend(size: SizeId, angDeg: number, G: number, f: number, streetB?: number): Layout {
+  const s = sizeSpec(size)
+  const ang = (angDeg * Math.PI) / 180
+  const T = G * f
+  const R = T / Math.tan(ang / 2)
+  const u: V3 = [Math.sin(ang), 0, Math.cos(ang)]
+  const tubes: Tube[] = [
+    {
+      r: bodyRadius(size),
+      segs: [
+        { t: 'line', a: [0, 0, -G], b: [0, 0, -T] },
+        { t: 'arc', a: [0, 0, -T], t0: [0, 0, 1], n: [1, 0, 0], r: R, ang },
+        { t: 'line', a: mul(u, T), b: mul(u, G) }
+      ]
+    }
+  ]
+  let p0 = dwvHub([0, 0, -G], [0, 0, -1], size)
+  if (streetB !== undefined) {
+    // У street-колена сторона гладкого конца: от центра до торца B
+    tubes[0].segs[0] = { t: 'line', a: [0, 0, -Math.max(G, streetB - s.dwv)], b: [0, 0, -T] }
+    tubes.push({ r: s.od / 2, segs: [{ t: 'line', a: [0, 0, -Math.max(G, streetB - s.dwv)], b: [0, 0, -streetB] }] })
+    p0 = spigot([0, 0, -streetB], [0, 0, -1], size)
+  }
+  return { ports: [p0, dwvHub(mul(u, G), u, size)], tubes, extras: [] }
 }
 
 export function dwvLayout(p: Part): Layout {
@@ -222,53 +359,42 @@ export function dwvLayout(p: Part): Layout {
   const bod = sizeSpec(bsize).od
   const bbr = bodyRadius(bsize)
   const c = Math.SQRT1_2
-
-  const g = DWV_G[kind]
-  if (g) {
-    const ang = (BEND_ANG[kind]! * Math.PI) / 180
-    const G = g[0] * od + g[1]
-    const T = G * g[2]
-    const R = T / Math.tan(ang / 2)
-    const u: V3 = [Math.sin(ang), 0, Math.cos(ang)]
-    const tubes: Tube[] = [
-      {
-        r: br,
-        segs: [
-          { t: 'line', a: [0, 0, -G], b: [0, 0, -T] },
-          { t: 'arc', a: [0, 0, -T], t0: [0, 0, 1], n: [1, 0, 0], r: R, ang },
-          { t: 'line', a: mul(u, T), b: mul(u, G) }
-        ]
-      }
-    ]
-    const street = kind === 'st90' || kind === 'st45'
-    if (street) tubes.push({ r: od / 2, segs: [{ t: 'line', a: [0, 0, -G], b: [0, 0, -(G + s.dwv)] }] })
-    const p0 = street ? spigot([0, 0, -(G + s.dwv)], [0, 0, -1], size) : dwvHub([0, 0, -G], [0, 0, -1], size)
-    return { ports: [p0, dwvHub(mul(u, G), u, size)], tubes, extras: [] }
-  }
+  const r = ch(size) ?? CHARLOTTE['2']
 
   switch (kind) {
+    case 'dwv90':
+      return bend(size, 90, r.bend90, 0.75)
+    case 'st90':
+      return bend(size, 90, r.st90[0], 0.75, r.st90[1])
+    case 'dwvLong90':
+      return bend(size, 90, r.long90 ?? r.bend90 * 1.5, 0.92)
+    case 'dwv45':
+      return bend(size, 45, r.b45, 0.6)
+    case 'st45':
+      return bend(size, 45, r.st45[0], 0.6, r.st45[1])
+    case 'dwv22':
+      return bend(size, 22.5, r.b22 ?? r.b45 * 0.45, 0.5)
     case 'sanTee':
     case 'dblSanTee': {
-      const G = 0.75 * od + 0.25
-      const Gb = Math.max(0.75 * bod + 0.25, od / 2 + 0.6)
-      const Rs = Math.min(bod * 0.55, Gb * 0.8)
-      const ports = [dwvHub([0, 0, -G], [0, 0, -1], size), dwvHub([0, 0, G], [0, 0, 1], size), dwvHub([Gb, 0, 0], [1, 0, 0], bsize)]
+      const [A, B] = (kind === 'dblSanTee' ? r.dbl : undefined) ?? r.san
+      const Rs = Math.min(bod * 0.55, A * 0.8)
+      const ports = [dwvHub([0, 0, -A], [0, 0, -1], size), dwvHub([0, 0, B - A], [0, 0, 1], size), dwvHub([A, 0, 0], [1, 0, 0], bsize)]
       const tubes: Tube[] = [
-        { r: br, segs: [{ t: 'line', a: [0, 0, -G], b: [0, 0, G] }] },
+        { r: br, segs: [{ t: 'line', a: [0, 0, -A], b: [0, 0, B - A] }] },
         {
           r: bbr,
           segs: [
-            { t: 'line', a: [Gb, 0, 0], b: [Rs, 0, 0] },
+            { t: 'line', a: [A, 0, 0], b: [Rs, 0, 0] },
             { t: 'arc', a: [Rs, 0, 0], t0: [-1, 0, 0], n: [0, 0, -1], r: Rs, ang: Math.PI / 2 }
           ]
         }
       ]
       if (kind === 'dblSanTee') {
-        ports.push(dwvHub([-Gb, 0, 0], [-1, 0, 0], bsize))
+        ports.push(dwvHub([-A, 0, 0], [-1, 0, 0], bsize))
         tubes.push({
           r: bbr,
           segs: [
-            { t: 'line', a: [-Gb, 0, 0], b: [-Rs, 0, 0] },
+            { t: 'line', a: [-A, 0, 0], b: [-Rs, 0, 0] },
             { t: 'arc', a: [-Rs, 0, 0], t0: [1, 0, 0], n: [0, 0, -1], r: Rs, ang: Math.PI / 2 }
           ]
         })
@@ -276,33 +402,34 @@ export function dwvLayout(p: Part): Layout {
       return { ports, tubes, extras: [] }
     }
     case 'wye': {
-      const G0 = 0.55 * od + 0.2
-      const G1 = 1.15 * od + 0.3
-      const Gb = Math.max(1.15 * bod + 0.3, od * 0.9 + 0.5)
+      const [A, B, C] = r.wye
       const d: V3 = [c, 0, c]
       return {
-        ports: [dwvHub([0, 0, -G0], [0, 0, -1], size), dwvHub([0, 0, G1], [0, 0, 1], size), dwvHub(mul(d, Gb), d, bsize)],
+        ports: [dwvHub([0, 0, -B], [0, 0, -1], size), dwvHub([0, 0, A - B], [0, 0, 1], size), dwvHub(mul(d, C), d, bsize)],
         tubes: [
-          { r: br, segs: [{ t: 'line', a: [0, 0, -G0], b: [0, 0, G1] }] },
-          { r: bbr, segs: [{ t: 'line', a: [0, 0, 0], b: mul(d, Gb) }] }
+          { r: br, segs: [{ t: 'line', a: [0, 0, -B], b: [0, 0, A - B] }] },
+          { r: bbr, segs: [{ t: 'line', a: [0, 0, 0], b: mul(d, C) }] }
         ],
         extras: []
       }
     }
     case 'combo': {
-      const G0 = 0.55 * od + 0.2
-      const G1 = 1.15 * od + 0.3
+      // начало координат — на оси ствола на высоте оси отвода
+      const [A, B, C] = r.combo ?? [CHARLOTTE['2'].combo![0] * (od / 2.375), 0, 0]
       const d: V3 = [c, 0, c]
-      const start: V3 = [0, 0, -0.2 * od]
-      const a = plus(start, mul(d, 0.6 * od + 0.2))
-      const arc = { t: 'arc' as const, a, t0: d, n: [c, 0, -c] as V3, r: 0.9 * bod, ang: Math.PI / 4 }
-      const e = arcEnd(arc)
-      const end = plus(e, [0.35 * bod + 0.2, 0, 0])
+      const n: V3 = [c, 0, -c]
+      const R = 0.45 * A
+      const L2 = 0.15 * A
+      const e: V3 = [A - L2, 0, 0]
+      const pa = plus(e, mul(plus(mul(d, R * Math.sin(Math.PI / 4)), mul(n, R * (1 - Math.cos(Math.PI / 4)))), -1))
+      const L = pa[0] / c
+      const start: V3 = [0, 0, Math.max(-C + 0.2, pa[2] - L * c)]
+      const arc = { t: 'arc' as const, a: pa, t0: d, n, r: R, ang: Math.PI / 4 }
       return {
-        ports: [dwvHub([0, 0, -G0], [0, 0, -1], size), dwvHub([0, 0, G1], [0, 0, 1], size), dwvHub(end, [1, 0, 0], bsize)],
+        ports: [dwvHub([0, 0, -C], [0, 0, -1], size), dwvHub([0, 0, B - C], [0, 0, 1], size), dwvHub([A, 0, 0], [1, 0, 0], bsize)],
         tubes: [
-          { r: br, segs: [{ t: 'line', a: [0, 0, -G0], b: [0, 0, G1] }] },
-          { r: bbr, segs: [{ t: 'line', a: start, b: a }, arc, { t: 'line', a: e, b: end }] }
+          { r: br, segs: [{ t: 'line', a: [0, 0, -C], b: [0, 0, B - C] }] },
+          { r: bbr, segs: [{ t: 'line', a: start, b: pa }, arc, { t: 'line', a: e, b: [A, 0, 0] }] }
         ],
         extras: []
       }
@@ -311,34 +438,34 @@ export function dwvLayout(p: Part): Layout {
       const h = 0.5 * od + 0.3
       return {
         ports: [dwvHub([0, 0, 0], [0, 0, -1], size)],
-        tubes: [{ r: hubRadius(size), segs: [{ t: 'line', a: [0, 0, 0], b: [0, 0, h] }] }],
+        tubes: [{ r: dwvHubRadius(size), segs: [{ t: 'line', a: [0, 0, 0], b: [0, 0, h] }] }],
         extras: [{ shape: 'plug', pos: [0, 0, h], r: od * 0.22, h: 0.3 * od }]
       }
     }
     case 'closet':
+      // Charlotte 800: фланец Ø7", толщина 7/16"
       return {
         ports: [dwvHub([0, 0, 0], [0, 0, -1], size)],
         tubes: [],
-        extras: [{ shape: 'disc', pos: [0, 0, 0], r: Math.max(3.5, od * 0.85), h: 0.3 }]
+        extras: [{ shape: 'disc', pos: [0, 0, 0], r: 3.5, h: 0.4375 }]
       }
     case 'ptrap': {
-      // порт 0 — выход (в стену, на trap arm), порт 1 — вход сверху (от раковины)
-      const R = 0.7 * od
-      const Tb = 0.6 * od
-      const Hr = 0.9 * od
-      const H = 1.6 * od
-      const outX = 2 * R + Tb + 0.4 * od
+      // порт 0 — выход (в стену, на trap arm), порт 1 — вход сверху (от раковины).
+      // Начало координат — на оси входа, на уровне низа колена.
+      const [A, B, C] = r.trap ?? CHARLOTTE['1-1/2'].trap!
+      const R = Math.min(0.9 * C, 0.27 * A)
+      const Tb = Math.min(B - R - 0.1, A - 2 * R - 0.2) * 0.8
       return {
-        ports: [dwvHub([outX, Hr, 0], [1, 0, 0], size), dwvHub([0, H, 0], [0, 1, 0], size)],
+        ports: [dwvHub([A, B, 0], [1, 0, 0], size), dwvHub([0, C, 0], [0, 1, 0], size)],
         tubes: [
           {
             r: br,
             segs: [
-              { t: 'line', a: [outX, Hr, 0], b: [2 * R + Tb, Hr, 0] },
-              { t: 'arc', a: [2 * R + Tb, Hr, 0], t0: [-1, 0, 0], n: [0, -1, 0], r: Tb, ang: Math.PI / 2 },
-              { t: 'line', a: [2 * R, Hr - Tb, 0], b: [2 * R, 0, 0] },
-              { t: 'arc', a: [2 * R, 0, 0], t0: [0, -1, 0], n: [-1, 0, 0], r: R, ang: Math.PI },
-              { t: 'line', a: [0, 0, 0], b: [0, H, 0] }
+              { t: 'line', a: [A, B, 0], b: [2 * R + Tb, B, 0] },
+              { t: 'arc', a: [2 * R + Tb, B, 0], t0: [-1, 0, 0], n: [0, -1, 0], r: Tb, ang: Math.PI / 2 },
+              { t: 'line', a: [2 * R, B - Tb, 0], b: [2 * R, R, 0] },
+              { t: 'arc', a: [2 * R, R, 0], t0: [0, -1, 0], n: [-1, 0, 0], r: R, ang: Math.PI },
+              { t: 'line', a: [0, R, 0], b: [0, C, 0] }
             ]
           }
         ],
@@ -346,7 +473,6 @@ export function dwvLayout(p: Part): Layout {
       }
     }
   }
-  throw new Error(`unknown DWV kind ${kind}`)
 }
 
 export const sizeLabel = (id: SizeId): string => `${id}"`
@@ -358,6 +484,7 @@ export function englishName(p: Part): string {
     const dims = p.kind === 'dblSanTee' ? `${sz} x ${sz} x ${b} x ${b}` : `${sz} x ${sz} x ${b}`
     return `${dims} PVC DWV ${KINDS[p.kind].en}`
   }
+  if (p.kind === 'closet') return `4" x ${sz} PVC DWV Closet Flange`
   if (isDwv(p.kind)) return `${sz} PVC DWV ${KINDS[p.kind].en}`
   switch (p.kind) {
     case 'pipe':

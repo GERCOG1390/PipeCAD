@@ -1,19 +1,19 @@
-// Длины в дюймах; показываем как 4' 6-1/2" с точностью до 1/8".
+// Длины в дюймах; показываем как 4' 6-1/2" с точностью до 1/16".
 
 function gcd(a: number, b: number): number {
   return b ? gcd(b, a % b) : a
 }
 
 export function formatLength(inches: number): string {
-  const eighths = Math.round(inches * 8)
-  const ft = Math.floor(eighths / 96)
-  const restEighths = eighths - ft * 96
-  const whole = Math.floor(restEighths / 8)
-  const frac = restEighths % 8
+  const n16 = Math.round(inches * 16)
+  const ft = Math.floor(n16 / 192)
+  const rest = n16 - ft * 192
+  const whole = Math.floor(rest / 16)
+  const frac = rest % 16
   let inchStr = String(whole)
   if (frac) {
-    const g = gcd(frac, 8)
-    inchStr = `${whole ? whole + '-' : ''}${frac / g}/${8 / g}`
+    const g = gcd(frac, 16)
+    inchStr = `${whole ? whole + '-' : ''}${frac / g}/${16 / g}`
   }
   if (!ft) return `${inchStr}"`
   return `${ft}' ${inchStr}"`
