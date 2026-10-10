@@ -163,6 +163,23 @@ interface State {
   markSaved: (path: string) => void
 }
 
+// Настройки вида, которые помним между запусками
+function readPref(key: string, def: boolean): boolean {
+  try {
+    const v = localStorage.getItem(key)
+    return v === null ? def : v === '1'
+  } catch {
+    return def
+  }
+}
+function writePref(key: string, v: boolean): void {
+  try {
+    localStorage.setItem(key, v ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+}
+
 function newId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
@@ -217,7 +234,7 @@ export const useStore = create<State>((set, get) => ({
   reducerTo: '1',
   lastPipe: DEFAULT_PIPE,
   stick: 120,
-  showDims: true,
+  showDims: readPref('pipecad.showDims', true),
   showPorts: true,
   filePath: null,
   dirty: false,
@@ -466,7 +483,11 @@ export const useStore = create<State>((set, get) => ({
   setPaletteSize: (paletteSize) => set({ paletteSize }),
   setReducerTo: (reducerTo) => set({ reducerTo }),
   setStick: (stick) => set({ stick }),
-  toggleDims: () => set((s) => ({ showDims: !s.showDims })),
+  toggleDims: () =>
+    set((s) => {
+      writePref('pipecad.showDims', !s.showDims)
+      return { showDims: !s.showDims }
+    }),
   togglePorts: () => set((s) => ({ showPorts: !s.showPorts })),
   setView: (dir) => set((s) => ({ view: { tick: s.view.tick + 1, dir } })),
   setMessage: (message) => set({ message }),

@@ -115,6 +115,7 @@ export function App() {
       if (s.joining && k === 'escape') return useStore.setState({ joining: false, message: null })
       if (e.code === 'KeyJ') return s.startJoin()
       if (e.code === 'KeyA') return s.toggleAxes()
+      if (e.code === 'KeyL') return s.toggleDims()
       if (s.placing) {
         if (k === 'escape') return s.cancelPlacing()
         if (e.code === 'KeyR') return s.turnPlacing(e.shiftKey ? -90 : 90)
@@ -162,8 +163,8 @@ export function App() {
         <button onClick={() => st.setView([0, 0, 1])}>Спереди</button>
         <button onClick={() => st.setView([1, 0, 0])}>Сбоку</button>
         <span className="sep" />
-        <button className={showDims ? 'on' : ''} onClick={st.toggleDims}>
-          Размеры
+        <button className={showDims ? 'on' : 'off'} onClick={st.toggleDims} title={showDims ? 'Скрыть размеры труб (L)' : 'Показать размеры труб (L)'}>
+          📏 Размеры
         </button>
         <button className={showPorts ? 'on' : ''} onClick={st.togglePorts} title="Показывать свободные концы">
           Концы

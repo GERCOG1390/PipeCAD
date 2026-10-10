@@ -116,9 +116,10 @@ function draw(mat: Mat): HTMLCanvasElement {
       }
       break
     case 'drywall':
-      ctx.fillStyle = '#e6e3dc'
+      // серее белого PVC, чтобы трубы не сливались со стеной
+      ctx.fillStyle = '#9a9ea3'
       ctx.fillRect(0, 0, SIZE, SIZE)
-      noise(ctx, r, 6000, ['#dedad2', '#ece9e3'], 1, 2, 0.5)
+      noise(ctx, r, 7000, ['#91959a', '#a3a7ac', '#969a9f'], 1, 2, 0.5)
       break
     case 'dirt':
       ctx.fillStyle = '#6a4d32'

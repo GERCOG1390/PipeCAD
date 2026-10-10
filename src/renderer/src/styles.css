@@ -140,3 +140,4 @@ td.bad { color: #f87171; }
 .replay-count { font: 12px Consolas, monospace; color: var(--muted); min-width: 92px; }
 .main.replaying .left, .main.replaying .side { pointer-events: none; opacity: 0.45; }
 button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #ef4444; color: #fff; opacity: 1; }
+.toolbar button.off { color: var(--muted); border-style: dashed; }
