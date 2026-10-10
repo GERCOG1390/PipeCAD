@@ -121,7 +121,7 @@ export function App() {
         if (e.code === 'KeyR') return s.turnPlacing(e.shiftKey ? -90 : 90)
       }
       if ((k === 'delete' || k === 'backspace') && s.selectedEnv) return s.deleteEnv(s.selectedEnv)
-      if ((k === 'delete' || k === 'backspace') && s.selectedId) return s.deletePart(s.selectedId)
+      if ((k === 'delete' || k === 'backspace') && s.selectedId) return e.shiftKey ? s.deleteBranch(s.selectedId) : s.deletePart(s.selectedId)
       if (k === 'escape') return (s.select(null), s.selectEnv(null))
       if (e.code === 'KeyR' && s.selectedId) return s.rollPart(s.selectedId, e.shiftKey ? -90 : 90)
       if (k === 'home') return s.setView(null)

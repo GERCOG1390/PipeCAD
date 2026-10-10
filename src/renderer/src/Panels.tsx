@@ -278,6 +278,7 @@ export function Inspector({ model }: { model: Model }) {
   const rotateRoot = useStore((s) => s.rotateRoot)
   const cycleAttach = useStore((s) => s.cycleAttach)
   const deletePart = useStore((s) => s.deletePart)
+  const deleteBranch = useStore((s) => s.deleteBranch)
   const setMessage = useStore((s) => s.setMessage)
   const env = useStore((s) => s.env)
   const selectedEnv = useStore((s) => s.selectedEnv)
@@ -385,9 +386,14 @@ export function Inspector({ model }: { model: Model }) {
         </button>
       )}
 
-      <button className="wide danger" onClick={() => deletePart(part.id)}>
-        Удалить{sub > 1 ? ` вместе с продолжением (${sub} дет.)` : ''}
+      <button className="wide danger" onClick={() => deletePart(part.id)} title="Del">
+        Удалить только эту деталь
       </button>
+      {sub > 1 && (
+        <button className="wide danger" onClick={() => deleteBranch(part.id)} title="Shift+Del">
+          Удалить вместе с продолжением ({sub} дет.)
+        </button>
+      )}
     </div>
   )
 }

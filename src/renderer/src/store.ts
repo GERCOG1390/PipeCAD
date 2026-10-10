@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { DEFAULT_PIPE, FITTINGS, Part, PartKind, PortDef, SizeId, V3, defaultSize2, fittingDef, mates, portsOf, sizeIndex } from './catalog'
 import { EnvItem, Preset, baseY, normalize } from './environment'
-import { buildModel, portKey } from './geometry'
+import { buildModel, computeTransforms, portKey } from './geometry'
+import { Euler } from 'three'
 import { Placing, placementFor } from './placement'
 import { connectVia, joinPorts } from './join'
 import { Frame, PackedTimeline, addedIn, packTimeline, unpackTimeline } from './timeline'
@@ -143,7 +144,8 @@ interface State {
   endDrag: () => void
   addPart: (kind: PartKind, size2?: SizeId) => void
   updatePart: (id: string, patch: Partial<Part>) => void
-  deletePart: (id: string) => void
+  deletePart: (id: string) => void // только эта деталь; присоединённое остаётся на месте
+  deleteBranch: (id: string) => void // деталь вместе со всем продолжением
   rollPart: (id: string, deg: number) => void
   rotateRoot: (id: string, axis: 0 | 1 | 2, deg: number) => void
   cycleAttach: (id: string) => void
@@ -415,6 +417,27 @@ export const useStore = create<State>((set, get) => ({
   },
 
   deletePart: (id) => {
+    const { parts } = get()
+    const victim = parts.find((p) => p.id === id)
+    if (!victim) return
+    // детали, прикреплённые к удаляемой, становятся отдельными ветками на тех же местах
+    const xfs = computeTransforms(parts)
+    const next = parts
+      .filter((p) => p.id !== id)
+      .map((p) => {
+        if (p.parent?.id !== id) return p
+        const xf = xfs.get(p.id)!
+        const e = new Euler().setFromQuaternion(xf.quat, 'YXZ')
+        const deg = (v: number): number => Math.round(((v * 180) / Math.PI) * 1000) / 1000
+        const { parent: _drop, ...rest } = p
+        void _drop
+        return { ...rest, roll: 0, pos: [xf.pos.x, xf.pos.y, xf.pos.z] as V3, rot: [deg(e.x), deg(e.y), deg(e.z)] as V3 }
+      })
+    get().commit(next)
+    set({ selectedId: null, activePort: victim.parent ?? null, message: null })
+  },
+
+  deleteBranch: (id) => {
     const { parts } = get()
     const victim = parts.find((p) => p.id === id)
     if (!victim) return
