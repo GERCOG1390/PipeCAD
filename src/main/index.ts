@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, session } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 
@@ -37,6 +37,17 @@ ipcMain.handle('project:save', async (_e, args: { path: string | null; content: 
   return path
 })
 
+// Видео окна: сохраняем записанный ролик
+ipcMain.handle('video:save', async (_e, args: { data: Uint8Array; ext: string }) => {
+  const d = new Date()
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  const name = `PipeCAD ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}-${pad(d.getMinutes())}.${args.ext}`
+  const r = await dialog.showSaveDialog({ defaultPath: join(app.getPath('videos'), name), filters: [{ name: 'Видео', extensions: [args.ext] }] })
+  if (r.canceled || !r.filePath) return null
+  await writeFile(r.filePath, Buffer.from(args.data))
+  return r.filePath
+})
+
 ipcMain.handle('file:export', async (_e, args: { defaultName: string; content: string; ext: string; label: string }) => {
   const r = await dialog.showSaveDialog({ defaultPath: args.defaultName, filters: [{ name: args.label, extensions: [args.ext] }] })
   if (r.canceled || !r.filePath) return null
@@ -45,6 +56,14 @@ ipcMain.handle('file:export', async (_e, args: { defaultName: string; content: s
 })
 
 app.whenReady().then(() => {
+  // getDisplayMedia в окне программы записывает само это окно, без диалога выбора
+  session.defaultSession.setDisplayMediaRequestHandler(async (_req, callback) => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 0, height: 0 } })
+    const src = sources.find((s) => win && s.id === win.getMediaSourceId()) ?? sources.find((s) => s.name.includes('PipeCAD'))
+    if (src) callback({ video: src })
+    else callback({})
+  })
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })

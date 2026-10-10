@@ -289,7 +289,7 @@ function PortMarker({ w, active, onPick, disabled }: { w: WorldPort; active: boo
 }
 
 function PortMarkers({ model }: { model: Model }) {
-  const show = useStore((s) => s.showPorts)
+  const show = useStore((s) => s.showPorts && !s.replay)
   const placing = useStore((s) => !!s.placing)
   const active = useStore((s) => s.activePort)
   const selectPort = useStore((s) => s.selectPort)
@@ -465,8 +465,9 @@ function LengthHandle({ pipeId, end, at, dir }: { pipeId: string; end: 0 | 1; at
 function LengthHandles({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const selectedId = useStore((s) => s.selectedId)
+  const replaying = useStore((s) => !!s.replay)
   const sel = parts.find((p) => p.id === selectedId)
-  if (!sel) return null
+  if (!sel || replaying) return null
   const handles: { pipeId: string; end: 0 | 1; at: Vector3; dir: Vector3; key: string }[] = []
   const byKey = new Map(model.ports.map((w) => [portKey(w.partId, w.index), w]))
   if (sel.kind === 'pipe') {
@@ -714,6 +715,7 @@ export function Scene({ model }: { model: Model }) {
   const parts = useStore((s) => s.parts)
   const showDims = useStore((s) => s.showDims)
   const select = useStore((s) => s.select)
+  const autoRotate = useStore((s) => !!s.replay && s.replay.auto && s.replay.playing)
   return (
     <Canvas
       camera={{ position: [60, 45, 70], fov: 40, near: 0.05, far: 10000 }}
@@ -750,7 +752,7 @@ export function Scene({ model }: { model: Model }) {
       <PlacementLayer />
       <AxisGuides model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
-      <OrbitControls makeDefault enableDamping={false} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
+      <OrbitControls makeDefault enableDamping={false} autoRotate={autoRotate} autoRotateSpeed={0.7} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
         <GizmoViewport labelColor="white" axisHeadScale={0.9} />

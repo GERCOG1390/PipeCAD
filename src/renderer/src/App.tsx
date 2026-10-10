@@ -6,6 +6,7 @@ import { BomPanel, Inspector, Palette } from './Panels'
 import { Scene } from './Scene'
 import { EnvModeSwitch, EnvPalette } from './EnvPanel'
 import { usePenetrations } from './EnvScene'
+import { RecButton, ReplayBar } from './Replay'
 import { ProjectFile, serialize, useStore } from './store'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -45,6 +46,7 @@ export function App() {
   const showDims = useStore((s) => s.showDims)
   const showPorts = useStore((s) => s.showPorts)
   const showAxes = useStore((s) => s.showAxes)
+  const replaying = useStore((s) => !!s.replay)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
   const st = useStore.getState()
@@ -97,6 +99,14 @@ export function App() {
       if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA') return
       const s = useStore.getState()
       const k = e.key.toLowerCase()
+      if (s.replay) {
+        e.preventDefault()
+        if (k === 'escape') s.stopReplay()
+        else if (e.code === 'Space') s.setReplay({ playing: !s.replay.playing })
+        else if (k === 'arrowright') s.setReplayIndex(s.replay.i + 1)
+        else if (k === 'arrowleft') s.setReplayIndex(s.replay.i - 1)
+        return
+      }
       if (e.ctrlKey && (e.code === 'KeyZ') && !e.shiftKey) return (e.preventDefault(), s.undo())
       if (e.ctrlKey && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) return (e.preventDefault(), s.redo())
       if (e.ctrlKey && e.code === 'KeyS') return (e.preventDefault(), void save(e.shiftKey))
@@ -162,10 +172,15 @@ export function App() {
           Оси
         </button>
         <span className="sep" />
+        <button className={replaying ? 'on' : ''} onClick={() => (replaying ? st.stopReplay() : st.startReplay())} title="Повтор: как строили, шаг за шагом">
+          ▶ Повтор
+        </button>
+        <RecButton />
+        <span className="sep" />
         <span className="muted small">Стройка:</span>
         <EnvModeSwitch />
       </header>
-      <div className="main">
+      <div className={replaying ? "main replaying" : "main"}>
         <div className="left">
           <div className="tabs">
             <button className={left === 'pipes' ? 'on' : ''} onClick={() => setLeft('pipes')}>
@@ -179,6 +194,7 @@ export function App() {
         </div>
         <div className="viewport">
           <Scene model={model} />
+          <ReplayBar />
           {parts.length === 0 && env.length === 0 && (
             <div className="welcome">
               <h2>Начни с первой детали</h2>

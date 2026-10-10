@@ -134,3 +134,9 @@ td.bad { color: #f87171; }
 .axis-label { background: rgba(20,24,28,0.92); border: 1px solid #3a4148; border-radius: 6px; padding: 6px 8px; font-size: 12px; white-space: nowrap; color: var(--text); display: flex; flex-direction: column; gap: 2px; }
 .axis-label b { color: #fde68a; font-weight: 600; }
 .axis-label button { margin-top: 4px; background: var(--accent-dim); border-color: var(--accent); padding: 3px 8px; font-size: 12px; }
+.replay-bar { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: rgba(20,24,28,0.94); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.4); white-space: nowrap; }
+.replay-bar input[type=range] { width: 220px; accent-color: var(--accent); }
+.replay-bar .play { width: 40px; font-size: 15px; }
+.replay-count { font: 12px Consolas, monospace; color: var(--muted); min-width: 92px; }
+.main.replaying .left, .main.replaying .side { pointer-events: none; opacity: 0.45; }
+button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #ef4444; color: #fff; opacity: 1; }

@@ -4,6 +4,7 @@ import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, portKey } from './geometry'
 import { Placing, placementFor } from './placement'
 import { connectVia, joinPorts } from './join'
+import { Frame, PackedTimeline, addedIn, packTimeline, unpackTimeline } from './timeline'
 import { Vector3 } from 'three'
 import { formatLength } from './units'
 
@@ -71,6 +72,7 @@ export interface ProjectFile {
   version: 1
   parts: Part[]
   env?: EnvItem[]
+  timeline?: PackedTimeline
   stick?: number
 }
 
@@ -96,6 +98,9 @@ interface State {
   placedAt: number // время последней установки: тот же клик не должен ничего выбирать
   joining: boolean // ждём клик по второму концу для «Соединить»
   showAxes: boolean // оси свободных концов и их пересечения
+  timeline: Frame[] // история постройки для повтора
+  replay: { i: number; playing: boolean; speed: number; auto: boolean; record: boolean; saved: Snapshot; frames: Frame[] } | null
+  recording: number // время начала записи видео (0 — не пишем)
   selectedId: string | null
   activePort: PortRef | null
   paletteSize: SizeId
@@ -127,6 +132,11 @@ interface State {
   startJoin: () => void
   joinTo: (b: PortRef) => void
   toggleAxes: () => void
+  startReplay: (record?: boolean) => void
+  stopReplay: () => void
+  setReplayIndex: (i: number) => void
+  setReplay: (patch: Partial<{ playing: boolean; speed: number; auto: boolean }>) => void
+  setRecording: (t: number) => void
   connectAt: (a: PortRef, b: PortRef, x: V3, fitKind: string, takeoff: number) => void
   beginDrag: () => void
   dragTo: (patch: { env?: EnvItem[]; parts?: Part[] }) => void
@@ -198,6 +208,9 @@ export const useStore = create<State>((set, get) => ({
   placedAt: 0,
   joining: false,
   showAxes: false,
+  timeline: [],
+  replay: null,
+  recording: 0,
   selectedId: null,
   activePort: null,
   paletteSize: '1-1/2',
@@ -211,8 +224,8 @@ export const useStore = create<State>((set, get) => ({
   message: null,
   view: { tick: 0, dir: null },
 
-  commit: (parts) => set((s) => ({ parts, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true })),
-  commitEnv: (env) => set((s) => ({ env, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true })),
+  commit: (parts) => set((s) => (s.replay ? {} : { parts, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true, timeline: [...s.timeline.slice(-1999), { parts, env: s.env }] })),
+  commitEnv: (env) => set((s) => (s.replay ? {} : { env, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true, timeline: [...s.timeline.slice(-1999), { parts: s.parts, env }] })),
 
   addEnv: (p, at) => {
     const c = at ?? [0, 0, 0]
@@ -273,12 +286,43 @@ export const useStore = create<State>((set, get) => ({
     if (res.parts !== parts) get().commit(res.parts)
     set({ message: res.message, selectedId: res.newId ?? get().selectedId, activePort: null })
   },
+  startReplay: (record = false) => {
+    const { timeline, parts, env } = get()
+    if (!timeline.length) {
+      set({ message: 'Повторять нечего — история постройки пустая' })
+      return
+    }
+    const frames: Frame[] = [{ parts: [], env: [] }, ...timeline]
+    // камера сначала охватывает весь готовый проект, потом начинаем с пустой сцены
+    set({ replay: { i: frames.length - 1, playing: false, speed: 1, auto: true, record, saved: { parts, env }, frames }, selectedId: null, selectedEnv: null, activePort: null, placing: null, joining: false, message: null })
+    get().setView(null)
+    setTimeout(() => {
+      if (!get().replay) return
+      get().setReplayIndex(0)
+      get().setReplay({ playing: true })
+    }, 400)
+  },
+  stopReplay: () => {
+    const r = get().replay
+    if (!r) return
+    set({ replay: null, parts: r.saved.parts, env: r.saved.env, selectedId: null, selectedEnv: null, activePort: null })
+  },
+  setReplayIndex: (i) => {
+    const r = get().replay
+    if (!r) return
+    const k = Math.max(0, Math.min(r.frames.length - 1, i))
+    const fr = r.frames[k]
+    const hl = addedIn(r.frames[k - 1], fr)
+    set({ replay: { ...r, i: k }, parts: fr.parts, env: fr.env, selectedId: hl.part ?? null, selectedEnv: hl.env ?? null })
+  },
+  setReplay: (patch) => set((s) => (s.replay ? { replay: { ...s.replay, ...patch } } : {})),
+  setRecording: (recording) => set({ recording }),
   newBranch: () => set({ selectedId: null, activePort: null, selectedEnv: null, message: 'Новая ветка: выбери деталь в каталоге и кликни, куда её поставить' }),
   // Перетаскивание гизмо: живое обновление без истории, одна запись в историю по окончании
   beginDrag: () => set((s) => ({ dragStart: { parts: s.parts, env: s.env } })),
-  dragTo: (patch) => set(patch),
+  dragTo: (patch) => set((s) => (s.replay ? {} : patch)),
   endDrag: () =>
-    set((s) => (s.dragStart ? { past: [...s.past.slice(-199), s.dragStart], future: [], dragStart: null, dirty: true } : {})),
+    set((s) => (s.dragStart ? { past: [...s.past.slice(-199), s.dragStart], future: [], dragStart: null, dirty: true, timeline: [...s.timeline.slice(-1999), { parts: s.parts, env: s.env }] } : {})),
 
   addPart: (kind, size2) => {
     const { parts, activePort, selectedId, paletteSize, reducerTo, lastPipe } = get()
@@ -408,14 +452,14 @@ export const useStore = create<State>((set, get) => ({
     const { past, parts, env, future } = get()
     if (!past.length) return
     const prev = past[past.length - 1]
-    set({ parts: prev.parts, env: prev.env, past: past.slice(0, -1), future: [{ parts, env }, ...future], dirty: true })
+    set((s) => ({ parts: prev.parts, env: prev.env, past: past.slice(0, -1), future: [{ parts, env }, ...future], dirty: true, timeline: s.timeline.length > 1 ? s.timeline.slice(0, -1) : [{ parts: prev.parts, env: prev.env }] }))
     fixSelection()
   },
 
   redo: () => {
     const { past, parts, env, future } = get()
     if (!future.length) return
-    set({ parts: future[0].parts, env: future[0].env, past: [...past, { parts, env }], future: future.slice(1), dirty: true })
+    set((s) => ({ parts: future[0].parts, env: future[0].env, past: [...past, { parts, env }], future: future.slice(1), dirty: true, timeline: [...s.timeline.slice(-1999), { parts: future[0].parts, env: future[0].env }] }))
     fixSelection()
   },
 
@@ -428,12 +472,17 @@ export const useStore = create<State>((set, get) => ({
   setMessage: (message) => set({ message }),
 
   newProject: () =>
-    set({ parts: [], env: [], past: [], future: [], selectedEnv: null, selectedId: null, activePort: null, filePath: null, dirty: false, message: null }),
+    set({ parts: [], env: [], past: [], future: [], timeline: [], replay: null, selectedEnv: null, selectedId: null, activePort: null, filePath: null, dirty: false, message: null }),
 
   loadProject: (f, path) => {
     set({
       parts: f.parts,
       env: (f.env ?? []).map(normalize),
+      timeline: (() => {
+        const t = unpackTimeline(f.timeline)
+        return t.length ? t : f.parts.length || f.env?.length ? [{ parts: f.parts, env: (f.env ?? []).map(normalize) }] : []
+      })(),
+      replay: null,
       selectedEnv: null,
       past: [],
       future: [],
@@ -460,8 +509,10 @@ function fixSelection(): void {
 }
 
 export function serialize(): string {
-  const { parts, env, stick } = useStore.getState()
-  const f: ProjectFile = { app: 'pipecad', version: 1, parts, env, stick }
+  const { parts, env, stick, timeline, replay } = useStore.getState()
+  // во время повтора на экране старый шаг — сохраняем настоящий проект
+  const real = replay ? replay.saved : { parts, env }
+  const f: ProjectFile = { app: 'pipecad', version: 1, parts: real.parts, env: real.env, stick, timeline: packTimeline(timeline) }
   return JSON.stringify(f, null, 1)
 }
 
