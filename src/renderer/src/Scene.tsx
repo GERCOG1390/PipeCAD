@@ -104,19 +104,28 @@ class SegCurve extends Curve<Vector3> {
   }
 }
 
+// Рифлёное кольцо (гайка под руку): скруглённые рёбра, открытые торцы, лёгкая фаска по краям
 function knurlGeometry(r: number, h: number, ribs: number): BufferGeometry {
-  const g = new CylinderGeometry(r, r, h, ribs * 4, 1, false)
+  const radial = ribs * 16
+  const g = new CylinderGeometry(r, r, h, radial, 12, true)
   const pos = g.attributes.position
-  const step = (Math.PI * 2) / (ribs * 2)
+  const depth = 0.07
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i)
+    const y = pos.getY(i)
     const z = pos.getZ(i)
     const d = Math.hypot(x, z)
-    if (d < r * 0.5) continue
-    const a = Math.atan2(z, x) + Math.PI
-    const k = Math.floor(a / step + 1e-6) % 2 ? 0.93 : 1
-    pos.setX(i, (x / d) * r * k)
-    pos.setZ(i, (z / d) * r * k)
+    if (d < 1e-6) continue
+    const a = Math.atan2(z, x)
+    // плоские вершины рёбер и скруглённые впадины
+    const c = Math.cos(a * ribs)
+    const groove = Math.max(0, -c - 0.15) / 0.85
+    let rr = r * (1 - depth * Math.pow(groove, 0.6))
+    // фаска к торцам
+    const fromEnd = h / 2 - Math.abs(y)
+    rr = Math.min(rr, r * (1 - depth) + fromEnd * 1.2)
+    pos.setX(i, (x / d) * rr)
+    pos.setZ(i, (z / d) * rr)
   }
   g.computeVertexNormals()
   return g
@@ -238,7 +247,7 @@ function shapeGeo(s: Shape): Geo | null {
     }
     case 'knurl': {
       const dir = new Vector3(...s.dir).normalize()
-      return { geom: knurlGeometry(s.r, s.h, s.ribs), pos: new Vector3(...s.at).addScaledVector(dir, s.h / 2), quat: quatTo(dir), color: s.color ?? PVC, flat: true }
+      return { geom: knurlGeometry(s.r, s.h, s.ribs), pos: new Vector3(...s.at).addScaledVector(dir, s.h / 2), quat: quatTo(dir), color: s.color ?? PVC }
     }
     case 'box':
       return { geom: new BoxGeometry(...s.size), pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }

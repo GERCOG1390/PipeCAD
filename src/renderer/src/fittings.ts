@@ -578,6 +578,80 @@ const PIPE_NAME: Record<string, (sz: string) => string> = {
   gs: (sz) => `${sz} Galvanized Steel Pipe Sch 40 (ASTM A53)`
 }
 
+// Адаптер сифона (trap adapter) по чертежу Charlotte 104 W: DWV-раструб (клей) → уступ → корпус с наружной
+// резьбой под накидную гайку → гайка с рёбрами и шайба под трубку сифона (tubular). Ось — Z, раструб вниз (−Z).
+const SLIP_TUBE: Record<string, number> = { '1-1/4': 1.25, '1-1/2': 1.5, '2': 1.5 } // наружный диаметр трубки сифона
+function trapAdapter(size: SizeId): Built {
+  const s = sp(size)
+  const o = s.od / 2
+  const [A] = DW.D_TRAP_ADAPTER[size]!
+  const R = hubR(size, 'd') + 0.02
+  const depth = s.dwv
+  const face = depth + 0.06
+  const tube = (SLIP_TUBE[size] ?? 1.5) / 2
+  const thMaj = o + 0.04 // резьба под накидную гайку
+  const pitch = 1 / 11.5
+  const thMin = thMaj - 0.6 * pitch
+  const bore = tube + 0.03
+  const z0 = A // начало резьбы (A — от уступа раструба)
+  const T = 0.62 + s.od * 0.06 // длина резьбы
+  const z1 = z0 + T
+  const seg = 128
+  // корпус: раструб, уступ, гладкая шейка, резьба; внутри — канал под трубку сифона
+  const body: [number, number][] = [
+    [o, -face],
+    [R - 0.03, -face],
+    [R, -face + 0.03],
+    [R, 0],
+    ...rounded([[R, 0], [R, 0.06], [thMaj + 0.02, z0 - 0.04], [thMin, z0]], 0.03).slice(1),
+    ...sawtooth(thMin, thMaj, z0, z1 - 0.04, pitch),
+    [thMaj - 0.03, z1],
+    [bore + 0.04, z1],
+    [bore, z1 - 0.06],
+    [bore, 0.08],
+    [o - s.wall, 0],
+    [o, 0],
+    [o, -face]
+  ]
+  // накидная гайка: стоит на резьбе, перекрывает её почти полностью
+  const nutR = thMaj + 0.16 + s.od * 0.05
+  const nutStart = z0 + 0.12
+  const nutH = T + 0.1
+  const nutTop = nutStart + nutH
+  const lipT = 0.1
+  const nutFace = rounded(
+    [
+      [nutR * 0.97, nutTop - lipT - 0.05],
+      [nutR * 0.97, nutTop - 0.04],
+      [nutR * 0.9, nutTop],
+      [tube + 0.06, nutTop],
+      [tube + 0.04, nutTop - lipT],
+      [thMaj, nutTop - lipT]
+    ],
+    0.03
+  )
+  // коническая шайба: видна в отверстии гайки
+  const washer: [number, number][] = [
+    [tube + 0.005, nutTop - lipT - 0.02],
+    [thMaj - 0.04, nutTop - lipT - 0.02],
+    [tube + 0.04, nutTop - lipT - 0.32],
+    [tube + 0.005, nutTop - lipT - 0.32]
+  ]
+  const NUT = '#ecece6'
+  return {
+    ports: [hub(O, NZ, size, 'd', { bare: true, depth }), { pos: [0, 0, nutTop], dir: Z, size, kind: 'slip', depth: 0, fam: 'd' }],
+    shapes: [
+      lathe(O, Z, body, { seg }),
+      // рёбра для захвата рукой
+      { t: 'knurl', at: [0, 0, nutStart], dir: Z, r: nutR, h: nutH - lipT - 0.04, ribs: 14, color: NUT },
+      // внутренняя юбка гайки (закрывает резьбу изнутри)
+      lathe([0, 0, nutStart], Z, rounded([[thMaj + 0.005, 0.03], [thMaj + 0.005, 0], [nutR * 0.93, 0], [nutR * 0.93, 0.03]], 0.01), { color: NUT, seg }),
+      lathe(O, Z, nutFace, { color: NUT, seg }),
+      lathe(O, Z, washer, { color: '#3a3d42', seg: 64 })
+    ]
+  }
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -1841,20 +1915,7 @@ pbull: {
     icon: 'trapad',
     pn: '104W',
     sizes: keysOf(DW.D_TRAP_ADAPTER),
-    build: (p) => {
-      const s = p.size
-      const [A] = DW.D_TRAP_ADAPTER[s]!
-      const R = hubR(s, 'd')
-      const nutH = 0.55 + sp(s).od * 0.12
-      return finalize({
-        ports: [hub([0, 0, -A / 2], NZ, s, 'd'), { pos: [0, 0, A / 2 + nutH], dir: Z, size: s, kind: 'slip', depth: 0, fam: 'd' }],
-        shapes: [
-          lathe([0, 0, -A / 2], Z, [[R, 0], [R, A + 0.2], [sp(s).od / 2 - 0.1, A + 0.2]]),
-          { t: 'knurl', at: [0, 0, A / 2 + 0.05], dir: Z, r: R * 1.18, h: nutH, ribs: 20 },
-          lathe([0, 0, A / 2 + nutH], Z, [[R * 1.18, 0], [sp(s).od / 2 * 0.72, 0.04]])
-        ]
-      })
-    }
+    build: (p) => trapAdapter(p.size)
   },
 
   cleanout: {
