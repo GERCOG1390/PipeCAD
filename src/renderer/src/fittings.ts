@@ -904,6 +904,46 @@ function waterHeater(h: WH.HeaterSpec): Built {
   return built
 }
 
+// ---------- Диэлектрический юнион Watts LF3001A (FIP × пайка) ----------
+// ES-LF3001A: A — гайка под ключ, B — общая длина (мм → дюймы). Ось Z: снизу (−Z) стальной адаптер FIP,
+// шестигранная стальная гайка, чёрный изолятор, сверху латунный хвостовик под пайку меди.
+const DIEL: Partial<Record<SizeId, { A: number; B: number }>> = {
+  'cu1/2': { A: 32 / 25.4, B: 48 / 25.4 },
+  'cu3/4': { A: 41 / 25.4, B: 54 / 25.4 },
+  cu1: { A: 48 / 25.4, B: 64 / 25.4 }
+}
+const ZINC = '#bfc4c9'
+function dielectricUnion(size: SizeId): Built {
+  const d = DIEL[size]!
+  const th = threadSize(size)
+  const to = sp(th).od / 2 // резьба FIP (труба/ниппель того же номинала)
+  const T = Math.min(NPT[th], d.B * 0.38)
+  const pitch = pitchOf(th)
+  const ra = (d.A / 2) * 0.93 // стальной адаптер
+  const zA = d.B * 0.42
+  const zH = d.B * 0.78 // верх гайки
+  const co = sp(size).od / 2
+  const cupR = co + Math.max(0.05, sp(size).od * 0.07)
+  const S = sp(size).socket
+  const seg = 96
+  const shapes: Shape[] = [
+    // стальной адаптер с внутренней резьбой FIP
+    lathe(O, Z, [[to - 0.6 * pitch, 0.02], ...sawtooth(to - 0.6 * pitch, to, 0.02, T, pitch), [to * 0.82, T + 0.03], [to * 0.82, zA], [ra * 0.9, zA], ...rounded([[ra * 0.9, zA], [ra, zA - 0.06], [ra, 0.04], [ra - 0.04, 0]], 0.03).slice(1), [to + 0.03, 0], [to, 0.02]], { color: ZINC, metal: true, seg }),
+    // рифление под ключ/руку на адаптере
+    { t: 'knurl', at: [0, 0, 0.06], dir: Z, r: ra + 0.012, h: zA * 0.55, ribs: 28, color: ZINC },
+    // шестигранная гайка
+    { t: 'nut', at: [0, 0, zA - 0.08], dir: Z, sides: 6, r: d.A / 2, h: zH - zA + 0.08, ch: 0.06, color: ZINC, metal: true },
+    // изолятор (полисульфон) между гайкой и хвостовиком
+    lathe([0, 0, zH], Z, [[cupR * 0.98, 0], [cupR + 0.12, 0], [cupR + 0.12, 0.07], [cupR * 0.98, 0.07]], { color: '#121315', seg: 64 }),
+    // латунный хвостовик под пайку
+    lathe([0, 0, 0], Z, rounded([[co * 0.8, zH - 0.1], [cupR + 0.06, zH - 0.1], [cupR + 0.06, zH + 0.12], [cupR, zH + 0.2], [cupR, d.B - 0.04], [cupR - 0.015, d.B], [co + 0.015, d.B], [co, d.B - 0.03], [co, d.B - S], [co * 0.8, d.B - S - 0.02], [co * 0.8, zH - 0.1]], 0.02), { color: BRASS, metal: true, seg })
+  ]
+  return {
+    ports: [fpt([0, 0, T], NZ, th, 'p', T, { bare: true }), hub([0, 0, d.B - S], Z, size, 'p', { bare: true, depth: S })],
+    shapes
+  }
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -1174,6 +1214,17 @@ showerCC: {
       const [big, small] = sizeIndex(p.size) > sizeIndex(b) ? [p.size, b] : [b, p.size]
       return [{ name: `${sizeLabel(big)} x ${sizeLabel(small)} Wrot Copper Reducing Coupling C x C`, pn: '600' }]
     }
+  },
+  cuDiel: {
+    ru: 'Dielectric Union (FIP x Sweat)',
+    en: 'Dielectric Union, FIP x Solder',
+    group: CU,
+    cat: 'Couplings & Adapters',
+    icon: 'union',
+    pn: 'LF3001A',
+    sizes: ['cu1/2', 'cu3/4', 'cu1'],
+    build: (p) => dielectricUnion(p.size),
+    bom: (p) => [{ name: sizeLabel(p.size) + ' Watts LF3001A Dielectric Union, FIP x Solder (Lead Free)', pn: 'LF3001A' }]
   },
   cuUnion: {
     ru: 'Union',

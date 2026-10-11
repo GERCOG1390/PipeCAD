@@ -63,6 +63,9 @@ function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: 
   } else if (to.kind === 'fpt' && cu) {
     part = { ...base, kind: 'cuMa', attach: 0 }
     note = 'into FPT — added a copper MPT adapter (604)'
+  } else if (to.kind === 'mpt' && cu && fittingDef('cuDiel').sizes.includes(base.size)) {
+    part = { ...base, kind: 'cuDiel', attach: 0 }
+    note = 'onto MPT — added a dielectric union (Watts LF3001A)'
   } else if (to.kind === 'mpt' && cu) {
     part = { ...base, kind: 'cuFa', attach: 0 }
     note = 'onto MPT — added a copper FPT adapter (603)'
