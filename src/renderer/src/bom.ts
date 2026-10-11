@@ -27,6 +27,7 @@ export interface Bom {
   joints: number // склейки (раструб + гладкий конец)
   threads: number // резьбовые соединения
   solder: number // паяные соединения (медь)
+  mech: number // механические no-hub соединения (хомуты)
 }
 
 // Раскрой палок: First Fit Decreasing.
@@ -82,24 +83,27 @@ export function computeBom(parts: Part[], model: Model, stick: number): Bom {
   let joints = 0
   let threads = 0
   let solder = 0
+  let mech = 0
   model.links.forEach((b, a) => {
     if (a > b) return
     const k = byKey.get(a)?.def.kind
-    if (k === 'fpt' || k === 'mpt') threads++
+    if (byKey.get(a)?.def.mech || byKey.get(b)?.def.mech) mech++
+    else if (k === 'fpt' || k === 'mpt') threads++
     else if (byKey.get(a)?.def.size.startsWith('cu')) solder++
     else joints++
   })
-  return { pipes, fittings, joints, threads, solder }
+  return { pipes, fittings, joints, threads, solder, mech }
 }
 
 export function bomCsv(bom: Bom, stick: number, env: EnvBomLine[] = [], pens: Penetration[] = []): string {
   const q = (s: string): string => `"${s.replace(/"/g, '""')}"`
-  const rows: string[] = ['Item,Charlotte Part,Qty,Unit,Notes']
+  const rows: string[] = ['Item,Part No.,Qty,Unit,Notes']
   for (const p of bom.pipes) {
     rows.push([q(`${p.name} (${stick / 12}' stick)`), '', p.sticks, 'stick', q(`total ${formatLength(p.total)}; cuts: ${p.cuts.map(formatLength).join(', ')}`)].join(','))
   }
   for (const f of bom.fittings) rows.push([q(f.name), q(f.pn ?? ''), f.qty, 'ea', ''].join(','))
   rows.push([q('Solvent welds (joints)'), '', bom.joints, 'ea', q('primer + cement')].join(','))
+  if (bom.mech) rows.push([q('No-hub joints (clamped)'), '', bom.mech, 'ea', q('torque 60 in-lbs')].join(','))
   if (bom.solder) rows.push([q('Soldered joints (copper)'), '', bom.solder, 'ea', q('lead-free solder + flux')].join(','))
   if (bom.threads) rows.push([q('Threaded joints'), '', bom.threads, 'ea', q('PTFE tape / thread sealant')].join(','))
   for (const e of env) rows.push([q(e.name), '', e.unit === 'куб. ярд' ? e.qty.toFixed(2) : e.qty, q(e.unit), q(e.ru)].join(','))

@@ -51,6 +51,12 @@ function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: 
   if (to.kind === 'hub') {
     part = { ...base, kind: 'pipe', attach: 0, length: nippleLength(to.depth, nextDepth) }
     note = `раструб в раструб не клеится — добавил ниппель ${formatLength(part.length!)}`
+  } else if (to.kind === 'spigot' && to.size.startsWith('ci')) {
+    part = { ...base, kind: 'nhStd', size2: to.size, attach: 0 }
+    note = 'чугун к чугуну — добавил no-hub муфту'
+  } else if (to.kind === 'spigot' && to.size.startsWith('gs')) {
+    part = { ...base, kind: 'nhTrans', size2: to.size, attach: 0 }
+    note = 'оцинковка к оцинковке — добавил переходную no-hub муфту'
   } else if (to.kind === 'spigot' && cu) {
     part = { ...base, kind: 'cuCoupling', attach: 0 }
     note = 'труба к трубе — добавил медную муфту'

@@ -162,3 +162,5 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .tag.cu { background: #4a2c1a; color: #f2b48a; }
 .dim-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
 .dim-layer .dim { position: absolute; left: 0; top: 0; will-change: transform; }
+.mat-tabs { flex-wrap: wrap; }
+.mat-tabs button { flex: 1 1 45%; padding: 5px 4px; }

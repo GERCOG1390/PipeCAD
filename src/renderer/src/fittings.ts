@@ -4,7 +4,8 @@ import * as DW from './data/charlotteDwv'
 import * as PR from './data/charlottePressure'
 import * as NB from './data/nibcoCopper'
 import * as MV from './data/muellerValves'
-import { ALL_SIZES, CU_SIZES, DWV_SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeSpec, threadSize } from './data/sizes'
+import * as NHD from './data/noHub'
+import { ALL_SIZES, CU_SIZES, DWV_SIZES, SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeMatLabel, sizeSpec, threadSize } from './data/sizes'
 
 export type V3 = [number, number, number]
 export type PortKind = 'hub' | 'spigot' | 'fpt' | 'mpt' | 'slip'
@@ -21,6 +22,7 @@ export interface PortDef {
   stub?: number // длина видимого гладкого/резьбового конца
   R?: number // наружный радиус раструба
   bare?: boolean // форму для порта рисует сам фитинг
+  mech?: boolean // механическое соединение (no-hub хомут), не клей и не пайка
 }
 
 export type PathSeg = { t: 'line'; a: V3; b: V3 } | { t: 'arc'; a: V3; t0: V3; n: V3; r: number; ang: number }
@@ -55,7 +57,7 @@ export interface Part {
   tie?: { port: number; to: { id: string; port: number } } // соединение этого конца с концом другой ветки
 }
 
-export type Group = 'common' | 'pressure' | 'dwv' | 'copper'
+export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub'
 export interface FittingDef {
   ru: string
   en: string
@@ -490,6 +492,92 @@ function pvcBallValve(size: SizeId): Built {
   return finalize({ ports: [hub([0, 0, -g], NZ, size, 'p', { face }), hub([0, 0, g], Z, size, 'p', { face })], shapes })
 }
 
+// ---------- No-hub муфта: неопреновая манжета + гофрированный кожух из нержавейки + хомуты ----------
+// Ось — Z. Трубы упираются в центральный выступ манжеты с двух сторон.
+const RUBBER = '#1d1e20'
+const STEEL = '#c6cacf'
+const nhKey = (a: SizeId, b: SizeId): string => (sizeIndex(a) >= sizeIndex(b) || sp(a).od >= sp(b).od ? `${a}|${b}` : `${b}|${a}`)
+function noHubCoupling(a: SizeId, b: SizeId, W: number, clamps: number): Built {
+  const oa = sp(a).od / 2
+  const ob = sp(b).od / 2
+  const big = Math.max(oa, ob)
+  const gT = 0.16 + big * 0.02 // толщина манжеты над большей трубой
+  const Rg = big + gT
+  const Rs = Rg + 0.012 // кожух
+  const lug = 0.1 // центральный выступ
+  const lip = 0.07
+  const seg = 128
+  // манжета: внутренняя поверхность ступенчатая (разные диаметры сторон), снаружи — общий цилиндр
+  const gasket = rounded(
+    [
+      [oa, -W / 2 - lip],
+      [Rg - 0.03, -W / 2 - lip],
+      [Rg, -W / 2 - lip + 0.03],
+      [Rg, W / 2 + lip - 0.03],
+      [Rg - 0.03, W / 2 + lip],
+      [ob, W / 2 + lip],
+      [ob, lug / 2],
+      [Math.min(oa, ob) - 0.12, lug / 2],
+      [Math.min(oa, ob) - 0.12, -lug / 2],
+      [oa, -lug / 2],
+      [oa, -W / 2 - lip]
+    ],
+    0.02
+  )
+  // гофрированный кожух
+  const shield: [number, number][] = []
+  const N = Math.max(40, Math.round(W / 0.04))
+  for (let i = 0; i <= N; i++) {
+    const z = -W / 2 + (W * i) / N
+    shield.push([Rs + 0.014 * (1 + Math.sin((z / 0.11) * Math.PI * 2)) * 0.5, z])
+  }
+  const prof: [number, number][] = [[Rg, -W / 2], ...shield, [Rg, W / 2]]
+  const shapes: Shape[] = [lathe(O, Z, gasket, { color: RUBBER, seg }), lathe(O, Z, prof, { color: STEEL, metal: true, seg })]
+  // хомуты: лента 1/2", корпус червячного механизма сверху, винт с шестигранной головкой
+  const bandW = 0.5
+  const span = W - bandW - 0.08
+  for (let i = 0; i < clamps; i++) {
+    const z = clamps === 1 ? 0 : -span / 2 + (span * i) / (clamps - 1)
+    const Rb = Rs + 0.03
+    shapes.push(
+      lathe([0, 0, z - bandW / 2], Z, rounded([[Rs + 0.005, 0], [Rb, 0], [Rb, bandW], [Rs + 0.005, bandW]], 0.012), { color: STEEL, metal: true, seg }),
+      // корпус замка
+      { t: 'box', at: [0, Rb + 0.11, z], dir: Y, size: [0.62, 0.22, bandW * 0.95], color: STEEL, metal: true },
+      // винт: стержень по касательной (вдоль X) и шестигранная головка 5/16"
+      lathe([-0.33, Rb + 0.13, z], X, [[0.001, 0], [0.07, 0], [0.07, 0.62], [0.001, 0.62]], { color: STEEL, metal: true, seg: 24 }),
+      { t: 'nut', at: [-0.5, Rb + 0.13, z], dir: X, sides: 6, r: 0.156, h: 0.17, color: STEEL, metal: true }
+    )
+  }
+  const depth = W / 2 - lug / 2
+  return {
+    ports: [
+      hub([0, 0, -lug / 2], NZ, a, 'p', { bare: true, depth, face: W / 2 + lip - lug / 2, R: Rs, mech: true }),
+      hub([0, 0, lug / 2], Z, b, 'p', { bare: true, depth, face: W / 2 + lip - lug / 2, R: Rs, mech: true })
+    ],
+    shapes
+  }
+}
+const nhOptions = (m: Map<string, unknown>, s: SizeId): SizeId[] => {
+  const out = new Set<SizeId>()
+  for (const k of m.keys()) {
+    const [x, y] = k.split('|') as [SizeId, SizeId]
+    if (x === s) out.add(y)
+    if (y === s) out.add(x)
+  }
+  return [...out].sort((p, q) => sizeIndex(p) - sizeIndex(q))
+}
+const nhSizes = (m: Map<string, unknown>): SizeId[] => ALL_SIZES.filter((s) => nhOptions(m, s).length)
+const NH_EN: Record<string, string> = { pvc: 'PVC', cu: 'Copper', ci: 'Cast Iron', gs: 'Galv. Steel' }
+const nhLabel = (s: SizeId): string => `${sizeLabel(s)} ${NH_EN[sp(s).mat]}`
+void sizeMatLabel
+
+const PIPE_NAME: Record<string, (sz: string) => string> = {
+  pvc: (sz) => `${sz} PVC Sch 40 Pipe`,
+  cu: (sz) => `${sz} Type L Copper Tube (ASTM B88)`,
+  ci: (sz) => `${sz} Cast Iron No-Hub Soil Pipe (CISPI 301 / ASTM A888)`,
+  gs: (sz) => `${sz} Galvanized Steel Pipe Sch 40 (ASTM A53)`
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -567,6 +655,7 @@ function capBuilt(size: SizeId, fam: Fam, L: number, S: number, threaded: boolea
 const P = 'pressure'
 const D = 'dwv'
 const CU = 'copper'
+const NH = 'nohub'
 
 export const FITTINGS: Record<string, FittingDef> = {
   pipe: {
@@ -576,12 +665,12 @@ export const FITTINGS: Record<string, FittingDef> = {
     cat: 'Труба',
     icon: 'pipe',
     key: 'P',
-    sizes: [...PRESSURE_SIZES, ...CU_SIZES],
+    sizes: [...PRESSURE_SIZES, ...CU_SIZES, ...SIZES.filter((s) => s.mat === 'ci' || s.mat === 'gs').map((s) => s.id)],
     build: (p) => ({
       ports: [spig(O, NZ, p.size, 'p', 0, { bare: true }), spig([0, 0, p.length ?? DEFAULT_PIPE], Z, p.size, 'p', 0, { bare: true })],
       shapes: [{ t: 'pipe', size: p.size, len: p.length ?? DEFAULT_PIPE }]
     }),
-    bom: (p) => [{ name: sp(p.size).mat === 'cu' ? `${sizeLabel(p.size)} Type L Copper Tube (ASTM B88)` : `${sizeLabel(p.size)} PVC Sch 40 Pipe` }]
+    bom: (p) => [{ name: PIPE_NAME[sp(p.size).mat](sizeLabel(p.size)) }]
   },
   // ----------------------------- МЕДЬ (NIBCO Wrot, пайка) -----------------------------
   cu90: {
@@ -853,6 +942,61 @@ showerCC: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} Mueller Streamline 7700S Lead Free Brass Ball Valve, Solder x Solder, Full Port`, pn: MV.MUELLER_7700S[p.size]?.pn }]
   },
 
+
+// ----------------------------- NO-HUB МУФТЫ -----------------------------
+  nhStd: {
+    ru: 'No-hub муфта стандартная (чугун)',
+    en: 'No-Hub Standard Coupling (CISPI 310)',
+    group: NH,
+    cat: 'Чугун ↔ чугун',
+    icon: 'nohub',
+    pn: 'NH 1',
+    sizes: nhSizes(NHD.NH_STD),
+    size2: { label: 'Вторая сторона', reversible: true, options: (s) => nhOptions(NHD.NH_STD, s) },
+    build: (p) => {
+      const b = p.size2 ?? p.size
+      const spec = NHD.NH_STD.get(nhKey(p.size, b))!
+      return noHubCoupling(p.size, b, spec.W, spec.clamps)
+    },
+    bom: (p) => {
+      const b = p.size2 ?? p.size
+      const nm = b === p.size ? sizeLabel(p.size) : `${sizeLabel(p.size)} x ${sizeLabel(b)}`
+      return [{ name: `${nm} Charlotte No-Hub Coupling, Standard (CISPI 310)`, pn: 'NH 1' }]
+    }
+  },
+  nhHD: {
+    ru: 'No-hub муфта Heavy Duty (чугун)',
+    en: 'No-Hub Heavy Duty Coupling (ASTM C1540)',
+    group: NH,
+    cat: 'Чугун ↔ чугун',
+    icon: 'nohub',
+    pn: 'SDC 4',
+    sizes: nhSizes(NHD.NH_HD),
+    build: (p) => {
+      const spec = NHD.NH_HD.get(`${p.size}|${p.size}`)!
+      return noHubCoupling(p.size, p.size, spec.W, spec.clamps)
+    },
+    bom: (p) => [{ name: `${sizeLabel(p.size)} Charlotte Heavy Duty No-Hub Coupling (ASTM C1540)`, pn: 'SDC 4' }]
+  },
+  nhTrans: {
+    ru: 'Переходная no-hub муфта (Fernco ProFlex)',
+    en: 'Shielded Transition Coupling',
+    group: NH,
+    cat: 'Переходы PVC / оцинковка / чугун',
+    icon: 'nohub',
+    pn: 'ProFlex',
+    sizes: nhSizes(NHD.PROFLEX),
+    size2: { label: 'Вторая сторона', reversible: true, options: (s) => nhOptions(NHD.PROFLEX, s) },
+    build: (p) => {
+      const b = p.size2 ?? nhOptions(NHD.PROFLEX, p.size)[0]
+      return noHubCoupling(p.size, b, NHD.PROFLEX_W, 2)
+    },
+    bom: (p) => {
+      const b = p.size2 ?? p.size
+      const pn = NHD.PROFLEX.get(`${p.size}|${b}`)
+      return [{ name: `Fernco ProFlex ${pn ?? ''} Shielded Transition Coupling ${nhLabel(p.size)} x ${nhLabel(b)}`, pn }]
+    }
+  },
 
   // ----------------------------- НАПОРНЫЕ Sch 40 -----------------------------
   elbow90: {

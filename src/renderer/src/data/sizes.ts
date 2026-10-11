@@ -5,8 +5,11 @@
 export type PvcSizeId = '1/2' | '3/4' | '1' | '1-1/4' | '1-1/2' | '2' | '2-1/2' | '3' | '4' | '6'
 // Медь (номинальный размер водяной трубы): отдельные id, чтобы медь 1/2" (OD 5/8") не стыковалась с PVC 1/2"
 export type CuSizeId = 'cu1/2' | 'cu3/4' | 'cu1' | 'cu1-1/4' | 'cu1-1/2' | 'cu2' | 'cu2-1/2' | 'cu3' | 'cu4'
-export type SizeId = PvcSizeId | CuSizeId
-export type Material = 'pvc' | 'cu'
+// Чугун no-hub (CISPI 301) и оцинкованная сталь Sch 40 (OD как у PVC Sch 40, IPS)
+export type CiSizeId = 'ci1-1/2' | 'ci2' | 'ci3' | 'ci4' | 'ci6'
+export type GsSizeId = 'gs1/2' | 'gs3/4' | 'gs1' | 'gs1-1/4' | 'gs1-1/2' | 'gs2' | 'gs3' | 'gs4'
+export type SizeId = PvcSizeId | CuSizeId | CiSizeId | GsSizeId
+export type Material = 'pvc' | 'cu' | 'ci' | 'gs'
 
 export interface SizeSpec {
   id: SizeId
@@ -39,13 +42,37 @@ export const SIZES: SizeSpec[] = [
   { id: 'cu2', od: 2.125, wall: 0.07, socket: 1.34, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'cu' },
   { id: 'cu2-1/2', od: 2.625, wall: 0.08, socket: 1.47, dwv: 0, dwvWall: 0, tpi: 8, mat: 'cu' },
   { id: 'cu3', od: 3.125, wall: 0.09, socket: 1.66, dwv: 0, dwvWall: 0, tpi: 8, mat: 'cu' },
-  { id: 'cu4', od: 4.125, wall: 0.11, socket: 2.16, dwv: 0, dwvWall: 0, tpi: 8, mat: 'cu' }
+  { id: 'cu4', od: 4.125, wall: 0.11, socket: 2.16, dwv: 0, dwvWall: 0, tpi: 8, mat: 'cu' },
+  // Чугун no-hub: наружный диаметр и стенка ствола — Charlotte Cast Iron No-Hub Submittal (CISPI 301 / ASTM A888)
+  { id: 'ci1-1/2', od: 1.9, wall: 0.16, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'ci' },
+  { id: 'ci2', od: 2.35, wall: 0.16, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'ci' },
+  { id: 'ci3', od: 3.35, wall: 0.16, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'ci' },
+  { id: 'ci4', od: 4.38, wall: 0.19, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'ci' },
+  { id: 'ci6', od: 6.3, wall: 0.19, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'ci' },
+  // Оцинкованная сталь Sch 40 (ASTM A53): OD и стенка как у Sch 40
+  { id: 'gs1/2', od: 0.84, wall: 0.109, socket: 0, dwv: 0, dwvWall: 0, tpi: 14, mat: 'gs' },
+  { id: 'gs3/4', od: 1.05, wall: 0.113, socket: 0, dwv: 0, dwvWall: 0, tpi: 14, mat: 'gs' },
+  { id: 'gs1', od: 1.315, wall: 0.133, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'gs' },
+  { id: 'gs1-1/4', od: 1.66, wall: 0.14, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'gs' },
+  { id: 'gs1-1/2', od: 1.9, wall: 0.145, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'gs' },
+  { id: 'gs2', od: 2.375, wall: 0.154, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'gs' },
+  { id: 'gs3', od: 3.5, wall: 0.216, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'gs' },
+  { id: 'gs4', od: 4.5, wall: 0.237, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'gs' }
 ]
 
 const BY_ID = new Map(SIZES.map((s) => [s.id, s]))
 export const sizeSpec = (id: SizeId): SizeSpec => BY_ID.get(id)!
 export const sizeIndex = (id: SizeId): number => SIZES.findIndex((s) => s.id === id)
-export const nominal = (id: SizeId): string => id.replace(/^cu/, '')
+export const nominal = (id: SizeId): string => id.replace(/^(cu|ci|gs)/, '')
+export const MAT_NAME: Record<Material, { ru: string; short: string }> = {
+  pvc: { ru: 'PVC', short: 'PVC' },
+  cu: { ru: 'Медь', short: 'Cu' },
+  ci: { ru: 'Чугун no-hub', short: 'чугун' },
+  gs: { ru: 'Оцинковка', short: 'оцинк.' }
+}
+export const matOf = (id: SizeId): Material => BY_ID.get(id)!.mat
+// «3" чугун» — когда рядом размеры разных материалов
+export const sizeMatLabel = (id: SizeId): string => `${nominal(id)}" ${MAT_NAME[matOf(id)].short}`
 export const sizeLabel = (id: SizeId): string => `${nominal(id)}"`
 export const isCu = (id: SizeId): boolean => id.startsWith('cu')
 export const CU_SIZES: SizeId[] = SIZES.filter((s) => s.mat === 'cu').map((s) => s.id)

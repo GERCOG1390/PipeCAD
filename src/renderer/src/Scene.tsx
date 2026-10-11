@@ -46,6 +46,26 @@ const PVC = '#e8e8e1'
 const COPPER = '#c27a52'
 const COPPER_TUBE = '#b8714a'
 const isCopper = (s: SizeId): boolean => sizeSpec(s).mat === 'cu'
+const CAST_IRON = '#26282b'
+const GALV = '#a4aaaf'
+const PRINT: Record<string, { color: string; text: (sz: string) => string }> = {
+  pvc: { color: '#22408a', text: (sz) => `CHARLOTTE®  PVC SCH 40  ${sz}  ASTM D1785 / D2665  NSF-pw-dwv  MADE IN USA` },
+  cu: { color: '#1d4ed8', text: (sz) => `TYPE L  ${sz}  COPPER WATER TUBE  ASTM B88  NSF-61  MADE IN USA` },
+  ci: { color: '#e8e8e2', text: (sz) => `CHARLOTTE  ${sz}  NO-HUB  CISPI 301  ASTM A888  USA` },
+  gs: { color: '#3a3f44', text: (sz) => `${sz}  SCH 40  ASTM A53  GALV` }
+}
+function pipeMat(size: SizeId, selected: boolean, ghost?: boolean): MeshStandardMaterial {
+  switch (sizeSpec(size).mat) {
+    case 'cu':
+      return mat(COPPER_TUBE, selected, { ghost, metal: true })
+    case 'ci':
+      return mat(CAST_IRON, selected, { ghost })
+    case 'gs':
+      return mat(GALV, selected, { ghost, metal: true })
+    default:
+      return mat(PVC, selected, { ghost })
+  }
+}
 
 // ---------- материалы (общие на все детали) ----------
 const mats = new Map<string, MeshStandardMaterial>()
@@ -248,11 +268,11 @@ function printTexture(size: SizeId): CanvasTexture {
   ctx.clearRect(0, 0, W, H)
   ctx.translate(W / 2, H)
   ctx.rotate(-Math.PI / 2)
-  const cu = isCopper(size)
-  ctx.fillStyle = cu ? '#1d4ed8' : '#22408a'
+  const m = sizeSpec(size).mat
+  ctx.fillStyle = PRINT[m].color
   ctx.font = 'bold 34px Arial, sans-serif'
   ctx.textBaseline = 'middle'
-  ctx.fillText(cu ? `TYPE L  ${sizeLabel(size)}  COPPER WATER TUBE  ASTM B88  NSF-61  MADE IN USA` : `CHARLOTTE®  PVC SCH 40  ${sizeLabel(size)}  ASTM D1785 / D2665  NSF-pw-dwv  MADE IN USA`, 40, 0)
+  ctx.fillText(PRINT[m].text(sizeLabel(size)), 40, 0)
   t = new CanvasTexture(cv)
   t.colorSpace = SRGBColorSpace
   t.wrapT = RepeatWrapping
@@ -280,7 +300,7 @@ function PipeBody({ size, len, selected, ghost }: { size: SizeId; len: number; s
   useEffect(() => () => (body.dispose(), print.dispose(), tex.dispose()), [body, print, tex])
   return (
     <>
-      <mesh geometry={body} material={isCopper(size) ? mat(COPPER_TUBE, selected, { ghost, metal: true }) : mat(PVC, selected, { ghost })} quaternion={quatTo(new Vector3(0, 0, 1))} raycast={ghost ? () => null : undefined} />
+      <mesh geometry={body} material={pipeMat(size, selected, ghost)} quaternion={quatTo(new Vector3(0, 0, 1))} raycast={ghost ? () => null : undefined} />
       <mesh geometry={print} position={[0, 0, len / 2]} quaternion={quatTo(new Vector3(0, 0, 1))}>
         <meshStandardMaterial map={tex} transparent roughness={0.4} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
       </mesh>

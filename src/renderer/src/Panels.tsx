@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FITTINGS, FittingDef, Group, Part, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
+import { FITTINGS, FittingDef, Group, Material, matOf, sizeMatLabel, Part, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
 import { Bom, bomCsv } from './bom'
 import { EnvBomSection, EnvInspector, SystemPosition } from './EnvPanel'
 import { Penetration, envBom } from './environment'
@@ -14,6 +14,7 @@ const ICONS: Record<string, string> = {
   st90: 'M6 1v10a2 2 0 0 0 2 2h13M3 5h6',
   ell45: 'M2 16h9l9-9',
   tee: 'M3 9h18M12 9v12',
+  nohub: 'M2 12h20M6 7h12v10H6zM9 7v10M15 7v10',
   shower: 'M3 13h18M12 3v18M8 9h8v8H8z',
   bullhead: 'M3 10h18M12 10v11M7 10v-3M17 10v-3M9 21h6',
   cross: 'M3 12h18M12 3v18',
@@ -59,19 +60,28 @@ export function KindIcon({ kind }: { kind: string }) {
 function SizeSelect({ value, onChange, only, disabled }: { value: SizeId; onChange: (s: SizeId) => void; only?: SizeId[]; disabled?: boolean }) {
   return (
     <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value as SizeId)}>
-      {SIZES.filter((s) => !only || only.includes(s.id)).map((s) => (
+      {SIZES.filter((s) => !only || only.includes(s.id)).map((s, _i, list) => (
         <option key={s.id} value={s.id}>
-          {sizeLabel(s.id)}
+          {list.some((x) => x.mat !== list[0].mat) ? sizeMatLabel(s.id) : sizeLabel(s.id)}
         </option>
       ))}
     </select>
   )
 }
 
+const MAT_HEAD: Record<Material, (s: SizeId) => string> = {
+  pvc: (s) => `PVC Sch 40${sizeSpec(s).dwv > 0 ? ' · DWV' : ''}`,
+  cu: () => 'Медь Type L · пайка',
+  ci: () => 'Чугун no-hub (CISPI 301)',
+  gs: () => 'Оцинковка Sch 40'
+}
+const MAT_SRC: Record<Material, string> = { pvc: 'Charlotte', cu: 'NIBCO', ci: 'Charlotte', gs: 'ASTM A53' }
+
 const GROUPS: { id: Group; title: string }[] = [
   { id: 'pressure', title: 'Напорные Sch 40' },
   { id: 'dwv', title: 'DWV — канализация' },
-  { id: 'copper', title: 'Медь — пайка (NIBCO Wrot)' }
+  { id: 'copper', title: 'Медь — пайка (NIBCO Wrot)' },
+  { id: 'nohub', title: 'No-hub муфты (переходы)' }
 ]
 
 function readOpen(): Record<string, boolean> {
@@ -94,7 +104,7 @@ export function Palette({ model }: { model: Model }) {
   const joining = useStore((s) => s.joining)
   const startJoin = useStore((s) => s.startJoin)
   const [step, setStep] = useState<'size' | 'catalog'>(parts.length ? 'catalog' : 'size')
-  const [mat, setMat] = useState<'pvc' | 'cu'>(sizeSpec(paletteSize).mat)
+  const [mat, setMat] = useState<Material>(sizeSpec(paletteSize).mat)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen)
   const portSize = activePort ? model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.size : undefined
@@ -134,7 +144,13 @@ export function Palette({ model }: { model: Model }) {
             PVC
           </button>
           <button className={mat === 'cu' ? 'on cu' : 'cu'} onClick={() => setMat('cu')}>
-            Медь (Copper)
+            Медь
+          </button>
+          <button className={mat === 'ci' ? 'on' : ''} onClick={() => setMat('ci')} title="Чугун no-hub (CISPI 301)">
+            Чугун
+          </button>
+          <button className={mat === 'gs' ? 'on' : ''} onClick={() => setMat('gs')} title="Оцинкованная сталь Sch 40">
+            Оцинк.
           </button>
         </div>
         <div className="size-grid">
@@ -145,7 +161,7 @@ export function Palette({ model }: { model: Model }) {
                 <span className="size-big">{sizeLabel(s.id)}</span>
                 <span className="size-sub">OD {s.od.toFixed(3)}"</span>
                 <span className="size-tags">
-                  {s.mat === 'cu' ? <span className="tag cu">Type L</span> : <span className="tag">Sch 40</span>}
+                  {s.mat === 'cu' ? <span className="tag cu">Type L</span> : s.mat === 'ci' ? <span className="tag">No-Hub</span> : s.mat === 'gs' ? <span className="tag">Galv Sch 40</span> : <span className="tag">Sch 40</span>}
                   {s.dwv > 0 && <span className="tag dwv">DWV</span>}
                 </span>
                 <span className="size-count">{count} фит.</span>
@@ -184,7 +200,7 @@ export function Palette({ model }: { model: Model }) {
           <div className="chips">
             {extra.map((x) => (
               <button key={x} className="chip" onClick={() => addPart(kind, x)} title={`${sizeLabel(size)} × ${sizeLabel(x)}`}>
-                × {sizeLabel(x)}
+                × {matOf(x) !== matOf(size) ? sizeMatLabel(x) : sizeLabel(x)}
               </button>
             ))}
           </div>
@@ -201,8 +217,8 @@ export function Palette({ model }: { model: Model }) {
       <div className="size-head">
         <span className="size-badge">{sizeLabel(size)}</span>
         <div className="size-head-text">
-          <div>{sizeSpec(size).mat === 'cu' ? 'Медь Type L · пайка' : `PVC Sch 40${sizeSpec(size).dwv > 0 ? ' · DWV' : ''}`}</div>
-          <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · {sizeSpec(size).mat === 'cu' ? 'NIBCO' : 'Charlotte'}</div>
+          <div>{MAT_HEAD[sizeSpec(size).mat](size)}</div>
+          <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · {MAT_SRC[sizeSpec(size).mat]}</div>
         </div>
         <button className="link" onClick={() => setStep('size')}>
           Изменить
@@ -534,7 +550,7 @@ export function BomPanel({ bom, pens }: { bom: Bom; pens: Penetration[] }) {
       {!empty && (
         <>
           <div className="muted small">
-            Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей){bom.solder ? ` · паек: ${bom.solder} (припой + флюс)` : ''}{bom.threads ? ` · резьбовых: ${bom.threads} (лента/герметик)` : ''}
+            Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей){bom.solder ? ` · паек: ${bom.solder} (припой + флюс)` : ''}{bom.mech ? ` · no-hub соединений: ${bom.mech} (затяжка 60 in-lbs)` : ''}{bom.threads ? ` · резьбовых: ${bom.threads} (лента/герметик)` : ''}
           </div>
           <EnvBomSection pens={pens} />
           <button className="wide" onClick={exportCsv}>

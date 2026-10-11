@@ -220,6 +220,7 @@ export function App() {
         <span className={openEnds ? 'warn' : ''}>Открытых концов: {openEnds}</span>
         <span>Склеек: {bom.joints}</span>
         {bom.solder > 0 && <span>Паек: {bom.solder}</span>}
+        {bom.mech > 0 && <span>No-hub: {bom.mech}</span>}
         {pens.length > 0 && <span className={badPens ? 'err' : ''}>Проходов через конструкции: {pens.length}{badPens ? ` (слишком больших: ${badPens})` : ''}</span>}
         {model.bad.length > 0 && <span className="err">Неправильных соединений: {model.bad.length}</span>}
         {message && <span className="msg">{message}</span>}
