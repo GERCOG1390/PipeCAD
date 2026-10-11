@@ -27,6 +27,7 @@ import {
   Vector3
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Part, PathSeg, Shape, SizeId, V3, buildPart, fittingDef, hubR, sizeLabel, sizeSpec } from './catalog'
 import { Model, WorldPort, Xf, buildModel, computeTransforms, portKey } from './geometry'
@@ -234,11 +235,13 @@ function shapeGeo(s: Shape): Geo | null {
       })
       if (!path.curves.length) return null
       const arcs = s.segs.filter((x) => x.t === 'arc').length
-      return { geom: new TubeGeometry(path, Math.max(6, arcs * 48 + s.segs.length * 2), s.r, 40, false), pos: new Vector3(), quat: new Quaternion(), color: PVC }
+      return { geom: new TubeGeometry(path, Math.max(6, arcs * 48 + s.segs.length * 2), s.r, 40, false), pos: new Vector3(), quat: new Quaternion(), color: s.color ?? PVC, metal: s.metal }
     }
     case 'lathe': {
       const pts = s.prof.map(([r, z]) => new Vector2(Math.max(0.0005, r), z))
-      return { geom: new LatheGeometry(pts, s.seg ?? 64), pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }
+      // phi в градусах; 0° — направление +Z детали (перед)
+      const geom = s.phi ? new LatheGeometry(pts, s.seg ?? 64, (s.phi[0] * Math.PI) / 180, (s.phi[1] * Math.PI) / 180) : new LatheGeometry(pts, s.seg ?? 64)
+      return { geom, pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }
     }
     case 'prism': {
       const dir = new Vector3(...s.dir).normalize()
@@ -254,6 +257,12 @@ function shapeGeo(s: Shape): Geo | null {
     case 'nut': {
       const dir = new Vector3(...s.dir).normalize()
       return { geom: nutGeometry(s.sides, s.r, s.h, s.ch ?? s.h * 0.18), pos: new Vector3(...s.at).addScaledVector(dir, s.h / 2), quat: quatTo(dir), color: s.color ?? PVC, metal: s.metal }
+    }
+    case 'rbox': {
+      const dir = new Vector3(...s.dir).normalize()
+      const q0 = quatTo(dir)
+      if (s.yaw) q0.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), (s.yaw * Math.PI) / 180))
+      return { geom: new RoundedBoxGeometry(s.size[0], s.size[1], s.size[2], 4, Math.min(s.r, Math.min(...s.size) / 2 - 1e-3)), pos: new Vector3(...s.at), quat: q0, color: s.color ?? PVC, metal: s.metal }
     }
     case 'sweep':
       return { geom: sweepGeometry(s.path, s.w, s.th, s.rad ?? Math.min(s.w, s.th) * 0.45, s.side), pos: new Vector3(), quat: new Quaternion(), color: s.color ?? PVC, metal: s.metal }
