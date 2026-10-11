@@ -11,8 +11,7 @@ const SWATCH: Record<string, string> = {
   Каркас: 'repeating-linear-gradient(90deg,#d9b77c 0 6px,#2a2e33 6px 10px)',
   Пиломатериал: 'repeating-linear-gradient(0deg,#d9b77c 0 3px,#c49a5c 3px 5px)',
   Листы: 'linear-gradient(135deg,#dcc08a,#c7a066)',
-  Грунт: 'linear-gradient(180deg,#4f7f2f 0 35%,#6a4d32 35%)',
-  Люди: 'linear-gradient(180deg,#1e2a5a 0 55%,#cfd6dc 55%)'
+  Грунт: 'linear-gradient(180deg,#4f7f2f 0 35%,#6a4d32 35%)'
 }
 
 export function EnvModeSwitch() {
@@ -197,11 +196,6 @@ export function EnvInspector({ it }: { it: EnvItem }) {
             onChange={(v) => setO('orient', v)}
           />
         </>
-      )}
-      {it.type === 'person' && (
-        <label className="check">
-          <input type="checkbox" checked={it.o.face !== false} onChange={(e) => setO('face', e.target.checked)} /> Всегда лицом к камере
-        </label>
       )}
       {it.type === 'ground' && (
         <>
