@@ -14,6 +14,7 @@ const ICONS: Record<string, string> = {
   st90: 'M6 1v10a2 2 0 0 0 2 2h13M3 5h6',
   ell45: 'M2 16h9l9-9',
   tee: 'M3 9h18M12 9v12',
+  heater: 'M7 4h10v17H7zM9 2v2M15 2v2M10 16h4',
   nohub: 'M2 12h20M6 7h12v10H6zM9 7v10M15 7v10',
   shower: 'M3 13h18M12 3v18M8 9h8v8H8z',
   bullhead: 'M3 10h18M12 10v11M7 10v-3M17 10v-3M9 21h6',
@@ -81,7 +82,8 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: 'pressure', title: 'Pressure Sch 40' },
   { id: 'dwv', title: 'DWV — Drain, Waste & Vent' },
   { id: 'copper', title: 'Copper — Sweat (NIBCO Wrot)' },
-  { id: 'nohub', title: 'No-Hub Couplings (Transitions)' }
+  { id: 'nohub', title: 'No-Hub Couplings (Transitions)' },
+  { id: 'heater', title: 'Water Heaters (Bradford White)' }
 ]
 
 function readOpen(): Record<string, boolean> {
@@ -155,7 +157,7 @@ export function Palette({ model }: { model: Model }) {
         </div>
         <div className="size-grid">
           {SIZES.filter((s) => s.mat === mat).map((s) => {
-            const count = Object.values(FITTINGS).filter((d) => d.group !== 'common' && d.sizes.includes(s.id)).length
+            const count = Object.values(FITTINGS).filter((d) => d.group !== 'common' && d.group !== 'heater' && d.sizes.includes(s.id)).length
             return (
               <button key={s.id} className={`size-card${s.id === paletteSize ? ' on' : ''}`} onClick={() => chooseSize(s.id)}>
                 <span className="size-big">{sizeLabel(s.id)}</span>

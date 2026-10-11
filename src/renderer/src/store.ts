@@ -371,6 +371,10 @@ export const useStore = create<State>((set, get) => ({
 
     const added: Part[] = []
     const notes: string[] = []
+    if (def.place?.always) {
+      get().startPlacing({ kind, size2 })
+      return
+    }
     if (!parts.length && get().env.length) {
       get().startPlacing({ kind, size2 })
       return

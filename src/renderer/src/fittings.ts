@@ -5,6 +5,7 @@ import * as PR from './data/charlottePressure'
 import * as NB from './data/nibcoCopper'
 import * as MV from './data/muellerValves'
 import * as NHD from './data/noHub'
+import * as WH from './data/waterHeaters'
 import { ALL_SIZES, CU_SIZES, DWV_SIZES, SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeMatLabel, sizeSpec, threadSize } from './data/sizes'
 
 export type V3 = [number, number, number]
@@ -57,7 +58,7 @@ export interface Part {
   tie?: { port: number; to: { id: string; port: number } } // соединение этого конца с концом другой ветки
 }
 
-export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub'
+export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub' | 'heater'
 export interface FittingDef {
   ru: string
   en: string
@@ -70,7 +71,7 @@ export interface FittingDef {
   size2?: { label: string; options: (s: SizeId) => SizeId[]; optional?: boolean; reversible?: boolean }
   build: (p: Part) => Built
   // установка отдельной веткой: поворот (градусы, порядок YXZ) и «верх вровень с поверхностью» (локальная Z верхней плоскости)
-  place?: { rot: V3; flushTop?: (p: Part) => number; height?: number }
+  place?: { rot: V3; flushTop?: (p: Part) => number; height?: number; always?: boolean }
   bom?: (p: Part) => { name: string; pn?: string }[]
 }
 
@@ -650,6 +651,126 @@ function trapAdapter(size: SizeId): Built {
       lathe(O, Z, washer, { color: '#3a3d42', seg: 64 })
     ]
   }
+}
+
+// ---------- Газовый бойлер Bradford White ----------
+// Начало координат — центр дна на полу, +Y вверх, +Z — перед (газовый блок), горячая вода слева (−X), холодная справа (+X).
+const WH_JACKET = '#e7e5df'
+const WH_BLACK = '#202226'
+const WH_GALV = '#a9aeb3'
+const WH_BLUE = '#1f4f9c'
+function waterHeater(h: WH.HeaterSpec): Built {
+  const R = h.B / 2
+  const top = h.F
+  const seg = 128
+  const shapes: Shape[] = []
+  // кожух со скруглённым верхним краем, нижний цоколь
+  shapes.push(
+    lathe(O, Y, rounded([[0.001, 1.2], [R, 1.2], [R, top - 0.6], [R - 0.25, top - 0.05], [R * 0.8, top], [0.001, top + 0.25]], 0.6), { color: WH_JACKET, seg }),
+    lathe(O, Y, rounded([[0.001, 0], [R - 0.15, 0], [R - 0.15, 1.25], [0.001, 1.25]], 0.15), { color: WH_BLACK, seg })
+  )
+  // фирменная этикетка спереди: тонкая полоса-обечайка (часть кожуха)
+  shapes.push(lathe(O, Y, [[R + 0.005, top * 0.5], [R + 0.03, top * 0.5], [R + 0.03, top * 0.53], [R + 0.005, top * 0.53]], { color: WH_BLUE, seg }))
+  const ang = (deg: number): [number, number] => [Math.sin((deg * Math.PI) / 180) * R, Math.cos((deg * Math.PI) / 180) * R]
+  // прорези подвода воздуха у основания (FVIR) и дверца камеры сгорания
+  for (let i = -3; i <= 3; i++) {
+    const [x, z] = ang(i * 9)
+    shapes.push({ t: 'box', at: [x * 1.002, 2.4, z * 1.002], dir: Y, size: [0.35, 1.7, 0.12], color: WH_BLACK })
+  }
+  shapes.push({ t: 'box', at: [0, h.E - 4.2, R + 0.02], dir: Y, size: [5.2, 3.2, 0.08], color: '#9ea3a8', metal: true })
+
+  // газовый блок управления (ICON / Defender) спереди
+  const front = h.H - R // наружная плоскость блока
+  const cy = h.E + 0.6
+  shapes.push(
+    { t: 'box', at: [0, cy - 2.1, front - 1.6], dir: Y, size: [4.6, 4.4, 3.2], color: WH_BLACK },
+    { t: 'box', at: [0, cy + 1.6, front - 1.9], dir: Y, size: [3.6, 0.9, 2.4], color: '#2c2f34' },
+    lathe([0, cy - 0.6, front], Z, rounded([[0.001, 0], [0.75, 0], [0.75, 0.55], [0.001, 0.62]], 0.12), { color: '#c8352e', seg: 48 }),
+    lathe([1.4, cy - 1.8, front], Z, [[0.001, 0], [0.16, 0], [0.16, 0.08], [0.001, 0.08]], { color: '#29d16b', seg: 24 }),
+    // трубки к горелке
+    { t: 'box', at: [0.6, cy - 6, front - 1.2], dir: Y, size: [0.18, 3.6, 0.18], color: WH_GALV, metal: true }
+  )
+  // газовый вход 1/2" FPT слева на блоке, смотрит влево
+  const gasPos: V3 = [-2.3, h.E, front - 1.6]
+  const ports: PortDef[] = [fpt(gasPos, NX, '1/2', 'p', NPT['1/2'], { face: 0.7, R: 0.5 })]
+
+  // водяные патрубки: диэлектрические ниппели (MPT) с цветной маркировкой
+  const stub = Math.max(0.6, h.G - top)
+  const wsize = h.M as SizeId
+  for (const [x, color] of [[-h.J / 2, '#c8352e'], [h.J / 2, '#2563eb']] as [number, string][]) {
+    ports.push(mpt([x, h.G, 0], Y, wsize, 'p', stub))
+    shapes.push(
+      lathe([x, top - 0.1, 0], Y, rounded([[0.001, 0], [sp(wsize).od / 2 + 0.28, 0], [sp(wsize).od / 2 + 0.28, 0.32], [0.001, 0.32]], 0.06), { color: WH_GALV, metal: true, seg: 48 }),
+      lathe([x, top + 0.24, 0], Y, [[sp(wsize).od / 2 + 0.01, 0], [sp(wsize).od / 2 + 0.06, 0], [sp(wsize).od / 2 + 0.06, 0.18], [sp(wsize).od / 2 + 0.01, 0.18]], { color, seg: 48 })
+    )
+  }
+
+  // T&P клапан сбоку (справа-спереди), выход вниз 3/4" FPT
+  const tA = (55 * Math.PI) / 180
+  const dir: V3 = [Math.sin(tA), 0, Math.cos(tA)]
+  const c: V3 = [dir[0] * (R + 1.9), h.D, dir[2] * (R + 1.9)]
+  shapes.push(
+    lathe([dir[0] * (R - 0.2), h.D, dir[2] * (R - 0.2)], dir, rounded([[0.001, 0], [0.55, 0], [0.55, 1.4], [0.75, 1.5], [0.75, 2.6], [0.001, 2.7]], 0.08), { color: BRASS, metal: true, seg: 64 }),
+    { t: 'nut', at: [dir[0] * (R + 0.1), h.D, dir[2] * (R + 0.1)], dir, sides: 6, r: 0.62, h: 0.45, color: BRASS, metal: true },
+    lathe([c[0], h.D + 0.5, c[2]], Y, rounded([[0.001, 0], [0.42, 0], [0.42, 1.3], [0.001, 1.45]], 0.1), { color: BRASS, metal: true, seg: 48 }),
+    { t: 'box', at: [c[0] + dir[0] * 0.9, h.D + 1.85, c[2] + dir[2] * 0.9], dir: Y, size: [0.35, 0.18, 2.2], color: '#c9cdd1', metal: true }
+  )
+  ports.push(fpt([c[0], h.D - 1.2, c[2]], [0, -1, 0], '3/4', 'p', NPT['3/4'], { face: 0.7, R: 0.62 }))
+
+  // сливной кран (brass drain valve) спереди слева у дна
+  const dA = (-35 * Math.PI) / 180
+  const dd: V3 = [Math.sin(dA), 0, Math.cos(dA)]
+  shapes.push(
+    lathe([dd[0] * (R - 0.1), 7.5, dd[2] * (R - 0.1)], dd, rounded([[0.001, 0], [0.45, 0], [0.45, 1.4], [0.55, 1.5], [0.55, 2.1], [0.001, 2.2]], 0.08), { color: BRASS, metal: true, seg: 48 }),
+    lathe([dd[0] * (R + 1.1), 7.5, dd[2] * (R + 1.1)], Y, [[0.001, 0], [0.3, 0], [0.3, 0.6], [0.001, 0.6]], { color: BRASS, metal: true, seg: 32 })
+  )
+
+  // патрубки отопления (H-модели) — заглушены пробками
+  if (h.K && h.L) {
+    for (const y of [h.K, h.L]) {
+      const a = (-90 * Math.PI) / 180
+      const d2: V3 = [Math.sin(a), 0, Math.cos(a)]
+      shapes.push(
+        lathe([d2[0] * (R - 0.1), y, d2[2] * (R - 0.1)], d2, [[0.001, 0], [0.62, 0], [0.62, 0.9], [0.001, 0.9]], { color: WH_GALV, metal: true, seg: 48 }),
+        { t: 'nut', at: [d2[0] * (R + 0.8), y, d2[2] * (R + 0.8)], dir: d2, sides: 4, r: 0.35, h: 0.3, color: WH_GALV, metal: true }
+      )
+    }
+  }
+
+  if (h.vent === 'atm') {
+    // колпак тяги (draft diverter): опоры, конус, патрубок C"
+    const cR = h.C / 2
+    const hoodBase = top + 0.6
+    for (const a of [0, 120, 240]) {
+      const r = (a * Math.PI) / 180
+      shapes.push({ t: 'box', at: [Math.sin(r) * (cR + 1.4), top + 0.3, Math.cos(r) * (cR + 1.4)], dir: Y, size: [0.6, 1.0, 0.25], color: WH_GALV, metal: true })
+    }
+    shapes.push(
+      lathe([0, top + 0.2, 0], Y, [[cR - 0.05, 0.4], [cR + 2.3, 0.6], [cR + 2.3, 0.9], [cR + 0.05, h.A - top - 1.2], [cR + 0.05, h.A - top - 0.2], [cR - 0.05, h.A - top - 0.2]], { color: WH_GALV, metal: true, seg }),
+      lathe([0, hoodBase - 0.3, 0], Y, [[cR, 0], [cR + 0.08, 0], [cR + 0.08, h.A - hoodBase + 0.3], [cR, h.A - hoodBase + 0.3]], { color: WH_GALV, metal: true, seg })
+    )
+    // анодный стержень и шестигранник сверху
+    shapes.push({ t: 'nut', at: [0, top + 0.05, -R * 0.55], dir: Y, sides: 6, r: 0.6, h: 0.45, color: WH_GALV, metal: true })
+  } else {
+    // power vent: корпус вентилятора, мотор, выход дымохода (PVC C")
+    const by = top + 0.2
+    const blowerTop = h.A - 2.4
+    shapes.push(
+      { t: 'box', at: [0, by + (blowerTop - by) / 2, 0.3], dir: Y, size: [R * 0.9, blowerTop - by, R * 0.85], color: WH_BLACK },
+      lathe([R * 0.18, blowerTop - 0.2, 0.3], Y, rounded([[0.001, 0], [2.4, 0], [2.4, 1.2], [1.9, 1.7], [0.001, 1.75]], 0.25), { color: '#2b2e33', seg: 64 }),
+      { t: 'box', at: [R * 0.48, by + 1.5, R * 0.47 + 0.3], dir: Y, size: [2.4, 2.2, 0.15], color: '#3a3d42' },
+      lathe([-R * 0.3, blowerTop - 0.4, -0.6], Y, [[0.001, 0], [h.C / 2 + 0.25, 0], [h.C / 2 + 0.25, 2.4], [0.001, 2.4]], { color: WH_BLACK, seg: 64 })
+    )
+    const vSize = (String(h.C) as SizeId)
+    const vp = hub([-R * 0.3, h.A - sp(vSize).socket, -0.6], Y, vSize, 'p', { bare: true, R: sp(vSize).od / 2 + 0.22 })
+    ports.push(vp)
+    shapes.push(lathe(vp.pos, Y, hubProfile(vp), { color: WH_BLACK, seg: 64 }))
+  }
+
+  const built = finalize({ ports, shapes })
+  // резьбовые торцы патрубков — оцинковка/латунь, не PVC
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: WH_GALV, metal: true } : s))
+  return built
 }
 
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
@@ -2113,6 +2234,22 @@ function closetFlange(size: SizeId, [A, B, Cc]: number[], metal: boolean): Built
 
 // ---------- доступ ----------
 export const fittingDef = (kind: string): FittingDef => FITTINGS[kind] ?? FITTINGS.pipe
+// Газовые бойлеры: по позиции на модель
+for (const h of WH.HEATERS) {
+  FITTINGS['wh_' + h.model] = {
+    ru: `${h.gal} Gal ${h.vent === 'pv' ? 'Power Vent' : 'Atmospheric'}${h.note ? ' · ' + h.note : ''}`,
+    en: `Bradford White ${h.model}`,
+    group: 'heater',
+    cat: h.vent === 'pv' ? 'Gas — Power Vent' : 'Gas — Atmospheric Vent',
+    icon: 'heater',
+    pn: h.model,
+    sizes: ALL_SIZES,
+    place: { rot: [0, 0, 0], height: 0, always: true },
+    build: () => waterHeater(h),
+    bom: () => [{ name: `Bradford White ${h.model} ${h.gal} Gal Natural Gas Water Heater, ${h.vent === 'pv' ? 'Power Vent' : 'Atmospheric Vent'}${h.btu ? ', ' + h.btu.toLocaleString('en-US') + ' BTU' : ''}`, pn: h.model }]
+  }
+}
+
 export const FITTING_ORDER = Object.keys(FITTINGS)
 export const isDwvKind = (kind: string): boolean => fittingDef(kind).group === 'dwv'
 
