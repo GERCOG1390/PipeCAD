@@ -4,7 +4,7 @@ import { readFile, unlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-const PROJECT_FILTERS = [{ name: 'Проект PipeCAD', extensions: ['pipe'] }]
+const PROJECT_FILTERS = [{ name: 'PipeCAD project', extensions: ['pipe'] }]
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -86,7 +86,7 @@ ipcMain.handle('video:save', async (_e, args: { data: Uint8Array; ext: string })
   const d = new Date()
   const pad = (n: number): string => String(n).padStart(2, '0')
   const name = `PipeCAD ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}-${pad(d.getMinutes())}.mp4`
-  const r = await dialog.showSaveDialog({ defaultPath: join(app.getPath('videos'), name), filters: [{ name: 'Видео MP4', extensions: ['mp4'] }] })
+  const r = await dialog.showSaveDialog({ defaultPath: join(app.getPath('videos'), name), filters: [{ name: 'MP4 Video', extensions: ['mp4'] }] })
   if (r.canceled || !r.filePath) return null
   const raw = join(tmpdir(), `pipecad-rec-${Date.now()}.${args.ext}`)
   await writeFile(raw, Buffer.from(args.data))

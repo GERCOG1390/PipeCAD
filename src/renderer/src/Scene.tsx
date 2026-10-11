@@ -771,14 +771,14 @@ function AxisGuides({ model }: { model: Model }) {
                 {hit ? (
                   <>
                     <b>
-                      Поворот {Math.round(g.turn * 10) / 10}° {g.fit ? `→ ${g.fit.ru}` : '— нет стандартного колена'}
+                      Turn {Math.round(g.turn * 10) / 10}° {g.fit ? `→ ${g.fit.ru}` : '— no standard bend'}
                     </b>
                     <div>
-                      До пересечения: {formatLength(g.tA)} и {formatLength(g.tB)}
+                      To intersection: {formatLength(g.tA)} and {formatLength(g.tB)}
                     </div>
                     {g.fit && cutA !== null && cutB !== null && (
                       <div>
-                        Отрезы: {cutA > 0.25 ? formatLength(cutA) : '—'} и {cutB > 0.25 ? formatLength(cutB) : '—'}
+                        Cuts: {cutA > 0.25 ? formatLength(cutA) : '—'} and {cutB > 0.25 ? formatLength(cutB) : '—'}
                       </div>
                     )}
                     {g.fit && activeKey && (
@@ -788,14 +788,14 @@ function AxisGuides({ model }: { model: Model }) {
                           connectAt({ id: g.a.partId, port: g.a.index }, { id: g.b.partId, port: g.b.index }, [X.x, X.y, X.z], g.fit!.kind, g.fit!.takeoff)
                         }}
                       >
-                        Соединить здесь
+                        Join here
                       </button>
                     )}
                   </>
                 ) : (
                   <>
-                    <b>Оси не пересекаются</b>
-                    <div>Промах {formatLength(g.miss)} · поворот {Math.round(g.turn * 10) / 10}°</div>
+                    <b>Axes don't intersect</b>
+                    <div>Offset {formatLength(g.miss)} · turn {Math.round(g.turn * 10) / 10}°</div>
                   </>
                 )}
               </div>

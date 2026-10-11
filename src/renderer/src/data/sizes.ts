@@ -66,9 +66,9 @@ export const sizeIndex = (id: SizeId): number => SIZES.findIndex((s) => s.id ===
 export const nominal = (id: SizeId): string => id.replace(/^(cu|ci|gs)/, '')
 export const MAT_NAME: Record<Material, { ru: string; short: string }> = {
   pvc: { ru: 'PVC', short: 'PVC' },
-  cu: { ru: 'Медь', short: 'Cu' },
-  ci: { ru: 'Чугун no-hub', short: 'чугун' },
-  gs: { ru: 'Оцинковка', short: 'оцинк.' }
+  cu: { ru: 'Copper', short: 'Cu' },
+  ci: { ru: 'Cast iron no-hub', short: 'CI' },
+  gs: { ru: 'Galvanized', short: 'galv.' }
 }
 export const matOf = (id: SizeId): Material => BY_ID.get(id)!.mat
 // «3" чугун» — когда рядом размеры разных материалов

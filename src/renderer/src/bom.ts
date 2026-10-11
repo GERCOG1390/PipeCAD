@@ -106,7 +106,7 @@ export function bomCsv(bom: Bom, stick: number, env: EnvBomLine[] = [], pens: Pe
   if (bom.mech) rows.push([q('No-hub joints (clamped)'), '', bom.mech, 'ea', q('torque 60 in-lbs')].join(','))
   if (bom.solder) rows.push([q('Soldered joints (copper)'), '', bom.solder, 'ea', q('lead-free solder + flux')].join(','))
   if (bom.threads) rows.push([q('Threaded joints'), '', bom.threads, 'ea', q('PTFE tape / thread sealant')].join(','))
-  for (const e of env) rows.push([q(e.name), '', e.unit === 'куб. ярд' ? e.qty.toFixed(2) : e.qty, q(e.unit), q(e.ru)].join(','))
+  for (const e of env) rows.push([q(e.name), '', e.unit === 'cu yd' ? e.qty.toFixed(2) : e.qty, q(e.unit), q(e.ru)].join(','))
   for (const p of pens) rows.push([q('Penetration: ' + p.where), '', 1, 'ea', q(p.note)].join(','))
   return '﻿' + rows.join('\r\n')
 }

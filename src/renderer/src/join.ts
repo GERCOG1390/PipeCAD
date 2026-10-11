@@ -98,28 +98,28 @@ export function joinPorts(parts0: Part[], A: Ref, B: Ref, newId: () => string): 
   }
   const a = portWorld(parts, A)
   const b = portWorld(parts, B)
-  if (!a || !b) return { parts: parts0, ok: false, message: 'Не нашёл концы' }
+  if (!a || !b) return { parts: parts0, ok: false, message: 'Ends not found' }
   const d = b.pos.clone().sub(a.pos)
   const L = d.dot(a.dir)
   const miss = d.clone().sub(a.dir.clone().multiplyScalar(L)).length()
   const ang = (b.dir.angleTo(a.dir.clone().negate()) * 180) / Math.PI
   const names = [...rolled].map((id) => fittingDef(parts.find((p) => p.id === id)!.kind).ru)
-  const rolledMsg = names.length ? `Развернул: ${names.join(', ')}. ` : ''
+  const rolledMsg = names.length ? `Rotated: ${names.join(', ')}. ` : ''
   if (L <= 0.25 || miss > MISS || ang > ANGLE) {
-    const why = L <= 0.25 ? 'концы смотрят в разные стороны' : `промах ${formatLength(miss)}, угол ${ang.toFixed(1)}°`
-    return { parts, ok: false, message: `${rolledMsg}Не сходится: ${why}. Нужен другой угол фитинга (22.5°, 45°, 60°) или сдвиг ветки` }
+    const why = L <= 0.25 ? 'ends point away from each other' : `offset ${formatLength(miss)}, angle ${ang.toFixed(1)}°`
+    return { parts, ok: false, message: `${rolledMsg}Can't line up: ${why}. Try a different fitting angle (22.5°, 45°, 60°) or move the branch` }
   }
   const pa = parts.find((p) => p.id === A.id)!
   const pb = parts.find((p) => p.id === B.id)!
   const da = portsOf(pa)[A.port]
   const db = portsOf(pb)[B.port]
-  if (da.size !== db.size) return { parts, ok: false, message: `${rolledMsg}Концы сошлись, но размеры разные (${da.size}" и ${db.size}") — нужен переходник` }
+  if (da.size !== db.size) return { parts, ok: false, message: `${rolledMsg}Ends line up, but sizes differ (${da.size}" and ${db.size}") — needs a reducer` }
 
   // раструб ↔ раструб: новая труба между доньями раструбов
   if (da.kind === 'hub' && db.kind === 'hub') {
     const id = newId()
     const pipe: Part = { id, kind: 'pipe', size: da.size, attach: 0, roll: 0, length: Math.round(L * 16) / 16, parent: { id: A.id, port: A.port }, tie: { port: 1, to: { id: B.id, port: B.port } } }
-    return { parts: [...parts, pipe], ok: true, newId: id, message: `${rolledMsg}Соединил трубой ${formatLength(pipe.length!)}` }
+    return { parts: [...parts, pipe], ok: true, newId: id, message: `${rolledMsg}Joined with ${formatLength(pipe.length!)} of pipe` }
   }
   // гладкий конец трубы ↔ раструб: удлиняем трубу до дна раструба
   const extend = (pRef: Ref, part: Part, to: Ref): JoinResult | null => {
@@ -129,7 +129,7 @@ export function joinPorts(parts0: Part[], A: Ref, B: Ref, newId: () => string): 
       parts: parts.map((p) => (p.id === part.id ? { ...p, length: len, tie: { port: pRef.port, to } } : p)),
       ok: true,
       newId: part.id,
-      message: `${rolledMsg}Удлинил трубу до ${formatLength(len)} и соединил`
+      message: `${rolledMsg}Extended pipe to ${formatLength(len)} and joined`
     }
   }
   if (da.kind === 'spigot' && mates(da.kind, db.kind)) {
@@ -141,17 +141,17 @@ export function joinPorts(parts0: Part[], A: Ref, B: Ref, newId: () => string): 
     const r = extend(B, pb, A)
     if (r) return r
   }
-  return { parts, ok: false, message: `${rolledMsg}Концы сошлись, но их тип не позволяет соединить напрямую (нужна муфта или ниппель)` }
+  return { parts, ok: false, message: `${rolledMsg}Ends line up, but their types can't be joined directly (needs a coupling or nipple)` }
 }
 
 // «Соединить здесь»: труба от A до точки пересечения, фитинг нужного угла, затем доводка поворотом и труба до B
 export function connectVia(parts0: Part[], A: Ref, B: Ref, X: Vector3, fitKind: string, takeoff: number, newId: () => string): JoinResult {
   const a = portWorld(parts0, A)
   const pa = parts0.find((p) => p.id === A.id)
-  if (!a || !pa) return { parts: parts0, ok: false, message: 'Не нашёл конец' }
+  if (!a || !pa) return { parts: parts0, ok: false, message: 'End not found' }
   const da = portsOf(pa)[A.port]
   const L = a.pos.distanceTo(X) - takeoff
-  if (L < 0.5) return { parts: parts0, ok: false, message: 'Точка пересечения слишком близко к концу — фитинг не помещается' }
+  if (L < 0.5) return { parts: parts0, ok: false, message: 'Intersection is too close to the end — the fitting won\'t fit' }
   let parts = parts0
   let parentRef: Ref
   if (da.kind === 'hub') {
@@ -162,11 +162,11 @@ export function connectVia(parts0: Part[], A: Ref, B: Ref, X: Vector3, fitKind: 
     parts = parts.map((p) => (p.id === pa.id ? { ...p, length: Math.round(((p.length ?? 0) + L) * 16) / 16 } : p))
     parentRef = A
   } else {
-    return { parts: parts0, ok: false, message: 'С этого конца нельзя продолжить трубой — нужен переходник' }
+    return { parts: parts0, ok: false, message: 'Can\'t continue with pipe from this end — needs an adapter' }
   }
   const fit: Part = { id: newId(), kind: fitKind, size: da.size, attach: 0, roll: 0, parent: parentRef }
   parts = [...parts, fit]
   const res = joinPorts(parts, { id: fit.id, port: 1 }, B, newId)
-  if (!res.ok) return { parts: res.parts, ok: false, message: `Поставил ${fittingDef(fitKind).ru}, но довести до конца не удалось: ${res.message}` }
-  return { ...res, message: `Поставил трубу ${formatLength(L)} + ${fittingDef(fitKind).ru}. ${res.message}` }
+  if (!res.ok) return { parts: res.parts, ok: false, message: `Placed ${fittingDef(fitKind).ru}, but couldn't finish the run: ${res.message}` }
+  return { ...res, message: `Placed ${formatLength(L)} pipe + ${fittingDef(fitKind).ru}. ${res.message}` }
 }

@@ -4,10 +4,10 @@ import { Part, SizeId, fittingDef, portsOf } from './catalog'
 import { Model, WorldPort, portKey } from './geometry'
 
 export const ANGLE_KINDS: { angle: number; dwv?: string; pressure?: string; ru: string }[] = [
-  { angle: 90, dwv: 'dwv90', pressure: 'elbow90', ru: 'колено 90°' },
-  { angle: 60, dwv: 'd60', ru: 'колено 60°' },
-  { angle: 45, dwv: 'dwv45', pressure: 'elbow45', ru: 'колено 45°' },
-  { angle: 22.5, dwv: 'dwv22', ru: 'колено 22.5°' }
+  { angle: 90, dwv: 'dwv90', pressure: 'elbow90', ru: '90° bend' },
+  { angle: 60, dwv: 'd60', ru: '60° bend' },
+  { angle: 45, dwv: 'dwv45', pressure: 'elbow45', ru: '45° bend' },
+  { angle: 22.5, dwv: 'dwv22', ru: '22.5° bend' }
 ]
 
 export interface Guide {

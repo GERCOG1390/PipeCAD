@@ -50,31 +50,31 @@ function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: 
   let note: string
   if (to.kind === 'hub') {
     part = { ...base, kind: 'pipe', attach: 0, length: nippleLength(to.depth, nextDepth) }
-    note = `раструб в раструб не клеится — добавил ниппель ${formatLength(part.length!)}`
+    note = `hub-to-hub can't be glued — added a ${formatLength(part.length!)} nipple`
   } else if (to.kind === 'spigot' && to.size.startsWith('ci')) {
     part = { ...base, kind: 'nhStd', size2: to.size, attach: 0 }
-    note = 'чугун к чугуну — добавил no-hub муфту'
+    note = 'cast iron to cast iron — added a no-hub coupling'
   } else if (to.kind === 'spigot' && to.size.startsWith('gs')) {
     part = { ...base, kind: 'nhTrans', size2: to.size, attach: 0 }
-    note = 'оцинковка к оцинковке — добавил переходную no-hub муфту'
+    note = 'galvanized to galvanized — added a no-hub transition coupling'
   } else if (to.kind === 'spigot' && cu) {
     part = { ...base, kind: 'cuCoupling', attach: 0 }
-    note = 'труба к трубе — добавил медную муфту'
+    note = 'pipe to pipe — added a copper coupling'
   } else if (to.kind === 'fpt' && cu) {
     part = { ...base, kind: 'cuMa', attach: 0 }
-    note = 'в резьбу FPT — добавил медный адаптер MPT (604)'
+    note = 'into FPT — added a copper MPT adapter (604)'
   } else if (to.kind === 'mpt' && cu) {
     part = { ...base, kind: 'cuFa', attach: 0 }
-    note = 'на резьбу MPT — добавил медный адаптер FPT (603)'
+    note = 'onto MPT — added a copper FPT adapter (603)'
   } else if (to.kind === 'spigot') {
     part = { ...base, kind: famHint === 'd' ? pick('dcoup', 'coupling') : pick('coupling', 'dcoup'), attach: 0 }
-    note = 'труба к трубе — добавил муфту'
+    note = 'pipe to pipe — added a coupling'
   } else if (to.kind === 'fpt') {
     part = { ...base, kind: pick('pma', 'dma'), attach: 0 }
-    note = 'в резьбу FPT — добавил адаптер MPT'
+    note = 'into FPT — added an MPT adapter'
   } else if (to.kind === 'mpt') {
     part = { ...base, kind: pick('pfa', 'dfa'), attach: 0 }
-    note = 'на резьбу MPT — добавил адаптер FPT'
+    note = 'onto MPT — added an FPT adapter'
   } else return null
   if (!fittingDef(part.kind).sizes.includes(part.size)) return null
   part.attach = Math.max(0, matchPort(part, to))
@@ -291,7 +291,7 @@ export const useStore = create<State>((set, get) => ({
   setSnap: (snap) => set({ snap }),
   setMoveSystem: (moveSystem) => set({ moveSystem }),
   startPlacing: (placing) =>
-    set({ placing, selectedId: null, activePort: null, selectedEnv: null, message: 'Кликни на пол или поверхность, куда поставить деталь. R — повернуть, Esc — отмена' }),
+    set({ placing, selectedId: null, activePort: null, selectedEnv: null, message: 'Click the floor or a surface to place the part. R to rotate, Esc to cancel' }),
   cancelPlacing: () => set({ placing: null, message: null }),
   turnPlacing: (deg) => set((s) => ({ placeTurn: (((s.placeTurn + deg) % 360) + 360) % 360 })),
   placeAt: (at) => {
@@ -304,10 +304,10 @@ export const useStore = create<State>((set, get) => ({
   },
   startJoin: () => {
     if (!get().activePort) {
-      set({ message: 'Сначала выбери первый конец (зелёное кольцо), потом «Соединить»' })
+      set({ message: 'First select an end (green ring), then "Join"' })
       return
     }
-    set({ joining: true, placing: null, message: 'Кликни второй свободный конец — разверну фитинги, чтобы концы сошлись. Esc — отмена' })
+    set({ joining: true, placing: null, message: 'Click the second open end — fittings will be rotated so the ends meet. Esc to cancel' })
   },
   joinTo: (b) => {
     const { activePort: a, parts } = get()
@@ -327,7 +327,7 @@ export const useStore = create<State>((set, get) => ({
   startReplay: (record = false) => {
     const { timeline, parts, env } = get()
     if (!timeline.length) {
-      set({ message: 'Повторять нечего — история постройки пустая' })
+      set({ message: 'Nothing to replay — build history is empty' })
       return
     }
     const frames: Frame[] = [{ parts: [], env: [] }, ...timeline]
@@ -355,7 +355,7 @@ export const useStore = create<State>((set, get) => ({
   },
   setReplay: (patch) => set((s) => (s.replay ? { replay: { ...s.replay, ...patch } } : {})),
   setRecording: (recording) => set({ recording }),
-  newBranch: () => set({ selectedId: null, activePort: null, selectedEnv: null, message: 'Новая ветка: выбери деталь в каталоге и кликни, куда её поставить' }),
+  newBranch: () => set({ selectedId: null, activePort: null, selectedEnv: null, message: 'New branch: pick a part in the catalog and click where to place it' }),
   // Перетаскивание гизмо: живое обновление без истории, одна запись в историю по окончании
   beginDrag: () => set((s) => ({ dragStart: { parts: s.parts, env: s.env } })),
   dragTo: (patch) => set((s) => (s.replay ? {} : patch)),
@@ -378,7 +378,7 @@ export const useStore = create<State>((set, get) => ({
     if (!parts.length) {
       if (!def.sizes.includes(part.size)) {
         part.size = [...def.sizes].sort((a, b) => Math.abs(sizeIndex(a) - sizeIndex(paletteSize)) - Math.abs(sizeIndex(b) - sizeIndex(paletteSize)))[0]
-        notes.push(`«${def.ru}» не бывает ${paletteSize}" — поставил ${part.size}"`)
+        notes.push(`"${def.ru}" doesn't come in ${paletteSize}" — used ${part.size}"`)
       }
       part.size2 = defaultSize2(kind, part.size, size2 ?? reducerTo)
       part.pos = [0, 12, 0] // система труб начинается на высоте 1' над уровнем 0
@@ -393,7 +393,7 @@ export const useStore = create<State>((set, get) => ({
       let pport = portsOf(parts.find((p) => p.id === target!.id)!)[target.port]
       for (let step = 0; ; step++) {
         if (pport.kind === 'slip') {
-          set({ message: 'К этому концу подключается трубка сифона (tubular), а не PVC' })
+          set({ message: 'This end takes a tubular trap arm, not PVC' })
           return
         }
         let cands = sizeCandidates(kind, pport.size, size2 ?? reducerTo)
@@ -402,7 +402,7 @@ export const useStore = create<State>((set, get) => ({
         // Каталог открыт на другом размере, чем выбранный конец: сначала варианты-переходы на этот размер
         if (paletteSize !== pport.size) cands.sort((a, b) => Number(b.size === paletteSize || b.size2 === paletteSize) - Number(a.size === paletteSize || a.size2 === paletteSize))
         if (!cands.length) {
-          set({ message: `Charlotte не выпускает «${def.ru}» под ${pport.size}"` })
+          set({ message: `"${def.ru}" is not made for ${pport.size}"` })
           return
         }
         const hit = cands.map((c) => ({ ...part, ...c })).find((c) => matchPort(c, pport) >= 0)
@@ -414,7 +414,7 @@ export const useStore = create<State>((set, get) => ({
         const wantCu = def.group === 'copper' || (def.group === 'common' && isCu(paletteSize))
         const adapter = adapterFor(pport, Math.max(...portsOf(sample).map((p) => p.depth)), target!, famNear(all, target!.id, kind), wantCu)
         if (!adapter || step > 2) {
-          set({ message: 'Эти концы нельзя соединить напрямую' })
+          set({ message: 'These ends can\'t be joined directly' })
           return
         }
         added.push(adapter.part)

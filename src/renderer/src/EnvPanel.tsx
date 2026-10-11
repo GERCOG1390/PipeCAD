@@ -7,20 +7,20 @@ import { EnvMode, useStore } from './store'
 import { formatLength } from './units'
 
 const SWATCH: Record<string, string> = {
-  Бетон: 'linear-gradient(135deg,#a3a39e,#82827c)',
-  Каркас: 'repeating-linear-gradient(90deg,#d9b77c 0 6px,#2a2e33 6px 10px)',
-  Пиломатериал: 'repeating-linear-gradient(0deg,#d9b77c 0 3px,#c49a5c 3px 5px)',
-  Листы: 'linear-gradient(135deg,#dcc08a,#c7a066)',
-  Грунт: 'linear-gradient(180deg,#4f7f2f 0 35%,#6a4d32 35%)'
+  Concrete: 'linear-gradient(135deg,#a3a39e,#82827c)',
+  Framing: 'repeating-linear-gradient(90deg,#d9b77c 0 6px,#2a2e33 6px 10px)',
+  Lumber: 'repeating-linear-gradient(0deg,#d9b77c 0 3px,#c49a5c 3px 5px)',
+  'Sheet goods': 'linear-gradient(135deg,#dcc08a,#c7a066)',
+  Ground: 'linear-gradient(180deg,#4f7f2f 0 35%,#6a4d32 35%)'
 }
 
 export function EnvModeSwitch() {
   const mode = useStore((s) => s.envMode)
   const setMode = useStore((s) => s.setEnvMode)
   const opts: [EnvMode, string][] = [
-    ['solid', 'Видно'],
-    ['ghost', 'Прозрачно'],
-    ['hidden', 'Скрыто']
+    ['solid', 'Solid'],
+    ['ghost', 'X-ray'],
+    ['hidden', 'Hidden']
   ]
   return (
     <div className="seg">
@@ -52,9 +52,9 @@ export function EnvPalette() {
   const env = useStore((s) => s.env)
   return (
     <aside className="palette">
-      <div className="step-title">Стройка и окружение</div>
+      <div className="step-title">Site & surroundings</div>
       <div className="row between">
-        <span className="muted small">Шаг перемещения:</span>
+        <span className="muted small">Move step:</span>
         <div style={{ width: 90 }}>
           <SnapSelect />
         </div>
@@ -75,10 +75,10 @@ export function EnvPalette() {
         </div>
       ))}
       <div className="help">
-        <b>Как ставить</b>
-        <p>Объект появляется в центре экрана на уровне 0 (грунт и плита — ниже нуля). Тяни цветные стрелки, чтобы двигать, или вводи координаты справа.</p>
-        <p>«Прозрачно» — видно трубы внутри стен и под полом. Оранжевые кольца — где сверлить, красные — отверстие слишком большое.</p>
-        {env.length > 0 && <p>Объектов: {env.length}</p>}
+        <b>How to place</b>
+        <p>Objects appear at the screen center at level 0 (ground and slab go below 0). Drag the colored arrows to move, or type coordinates on the right.</p>
+        <p>"X-ray" shows pipes inside walls and under floors. Orange rings = drill here, red = hole too large.</p>
+        {env.length > 0 && <p>Objects: {env.length}</p>}
       </div>
     </aside>
   )
@@ -135,15 +135,15 @@ export function EnvInspector({ it }: { it: EnvItem }) {
 
       {it.type === 'studWall' && (
         <>
-          <Opt label="Стойки" value={String(o.lumber)} options={lumberOpts(['2x4', '2x6'])} onChange={(v) => setO('lumber', v)} />
-          <Opt label="Шаг стоек" value={String(o.oc)} options={ocOpts} onChange={(v) => setO('oc', Number(v))} />
+          <Opt label="Studs" value={String(o.lumber)} options={lumberOpts(['2x4', '2x6'])} onChange={(v) => setO('lumber', v)} />
+          <Opt label="Stud spacing" value={String(o.oc)} options={ocOpts} onChange={(v) => setO('oc', Number(v))} />
           <Opt
-            label="Гипсокартон"
+            label="Drywall"
             value={String(o.drywall)}
             options={[
-              ['none', 'Нет'],
-              ['one', 'С одной стороны'],
-              ['both', 'С двух сторон']
+              ['none', 'None'],
+              ['one', 'One side'],
+              ['both', 'Both sides']
             ]}
             onChange={(v) => setO('drywall', v)}
           />
@@ -151,33 +151,33 @@ export function EnvInspector({ it }: { it: EnvItem }) {
       )}
       {it.type === 'joists' && (
         <>
-          <Opt label="Джойсты" value={String(o.lumber)} options={lumberOpts(['2x6', '2x8', '2x10', '2x12'])} onChange={(v) => setO('lumber', v)} />
-          <Opt label="Шаг джойстов" value={String(o.oc)} options={ocOpts} onChange={(v) => setO('oc', Number(v))} />
+          <Opt label="Joists" value={String(o.lumber)} options={lumberOpts(['2x6', '2x8', '2x10', '2x12'])} onChange={(v) => setO('lumber', v)} />
+          <Opt label="Joist spacing" value={String(o.oc)} options={ocOpts} onChange={(v) => setO('oc', Number(v))} />
           <Opt
-            label="Черновой пол (subfloor)"
+            label="Subfloor"
             value={String(o.sub)}
             options={[
-              ['none', 'Нет'],
+              ['none', 'None'],
               ['osb-23/32', 'OSB 23/32"'],
-              ['ply-3/4', 'Плайвуд 3/4"']
+              ['ply-3/4', 'Plywood 3/4"']
             ]}
             onChange={(v) => setO('sub', v)}
           />
           <label className="check">
-            <input type="checkbox" checked={o.rim !== false} onChange={(e) => setO('rim', e.target.checked)} /> Обвязочные (rim) джойсты
+            <input type="checkbox" checked={o.rim !== false} onChange={(e) => setO('rim', e.target.checked)} /> Rim joists
           </label>
         </>
       )}
       {it.type === 'lumber' && (
         <>
-          <Opt label="Сечение" value={String(o.lumber)} options={lumberOpts(Object.keys(LUMBER))} onChange={(v) => setO('lumber', v)} />
+          <Opt label="Lumber size" value={String(o.lumber)} options={lumberOpts(Object.keys(LUMBER))} onChange={(v) => setO('lumber', v)} />
           <Opt
-            label="Положение"
+            label="Orientation"
             value={String(o.orient)}
             options={[
-              ['edge', 'Горизонтально, на ребро'],
-              ['flat', 'Горизонтально, плашмя'],
-              ['post', 'Вертикально (стойка)']
+              ['edge', 'Horizontal, on edge'],
+              ['flat', 'Horizontal, flat'],
+              ['post', 'Vertical (post)']
             ]}
             onChange={(v) => setO('orient', v)}
           />
@@ -185,13 +185,13 @@ export function EnvInspector({ it }: { it: EnvItem }) {
       )}
       {it.type === 'sheet' && (
         <>
-          <Opt label="Материал" value={String(o.sheet)} options={Object.entries(SHEETS).map(([k, v]) => [k, v.ru])} onChange={(v) => setO('sheet', v)} />
+          <Opt label="Material" value={String(o.sheet)} options={Object.entries(SHEETS).map(([k, v]) => [k, v.ru])} onChange={(v) => setO('sheet', v)} />
           <Opt
-            label="Положение"
+            label="Orientation"
             value={String(o.orient)}
             options={[
-              ['floor', 'Горизонтально (пол/потолок)'],
-              ['wall', 'Вертикально (стена)']
+              ['floor', 'Horizontal (floor/ceiling)'],
+              ['wall', 'Vertical (wall)']
             ]}
             onChange={(v) => setO('orient', v)}
           />
@@ -199,30 +199,30 @@ export function EnvInspector({ it }: { it: EnvItem }) {
       )}
       {it.type === 'ground' && (
         <>
-          <Opt label="Поверхность" value={String(o.surface)} options={Object.entries(SURFACES)} onChange={(v) => setO('surface', v)} />
+          <Opt label="Surface" value={String(o.surface)} options={Object.entries(SURFACES)} onChange={(v) => setO('surface', v)} />
           <label className="check">
-            <input type="checkbox" checked={!!o.trench} onChange={(e) => setO('trench', e.target.checked)} /> Траншея (вдоль длины)
+            <input type="checkbox" checked={!!o.trench} onChange={(e) => setO('trench', e.target.checked)} /> Trench (along length)
           </label>
           {!!o.trench && (
             <>
-              <label>Отступ траншеи от края</label>
+              <label>Trench offset from edge</label>
               <LengthInput value={Number(o.tOff ?? 48)} min={0} onCommit={(v) => setO('tOff', v)} />
-              <label>Ширина траншеи</label>
+              <label>Trench width</label>
               <LengthInput value={Number(o.tW ?? 18)} min={1} onCommit={(v) => setO('tW', v)} />
-              <label>Глубина траншеи</label>
+              <label>Trench depth</label>
               <LengthInput value={Number(o.tD ?? 24)} min={1} onCommit={(v) => setO('tD', v)} />
             </>
           )}
         </>
       )}
 
-      <label>Положение (угол объекта): X / Y (высота) / Z</label>
+      <label>Position (object corner): X / Y (height) / Z</label>
       <div className="xyz">
         {([0, 1, 2] as const).map((i) => (
           <LengthInput key={i} value={it.pos[i]} min={-12000} onCommit={(v) => setPos(i, v)} />
         ))}
       </div>
-      <label>Поворот: {it.rotY}°</label>
+      <label>Rotation: {it.rotY}°</label>
       <div className="row">
         {[-90, -45, 45, 90].map((d) => (
           <button key={d} onClick={() => updateEnv(it.id, { rotY: (((it.rotY + d) % 360) + 360) % 360 })}>
@@ -231,9 +231,9 @@ export function EnvInspector({ it }: { it: EnvItem }) {
         ))}
       </div>
       <div className="row" style={{ marginTop: 8 }}>
-        <button onClick={() => duplicateEnv(it.id)}>Дублировать</button>
+        <button onClick={() => duplicateEnv(it.id)}>Duplicate</button>
         <button className="danger" onClick={() => deleteEnv(it.id)}>
-          Удалить
+          Delete
         </button>
       </div>
     </div>
@@ -251,7 +251,7 @@ export function SystemPosition({ part, parts }: { part: Part; parts: Part[] }) {
   const pos = root.pos ?? [0, 0, 0]
   return (
     <>
-      <label>Положение системы труб: X / Y (высота) / Z</label>
+      <label>Pipe system position: X / Y (height) / Z</label>
       <div className="xyz">
         {([0, 1, 2] as const).map((i) => (
           <LengthInput
@@ -267,7 +267,7 @@ export function SystemPosition({ part, parts }: { part: Part; parts: Part[] }) {
         ))}
       </div>
       <button className={'wide' + (moveSystem ? ' on' : '')} onClick={() => setMoveSystem(!moveSystem)}>
-        {moveSystem ? 'Готово — скрыть стрелки' : 'Двигать всю систему стрелками'}
+        {moveSystem ? 'Done — hide arrows' : 'Move whole system with arrows'}
       </button>
     </>
   )
@@ -280,7 +280,7 @@ export function EnvBomSection({ pens }: { pens: Penetration[] }) {
   const bad = pens.filter((p) => !p.ok)
   return (
     <>
-      <div className="section-title">Стройматериалы</div>
+      <div className="section-title">Building materials</div>
       <table>
         <tbody>
           {lines.map((l) => (
@@ -290,7 +290,7 @@ export function EnvBomSection({ pens }: { pens: Penetration[] }) {
                 <div className="muted small">{l.name}</div>
               </td>
               <td className="qty">
-                {l.unit === 'куб. ярд' ? l.qty.toFixed(2) : l.qty} {l.unit}
+                {l.unit === 'cu yd' ? l.qty.toFixed(2) : l.qty} {l.unit === 'sheet' && l.qty !== 1 ? 'sheets' : l.unit}
               </td>
             </tr>
           ))}
@@ -298,8 +298,8 @@ export function EnvBomSection({ pens }: { pens: Penetration[] }) {
       </table>
       {pens.length > 0 && (
         <>
-          <div className="section-title">Проходы труб ({pens.length})</div>
-          {bad.length > 0 && <div className="hint warn-box">Слишком большие отверстия: {bad.length}. Нужна стена 2×6, усиление или другой путь трубы.</div>}
+          <div className="section-title">Pipe penetrations ({pens.length})</div>
+          {bad.length > 0 && <div className="hint warn-box">Holes too large: {bad.length}. Use a 2×6 wall, reinforcement, or reroute the pipe.</div>}
           <table>
             <tbody>
               {pens.map((p, i) => (

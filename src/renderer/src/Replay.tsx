@@ -9,9 +9,9 @@ async function finishRecording(): Promise<void> {
   s.setRecording(0)
   try {
     const path = await stopRecording()
-    useStore.getState().setMessage(path ? `Видео сохранено: ${path}` : 'Запись остановлена, файл не сохранён')
+    useStore.getState().setMessage(path ? `Video saved: ${path}` : 'Recording stopped, file not saved')
   } catch (e) {
-    useStore.getState().setMessage(`Не удалось сохранить видео: ${(e as Error).message}`)
+    useStore.getState().setMessage(`Couldn't save video: ${(e as Error).message}`)
   }
 }
 
@@ -21,7 +21,7 @@ export async function toggleRecording(): Promise<void> {
     await startRecording()
     useStore.getState().setRecording(Date.now())
   } catch (e) {
-    useStore.getState().setMessage(`Не удалось начать запись: ${(e as Error).message}`)
+    useStore.getState().setMessage(`Couldn't start recording: ${(e as Error).message}`)
   }
 }
 
@@ -35,8 +35,8 @@ export function RecButton() {
   }, [recording])
   const sec = recording ? Math.floor((Date.now() - recording) / 1000) : 0
   return (
-    <button className={recording ? 'rec on' : 'rec'} onClick={() => void toggleRecording()} title="Записать видео окна (MP4)">
-      {recording ? `⏹ ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : '⏺ Запись'}
+    <button className={recording ? 'rec on' : 'rec'} onClick={() => void toggleRecording()} title="Record window video (MP4)">
+      {recording ? `⏹ ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : '⏺ Record'}
     </button>
   )
 }
@@ -74,7 +74,7 @@ export function ReplayBar() {
         await startRecording()
         useStore.getState().setRecording(Date.now())
       } catch (e) {
-        useStore.getState().setMessage(`Не удалось начать запись: ${(e as Error).message}`)
+        useStore.getState().setMessage(`Couldn't start recording: ${(e as Error).message}`)
         return
       }
     }
@@ -91,15 +91,15 @@ export function ReplayBar() {
 
   return (
     <div className="replay-bar">
-      <button onClick={() => setReplayIndex(0)} title="В начало">
+      <button onClick={() => setReplayIndex(0)} title="To start">
         ⏮
       </button>
-      <button className="play" onClick={() => (replay.i >= n - 1 && !replay.playing ? (setReplayIndex(0), setReplay({ playing: true })) : setReplay({ playing: !replay.playing }))} title="Пробел">
+      <button className="play" onClick={() => (replay.i >= n - 1 && !replay.playing ? (setReplayIndex(0), setReplay({ playing: true })) : setReplay({ playing: !replay.playing }))} title="Space">
         {replay.playing ? '⏸' : '▶'}
       </button>
       <input type="range" min={0} max={n - 1} value={replay.i} onChange={(e) => (setReplay({ playing: false }), setReplayIndex(Number(e.target.value)))} />
       <span className="replay-count">
-        Шаг {replay.i} / {n - 1}
+        Step {replay.i} / {n - 1}
       </span>
       <div className="seg">
         {[0.5, 1, 2, 4].map((v) => (
@@ -109,13 +109,13 @@ export function ReplayBar() {
         ))}
       </div>
       <label className="check">
-        <input type="checkbox" checked={replay.auto} onChange={(e) => setReplay({ auto: e.target.checked })} /> Вращать камеру
+        <input type="checkbox" checked={replay.auto} onChange={(e) => setReplay({ auto: e.target.checked })} /> Orbit camera
       </label>
-      <button className="rec" onClick={() => void recordFromStart()} disabled={replay.record} title="Начать повтор с начала и записать в видео">
-        {replay.record ? '⏺ Пишу…' : '⏺ Записать повтор'}
+      <button className="rec" onClick={() => void recordFromStart()} disabled={replay.record} title="Replay from the start and record to video">
+        {replay.record ? '⏺ Recording…' : '⏺ Record replay'}
       </button>
       <button onClick={stopReplay} title="Esc">
-        ✕ Выйти
+        ✕ Exit
       </button>
     </div>
   )

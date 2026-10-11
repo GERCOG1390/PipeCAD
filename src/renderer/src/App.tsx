@@ -16,12 +16,12 @@ async function save(saveAs = false): Promise<void> {
   const path = await window.api.saveProject({ path: filePath, content: serialize(), saveAs })
   if (path) {
     markSaved(path)
-    setMessage(`Сохранено: ${path}`)
+    setMessage(`Saved: ${path}`)
   }
 }
 
 function confirmDiscard(): boolean {
-  return !useStore.getState().dirty || confirm('Есть несохранённые изменения. Продолжить без сохранения?')
+  return !useStore.getState().dirty || confirm('You have unsaved changes. Continue without saving?')
 }
 
 async function open(): Promise<void> {
@@ -33,7 +33,7 @@ async function open(): Promise<void> {
     if (f.app !== 'pipecad' || !Array.isArray(f.parts)) throw new Error()
     useStore.getState().loadProject(f, r.path)
   } catch {
-    useStore.getState().setMessage('Не удалось прочитать файл проекта')
+    useStore.getState().setMessage('Couldn\'t read the project file')
   }
 }
 
@@ -89,7 +89,7 @@ export function App() {
   }, [parts, env, stick, filePath])
 
   useEffect(() => {
-    const name = filePath ? filePath.split(/[\\/]/).pop() : 'Новый проект'
+    const name = filePath ? filePath.split(/[\\/]/).pop() : 'New project'
     document.title = `${name}${dirty ? ' •' : ''} — PipeCAD`
   }, [filePath, dirty])
 
@@ -145,10 +145,10 @@ export function App() {
           <span className="logo" />
           PipeCAD
         </div>
-        <button onClick={() => confirmDiscard() && st.newProject()}>Новый</button>
-        <button onClick={() => void open()}>Открыть</button>
-        <button onClick={() => void save()}>Сохранить</button>
-        <button onClick={() => void save(true)} title="Сохранить как… (Ctrl+Shift+S)">…</button>
+        <button onClick={() => confirmDiscard() && st.newProject()}>New</button>
+        <button onClick={() => void open()}>Open</button>
+        <button onClick={() => void save()}>Save</button>
+        <button onClick={() => void save(true)} title="Save as… (Ctrl+Shift+S)">…</button>
         <span className="sep" />
         <button disabled={!canUndo} onClick={st.undo} title="Ctrl+Z">
           ↶
@@ -157,38 +157,38 @@ export function App() {
           ↷
         </button>
         <span className="sep" />
-        <button onClick={() => st.setView(null)} title="Показать всё (Home)">Всё</button>
+        <button onClick={() => st.setView(null)} title="Fit all (Home)">Fit</button>
         <button onClick={() => st.setView([1, 0.8, 1.2])}>3D</button>
-        <button onClick={() => st.setView([0, 1, 0])}>Сверху</button>
-        <button onClick={() => st.setView([0, 0, 1])}>Спереди</button>
-        <button onClick={() => st.setView([1, 0, 0])}>Сбоку</button>
+        <button onClick={() => st.setView([0, 1, 0])}>Top</button>
+        <button onClick={() => st.setView([0, 0, 1])}>Front</button>
+        <button onClick={() => st.setView([1, 0, 0])}>Side</button>
         <span className="sep" />
-        <button className={showDims ? 'on' : 'off'} onClick={st.toggleDims} title={showDims ? 'Скрыть размеры труб (L)' : 'Показать размеры труб (L)'}>
-          📏 Размеры
+        <button className={showDims ? 'on' : 'off'} onClick={st.toggleDims} title={showDims ? 'Hide pipe lengths (L)' : 'Show pipe lengths (L)'}>
+          📏 Lengths
         </button>
-        <button className={showPorts ? 'on' : ''} onClick={st.togglePorts} title="Показывать свободные концы">
-          Концы
+        <button className={showPorts ? 'on' : ''} onClick={st.togglePorts} title="Show open ends">
+          Ends
         </button>
-        <button className={showAxes ? 'on' : ''} onClick={st.toggleAxes} title="Оси свободных концов и точки пересечения (A)">
-          Оси
+        <button className={showAxes ? 'on' : ''} onClick={st.toggleAxes} title="Open-end centerlines and intersections (A)">
+          Axes
         </button>
         <span className="sep" />
-        <button className={replaying ? 'on' : ''} onClick={() => (replaying ? st.stopReplay() : st.startReplay())} title="Повтор: как строили, шаг за шагом">
-          ▶ Повтор
+        <button className={replaying ? 'on' : ''} onClick={() => (replaying ? st.stopReplay() : st.startReplay())} title="Replay: watch the build step by step">
+          ▶ Replay
         </button>
         <RecButton />
         <span className="sep" />
-        <span className="muted small">Стройка:</span>
+        <span className="muted small">Site:</span>
         <EnvModeSwitch />
       </header>
       <div className={replaying ? "main replaying" : "main"}>
         <div className="left">
           <div className="tabs">
             <button className={left === 'pipes' ? 'on' : ''} onClick={() => setLeft('pipes')}>
-              Трубы
+              Pipe
             </button>
             <button className={left === 'env' ? 'on' : ''} onClick={() => setLeft('env')}>
-              Стройка
+              Site
             </button>
           </div>
           {left === 'pipes' ? <Palette model={model} /> : <EnvPalette />}
@@ -198,31 +198,31 @@ export function App() {
           <ReplayBar />
           {parts.length === 0 && env.length === 0 && (
             <div className="welcome">
-              <h2>Начни с первой детали</h2>
-              <p>Слева выбери размер трубы — откроется каталог фитингов этого размера. Начни с «Трубы» (клавиша P).</p>
+              <h2>Start with the first part</h2>
+              <p>Pick a pipe size on the left to open its fittings catalog. Start with "Pipe" (key P).</p>
             </div>
           )}
         </div>
         <aside className="side">
           <div className="tabs">
             <button className={tab === 'props' ? 'on' : ''} onClick={() => setTab('props')}>
-              Свойства
+              Properties
             </button>
             <button className={tab === 'bom' ? 'on' : ''} onClick={() => setTab('bom')}>
-              Материалы
+              Materials
             </button>
           </div>
           <div className="side-body">{tab === 'props' ? <Inspector model={model} /> : <BomPanel bom={bom} pens={pens} />}</div>
         </aside>
       </div>
       <footer className="status">
-        <span>Деталей: {parts.length}</span>
-        <span className={openEnds ? 'warn' : ''}>Открытых концов: {openEnds}</span>
-        <span>Склеек: {bom.joints}</span>
-        {bom.solder > 0 && <span>Паек: {bom.solder}</span>}
+        <span>Parts: {parts.length}</span>
+        <span className={openEnds ? 'warn' : ''}>Open ends: {openEnds}</span>
+        <span>Solvent welds: {bom.joints}</span>
+        {bom.solder > 0 && <span>Solder joints: {bom.solder}</span>}
         {bom.mech > 0 && <span>No-hub: {bom.mech}</span>}
-        {pens.length > 0 && <span className={badPens ? 'err' : ''}>Проходов через конструкции: {pens.length}{badPens ? ` (слишком больших: ${badPens})` : ''}</span>}
-        {model.bad.length > 0 && <span className="err">Неправильных соединений: {model.bad.length}</span>}
+        {pens.length > 0 && <span className={badPens ? 'err' : ''}>Penetrations: {pens.length}{badPens ? ` (too large: ${badPens})` : ''}</span>}
+        {model.bad.length > 0 && <span className="err">Bad joints: {model.bad.length}</span>}
         {message && <span className="msg">{message}</span>}
       </footer>
     </div>

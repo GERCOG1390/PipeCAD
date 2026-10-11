@@ -71,17 +71,17 @@ function SizeSelect({ value, onChange, only, disabled }: { value: SizeId; onChan
 
 const MAT_HEAD: Record<Material, (s: SizeId) => string> = {
   pvc: (s) => `PVC Sch 40${sizeSpec(s).dwv > 0 ? ' · DWV' : ''}`,
-  cu: () => 'Медь Type L · пайка',
-  ci: () => 'Чугун no-hub (CISPI 301)',
-  gs: () => 'Оцинковка Sch 40'
+  cu: () => 'Copper Type L · sweat',
+  ci: () => 'Cast Iron No-Hub (CISPI 301)',
+  gs: () => 'Galvanized Sch 40'
 }
 const MAT_SRC: Record<Material, string> = { pvc: 'Charlotte', cu: 'NIBCO', ci: 'Charlotte', gs: 'ASTM A53' }
 
 const GROUPS: { id: Group; title: string }[] = [
-  { id: 'pressure', title: 'Напорные Sch 40' },
-  { id: 'dwv', title: 'DWV — канализация' },
-  { id: 'copper', title: 'Медь — пайка (NIBCO Wrot)' },
-  { id: 'nohub', title: 'No-hub муфты (переходы)' }
+  { id: 'pressure', title: 'Pressure Sch 40' },
+  { id: 'dwv', title: 'DWV — Drain, Waste & Vent' },
+  { id: 'copper', title: 'Copper — Sweat (NIBCO Wrot)' },
+  { id: 'nohub', title: 'No-Hub Couplings (Transitions)' }
 ]
 
 function readOpen(): Record<string, boolean> {
@@ -137,20 +137,20 @@ export function Palette({ model }: { model: Model }) {
     return (
       <aside className="palette">
         <div className="step-title">
-          <span className="step-num">1</span>Материал и размер
+          <span className="step-num">1</span>Material & size
         </div>
         <div className="tabs mat-tabs">
           <button className={mat === 'pvc' ? 'on' : ''} onClick={() => setMat('pvc')}>
             PVC
           </button>
           <button className={mat === 'cu' ? 'on cu' : 'cu'} onClick={() => setMat('cu')}>
-            Медь
+            Copper
           </button>
-          <button className={mat === 'ci' ? 'on' : ''} onClick={() => setMat('ci')} title="Чугун no-hub (CISPI 301)">
-            Чугун
+          <button className={mat === 'ci' ? 'on' : ''} onClick={() => setMat('ci')} title="Cast Iron No-Hub (CISPI 301)">
+            Cast Iron
           </button>
-          <button className={mat === 'gs' ? 'on' : ''} onClick={() => setMat('gs')} title="Оцинкованная сталь Sch 40">
-            Оцинк.
+          <button className={mat === 'gs' ? 'on' : ''} onClick={() => setMat('gs')} title="Galvanized steel Sch 40">
+            Galv.
           </button>
         </div>
         <div className="size-grid">
@@ -164,15 +164,15 @@ export function Palette({ model }: { model: Model }) {
                   {s.mat === 'cu' ? <span className="tag cu">Type L</span> : s.mat === 'ci' ? <span className="tag">No-Hub</span> : s.mat === 'gs' ? <span className="tag">Galv Sch 40</span> : <span className="tag">Sch 40</span>}
                   {s.dwv > 0 && <span className="tag dwv">DWV</span>}
                 </span>
-                <span className="size-count">{count} фит.</span>
+                <span className="size-count">{count} fittings</span>
               </button>
             )
           })}
         </div>
         <div className="help">
-          <b>Как собирать</b>
-          <p>Выбери размер — откроется каталог фитингов этого размера. Деталь встаёт на выбранный (оранжевый) конец, следующий конец выбирается сам.</p>
-          <p>ЛКМ — вращать, ПКМ — двигать, колесо — зум. R — повернуть на 90°, Del — удалить, Ctrl+Z — отменить.</p>
+          <b>How to build</b>
+          <p>Pick a size to open the fittings catalog for it. A part snaps to the selected (orange) end, and the next end is selected automatically.</p>
+          <p>LMB — orbit, RMB — pan, wheel — zoom. R — rotate 90°, Del — delete, Ctrl+Z — undo.</p>
         </div>
       </aside>
     )
@@ -188,7 +188,7 @@ export function Palette({ model }: { model: Model }) {
     const extra = d.size2 ? d.size2.options(size).filter((x) => x !== size) : []
     return (
       <div key={kind} className="kind-row">
-        <button className="kind" onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · Charlotte ${d.pn}` : ''}${d.key ? ` · клавиша ${d.key}` : ''}`}>
+        <button className="kind" onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · #${d.pn}` : ''}${d.key ? ` · key ${d.key}` : ''}`}>
           <KindIcon kind={kind} />
           <span>
             {d.ru}
@@ -212,7 +212,7 @@ export function Palette({ model }: { model: Model }) {
   return (
     <aside className="palette">
       <div className="step-title">
-        <span className="step-num">2</span>Каталог фитингов
+        <span className="step-num">2</span>Fittings catalog
       </div>
       <div className="size-head">
         <span className="size-badge">{sizeLabel(size)}</span>
@@ -221,26 +221,26 @@ export function Palette({ model }: { model: Model }) {
           <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · {MAT_SRC[sizeSpec(size).mat]}</div>
         </div>
         <button className="link" onClick={() => setStep('size')}>
-          Изменить
+          Change
         </button>
       </div>
       {parts.length > 0 && (
         <button className={'wide branch' + (placing ? ' on' : '')} onClick={() => (placing ? cancelPlacing() : newBranch())}>
-          {placing ? '✕ Отменить установку' : '＋ Новая ветка (поставить отдельно)'}
+          {placing ? '✕ Cancel placing' : '＋ New branch (place separately)'}
         </button>
       )}
       {portSize && (
-        <button className={'wide branch' + (joining ? ' on' : '')} onClick={() => (joining ? useStore.setState({ joining: false, message: null }) : startJoin())} title="Клавиша J">
-          {joining ? '✕ Отменить соединение' : '🔗 Соединить с другим концом (J)'}
+        <button className={'wide branch' + (joining ? ' on' : '')} onClick={() => (joining ? useStore.setState({ joining: false, message: null }) : startJoin())} title="Key J">
+          {joining ? '✕ Cancel join' : '🔗 Join to another end (J)'}
         </button>
       )}
-      {parts.length > 0 && !portSize && !placing && <div className="hint">Выбери зелёную точку — конец, к которому присоединять, или начни новую ветку: выбери деталь и кликни на пол</div>}
+      {parts.length > 0 && !portSize && !placing && <div className="hint">Pick a green ring — the open end to connect to — or start a new branch: pick a part and click the floor</div>}
       {portSize && portSize !== size && (
         <div className="hint warn-box">
-          Выбран конец {sizeLabel(portSize)} — детали {sizeLabel(size)} встанут через переход, если он есть
+          Selected end is {sizeLabel(portSize)} — {sizeLabel(size)} parts will go on through a reducer if one exists
         </div>
       )}
-      <input className="search" placeholder="Поиск: тройник, wye, 2300…" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <input className="search" placeholder="Search: tee, wye, 2300…" value={query} onChange={(e) => setQuery(e.target.value)} />
       <div className="kinds">{match(FITTINGS.pipe) && item('pipe')}</div>
       {GROUPS.map((g) => {
         const kinds = Object.keys(FITTINGS).filter((k) => FITTINGS[k].group === g.id && inSize(FITTINGS[k]) && match(FITTINGS[k]))
@@ -271,7 +271,7 @@ export function Palette({ model }: { model: Model }) {
           </div>
         )
       })}
-      {sizeSpec(size).dwv === 0 && sizeSpec(size).mat === 'pvc' && !q && <div className="muted small">DWV-фитинги в размере {sizeLabel(size)} не выпускаются.</div>}
+      {sizeSpec(size).dwv === 0 && sizeSpec(size).mat === 'pvc' && !q && <div className="muted small">No DWV fittings are made in {sizeLabel(size)}.</div>}
     </aside>
   )
 }
@@ -327,7 +327,7 @@ function RotationControl({ part }: { part: Part }) {
   }
   return (
     <>
-      <label>{part.parent ? 'Поворот вокруг оси подключения' : 'Поворот вокруг вертикали'}</label>
+      <label>{part.parent ? 'Rotation about connection axis' : 'Rotation about vertical'}</label>
       <div className="row rot-row">
         <button onClick={() => set(angle - 5)}>−5°</button>
         <button onClick={() => set(angle - 1)}>−1°</button>
@@ -363,7 +363,7 @@ function RotationControl({ part }: { part: Part }) {
           </button>
         ))}
       </div>
-      <div className="muted small">Или тяни кольцо вокруг детали в 3D (Shift — шаг 15°)</div>
+      <div className="muted small">Or drag the ring around the part in 3D (Shift = 15° steps)</div>
     </>
   )
 }
@@ -384,7 +384,7 @@ export function Inspector({ model }: { model: Model }) {
   const envItem = env.find((e) => e.id === selectedEnv)
   if (envItem) return <EnvInspector it={envItem} />
 
-  if (!part) return <div className="empty">Ничего не выбрано. Кликни по детали или объекту.</div>
+  if (!part) return <div className="empty">Nothing selected. Click a part or object.</div>
   const def = fittingDef(part.kind)
 
   // Заход фитинга на конце трубы: проекция порта соседа на его ось (от центра до дна раструба)
@@ -409,7 +409,7 @@ export function Inspector({ model }: { model: Model }) {
     const np = portsOf(next)
     const broken = ports.some((pt, i) => model.links.has(portKey(part.id, i)) && np[i]?.size !== pt.size)
     if (broken) {
-      setMessage('Этот конец уже подключён — сначала отсоедини то, что к нему присоединено')
+      setMessage('This end is already connected — disconnect what\'s attached first')
       return
     }
     updatePart(part.id, patch)
@@ -426,7 +426,7 @@ export function Inspector({ model }: { model: Model }) {
         <KindIcon kind={part.kind} />
         <div>
           <div className="insp-title">
-            {bull ? `Тройник bullhead ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size)}` : <>{def.ru} {sizeLabel(part.size)}{title2}</>}
+            {bull ? `Bullhead Tee ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size)}` : <>{def.ru} {sizeLabel(part.size)}{title2}</>}
           </div>
           <div className="insp-sub">
             {def.en}
@@ -437,17 +437,17 @@ export function Inspector({ model }: { model: Model }) {
 
       {part.kind === 'pipe' && (
         <>
-          <label>Длина отреза</label>
+          <label>Cut length</label>
           <LengthInput value={len} onCommit={(v) => updatePart(part.id, { length: v })} />
-          <label>Центр — центр {g0 + g1 === 0 && <span className="muted">(нет фитингов на концах)</span>}</label>
+          <label>Center to center {g0 + g1 === 0 && <span className="muted">(no fittings on ends)</span>}</label>
           <LengthInput value={len + g0 + g1} onCommit={(v) => updatePart(part.id, { length: Math.max(0.25, v - g0 - g1) })} />
-          {g0 + g1 > 0 && <div className="muted small">Заходы фитингов: {formatLength(g0)} + {formatLength(g1)}</div>}
+          {g0 + g1 > 0 && <div className="muted small">Fitting take-offs: {formatLength(g0)} + {formatLength(g1)}</div>}
         </>
       )}
 
       {!part.parent && parts.length === 1 && (
         <>
-          <label>Размер</label>
+          <label>Size</label>
           <SizeSelect value={part.size} only={def.sizes} onChange={(s) => updatePart(part.id, { size: s, size2: s2 ? (s2.optional ? undefined : s2.options(s)[0]) : undefined })} />
         </>
       )}
@@ -464,23 +464,23 @@ export function Inspector({ model }: { model: Model }) {
       <RotationControl part={part} />
       {!part.parent && (
         <div className="row">
-          <button onClick={() => rotateRoot(part.id, 0, 90)}>Наклон X 90°</button>
-          <button onClick={() => rotateRoot(part.id, 2, 90)}>Наклон Z 90°</button>
+          <button onClick={() => rotateRoot(part.id, 0, 90)}>Tilt X 90°</button>
+          <button onClick={() => rotateRoot(part.id, 2, 90)}>Tilt Z 90°</button>
         </div>
       )}
 
       {part.parent && (ports.length > 2 || s2?.reversible) && (
         <button className="wide" onClick={() => cycleAttach(part.id)}>
-          {s2?.reversible ? 'Развернуть (сужение ↔ расширение)' : 'Подключить другим концом'}
+          {s2?.reversible ? 'Flip (reduce ↔ increase)' : 'Connect by another end'}
         </button>
       )}
 
       <button className="wide danger" onClick={() => deletePart(part.id)} title="Del">
-        Удалить только эту деталь
+        Delete this part only
       </button>
       {sub > 1 && (
         <button className="wide danger" onClick={() => deleteBranch(part.id)} title="Shift+Del">
-          Удалить вместе с продолжением ({sub} дет.)
+          Delete with everything downstream ({sub} parts)
         </button>
       )}
     </div>
@@ -494,14 +494,14 @@ export function BomPanel({ bom, pens }: { bom: Bom; pens: Penetration[] }) {
   const setMessage = useStore((s) => s.setMessage)
   const exportCsv = async (): Promise<void> => {
     const path = await window.api.exportFile({ defaultName: 'pvc-materials.csv', content: bomCsv(bom, stick, envBom(envItems), pens), ext: 'csv', label: 'CSV (Excel)' })
-    if (path) setMessage(`Список сохранён: ${path}`)
+    if (path) setMessage(`List saved: ${path}`)
   }
   const empty = !bom.pipes.length && !bom.fittings.length && !envItems.length
   const fitTotal = useMemo(() => bom.fittings.reduce((a, f) => a + f.qty, 0), [bom])
   return (
     <div className="bom">
       <div className="row between">
-        <span className="muted">Палка трубы:</span>
+        <span className="muted">Pipe stick:</span>
         <div className="seg">
           {[120, 240].map((n) => (
             <button key={n} className={stick === n ? 'on' : ''} onClick={() => setStick(n)}>
@@ -510,15 +510,15 @@ export function BomPanel({ bom, pens }: { bom: Bom; pens: Penetration[] }) {
           ))}
         </div>
       </div>
-      {empty && <div className="empty">Пока пусто — добавь детали.</div>}
+      {empty && <div className="empty">Empty — add some parts.</div>}
       {bom.pipes.map((p) => (
         <div key={p.size} className="bom-pipe">
           <div className="row between">
             <b>{p.name}</b>
-            <span className="qty">{p.sticks} шт.</span>
+            <span className="qty">{p.sticks} pcs</span>
           </div>
           <div className="muted small">
-            Всего {formatLength(p.total)} · отрезов: {p.cuts.length}
+            Total {formatLength(p.total)} · cuts: {p.cuts.length}
           </div>
           <div className="cuts">
             {p.cuts.map((c, i) => (
@@ -550,11 +550,11 @@ export function BomPanel({ bom, pens }: { bom: Bom; pens: Penetration[] }) {
       {!empty && (
         <>
           <div className="muted small">
-            Фитингов: {fitTotal} · склеек: {bom.joints} (праймер + клей){bom.solder ? ` · паек: ${bom.solder} (припой + флюс)` : ''}{bom.mech ? ` · no-hub соединений: ${bom.mech} (затяжка 60 in-lbs)` : ''}{bom.threads ? ` · резьбовых: ${bom.threads} (лента/герметик)` : ''}
+            Fittings: {fitTotal} · solvent welds: {bom.joints} (primer + cement){bom.solder ? ` · solder joints: ${bom.solder} (solder + flux)` : ''}{bom.mech ? ` · no-hub joints: ${bom.mech} (torque 60 in-lbs)` : ''}{bom.threads ? ` · threaded: ${bom.threads} (tape/dope)` : ''}
           </div>
           <EnvBomSection pens={pens} />
           <button className="wide" onClick={exportCsv}>
-            Экспорт в Excel (CSV)
+            Export to Excel (CSV)
           </button>
         </>
       )}

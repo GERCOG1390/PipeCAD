@@ -41,15 +41,15 @@ export const LUMBER: Record<string, [number, number]> = {
 export const STOCK_LENGTHS = [96, 120, 144, 168, 192] // 8'–16'
 
 export const SHEETS: Record<string, { mat: Mat; th: number; en: string; ru: string }> = {
-  'ply-3/4': { mat: 'plywood', th: 0.75, en: '3/4" Plywood 4x8', ru: 'Плайвуд 3/4"' },
-  'ply-1/2': { mat: 'plywood', th: 0.5, en: '1/2" Plywood 4x8', ru: 'Плайвуд 1/2"' },
+  'ply-3/4': { mat: 'plywood', th: 0.75, en: '3/4" Plywood 4x8', ru: 'Plywood 3/4"' },
+  'ply-1/2': { mat: 'plywood', th: 0.5, en: '1/2" Plywood 4x8', ru: 'Plywood 1/2"' },
   'osb-23/32': { mat: 'osb', th: 23 / 32, en: '23/32" OSB Subfloor 4x8', ru: 'OSB 23/32"' },
   'osb-7/16': { mat: 'osb', th: 7 / 16, en: '7/16" OSB 4x8', ru: 'OSB 7/16"' },
-  'dw-1/2': { mat: 'drywall', th: 0.5, en: '1/2" Drywall 4x8', ru: 'Гипсокартон 1/2"' },
-  'dw-5/8': { mat: 'drywall', th: 0.625, en: '5/8" Drywall 4x8', ru: 'Гипсокартон 5/8"' }
+  'dw-1/2': { mat: 'drywall', th: 0.5, en: '1/2" Drywall 4x8', ru: 'Drywall 1/2"' },
+  'dw-5/8': { mat: 'drywall', th: 0.625, en: '5/8" Drywall 4x8', ru: 'Drywall 5/8"' }
 }
 
-export const SURFACES: Record<string, string> = { grass: 'Трава', dirt: 'Земля', gravel: 'Гравий', sand: 'Песок' }
+export const SURFACES: Record<string, string> = { grass: 'Grass', dirt: 'Dirt', gravel: 'Gravel', sand: 'Sand' }
 
 export interface EnvDef {
   ru: string
@@ -59,14 +59,14 @@ export interface EnvDef {
 }
 
 export const ENV_DEFS: Record<EnvType, EnvDef> = {
-  concreteWall: { ru: 'Бетонная стена', cat: 'Бетон', fields: { L: 'Длина', H: 'Высота', W: 'Толщина' } },
-  slab: { ru: 'Бетонная плита (slab)', cat: 'Бетон', fields: { L: 'Длина', W: 'Ширина', H: 'Толщина' } },
-  footing: { ru: 'Фундамент (footing)', cat: 'Бетон', fields: { L: 'Длина', W: 'Ширина', H: 'Высота' } },
-  ground: { ru: 'Грунт', cat: 'Грунт', fields: { L: 'Длина', W: 'Ширина', H: 'Глубина' } },
-  studWall: { ru: 'Каркасная стена', cat: 'Каркас', fields: { L: 'Длина', H: 'Высота' } },
-  joists: { ru: 'Перекрытие (джойсты)', cat: 'Каркас', fields: { L: 'Пролёт', W: 'Ширина' } },
-  lumber: { ru: 'Доска / брус', cat: 'Пиломатериал', fields: { L: 'Длина' } },
-  sheet: { ru: 'Лист', cat: 'Листы', fields: { L: 'Длина', W: 'Ширина' } }
+  concreteWall: { ru: 'Concrete Wall', cat: 'Concrete', fields: { L: 'Length', H: 'Height', W: 'Thickness' } },
+  slab: { ru: 'Concrete Slab', cat: 'Concrete', fields: { L: 'Length', W: 'Width', H: 'Thickness' } },
+  footing: { ru: 'Footing', cat: 'Concrete', fields: { L: 'Length', W: 'Width', H: 'Height' } },
+  ground: { ru: 'Ground', cat: 'Ground', fields: { L: 'Length', W: 'Width', H: 'Depth' } },
+  studWall: { ru: 'Stud Wall', cat: 'Framing', fields: { L: 'Length', H: 'Height' } },
+  joists: { ru: 'Floor Joists', cat: 'Framing', fields: { L: 'Span', W: 'Width' } },
+  lumber: { ru: 'Lumber', cat: 'Lumber', fields: { L: 'Length' } },
+  sheet: { ru: 'Sheet', cat: 'Sheet goods', fields: { L: 'Length', W: 'Width' } }
 }
 
 export interface Preset {
@@ -80,45 +80,45 @@ export interface Preset {
 
 export const PRESETS: { cat: string; items: Preset[] }[] = [
   {
-    cat: 'Бетон',
+    cat: 'Concrete',
     items: [
-      { label: 'Стена бетонная 8"', type: 'concreteWall', L: 120, W: 8, H: 96, o: {} },
-      { label: 'Плита пола 4"', type: 'slab', L: 144, W: 120, H: 4, o: {} },
-      { label: 'Фундамент 20" × 10"', type: 'footing', L: 120, W: 20, H: 10, o: {} }
+      { label: 'Concrete wall 8"', type: 'concreteWall', L: 120, W: 8, H: 96, o: {} },
+      { label: 'Floor slab 4"', type: 'slab', L: 144, W: 120, H: 4, o: {} },
+      { label: 'Footing 20" × 10"', type: 'footing', L: 120, W: 20, H: 10, o: {} }
     ]
   },
   {
-    cat: 'Каркас',
+    cat: 'Framing',
     items: [
-      { label: 'Стена 2×4, шаг 16"', type: 'studWall', L: 96, W: 3.5, H: 96, o: { lumber: '2x4', oc: 16, drywall: 'none' } },
-      { label: 'Стена 2×6, шаг 16"', type: 'studWall', L: 96, W: 5.5, H: 96, o: { lumber: '2x6', oc: 16, drywall: 'none' } },
-      { label: 'Перекрытие 2×10, шаг 16"', type: 'joists', L: 144, W: 96, H: 9.25, o: { lumber: '2x10', oc: 16, rim: true, sub: 'osb-23/32' } },
-      { label: 'Перекрытие 2×12, шаг 16"', type: 'joists', L: 168, W: 96, H: 11.25, o: { lumber: '2x12', oc: 16, rim: true, sub: 'osb-23/32' } }
+      { label: 'Wall 2×4, 16" o.c.', type: 'studWall', L: 96, W: 3.5, H: 96, o: { lumber: '2x4', oc: 16, drywall: 'none' } },
+      { label: 'Wall 2×6, 16" o.c.', type: 'studWall', L: 96, W: 5.5, H: 96, o: { lumber: '2x6', oc: 16, drywall: 'none' } },
+      { label: 'Joists 2×10, 16" o.c.', type: 'joists', L: 144, W: 96, H: 9.25, o: { lumber: '2x10', oc: 16, rim: true, sub: 'osb-23/32' } },
+      { label: 'Joists 2×12, 16" o.c.', type: 'joists', L: 168, W: 96, H: 11.25, o: { lumber: '2x12', oc: 16, rim: true, sub: 'osb-23/32' } }
     ]
   },
   {
-    cat: 'Пиломатериал',
-    items: ['2x4', '2x6', '2x8', '2x10', '2x12'].map((l) => ({ label: `Доска ${l.replace('x', '×')}`, type: 'lumber' as EnvType, L: 96, W: 0, H: 0, o: { lumber: l, orient: 'edge' } })).concat([
-      { label: 'Стойка 4×4', type: 'lumber', L: 96, W: 0, H: 0, o: { lumber: '4x4', orient: 'post' } }
+    cat: 'Lumber',
+    items: ['2x4', '2x6', '2x8', '2x10', '2x12'].map((l) => ({ label: `Lumber ${l.replace('x', '×')}`, type: 'lumber' as EnvType, L: 96, W: 0, H: 0, o: { lumber: l, orient: 'edge' } })).concat([
+      { label: 'Post 4×4', type: 'lumber', L: 96, W: 0, H: 0, o: { lumber: '4x4', orient: 'post' } }
     ])
   },
   {
-    cat: 'Листы',
+    cat: 'Sheet goods',
     items: [
-      { label: 'Плайвуд 3/4" 4×8', type: 'sheet', L: 96, W: 48, H: 0, o: { sheet: 'ply-3/4', orient: 'floor' } },
-      { label: 'Плайвуд 1/2" 4×8', type: 'sheet', L: 96, W: 48, H: 0, o: { sheet: 'ply-1/2', orient: 'floor' } },
+      { label: 'Plywood 3/4" 4×8', type: 'sheet', L: 96, W: 48, H: 0, o: { sheet: 'ply-3/4', orient: 'floor' } },
+      { label: 'Plywood 1/2" 4×8', type: 'sheet', L: 96, W: 48, H: 0, o: { sheet: 'ply-1/2', orient: 'floor' } },
       { label: 'OSB 7/16" 4×8', type: 'sheet', L: 96, W: 48, H: 0, o: { sheet: 'osb-7/16', orient: 'wall' } },
-      { label: 'Гипсокартон 1/2" 4×8', type: 'sheet', L: 96, W: 48, H: 0, o: { sheet: 'dw-1/2', orient: 'wall' } }
+      { label: 'Drywall 1/2" 4×8', type: 'sheet', L: 96, W: 48, H: 0, o: { sheet: 'dw-1/2', orient: 'wall' } }
     ]
   },
   {
-    cat: 'Грунт',
+    cat: 'Ground',
     items: [
-      { label: 'Земля с травой', type: 'ground', L: 240, W: 240, H: 24, o: { surface: 'grass', trench: false } },
-      { label: 'Траншея в грунте', type: 'ground', L: 240, W: 120, H: 36, o: { surface: 'grass', trench: true, tOff: 48, tW: 18, tD: 24 } },
-      { label: 'Земля', type: 'ground', L: 240, W: 240, H: 24, o: { surface: 'dirt', trench: false } },
-      { label: 'Гравий (подсыпка 4")', type: 'ground', L: 144, W: 120, H: 4, o: { surface: 'gravel', trench: false } },
-      { label: 'Песок (подсыпка 4")', type: 'ground', L: 144, W: 120, H: 4, o: { surface: 'sand', trench: false } }
+      { label: 'Dirt with grass', type: 'ground', L: 240, W: 240, H: 24, o: { surface: 'grass', trench: false } },
+      { label: 'Trench in ground', type: 'ground', L: 240, W: 120, H: 36, o: { surface: 'grass', trench: true, tOff: 48, tW: 18, tD: 24 } },
+      { label: 'Dirt', type: 'ground', L: 240, W: 240, H: 24, o: { surface: 'dirt', trench: false } },
+      { label: 'Gravel base 4"', type: 'ground', L: 144, W: 120, H: 4, o: { surface: 'gravel', trench: false } },
+      { label: 'Sand base 4"', type: 'ground', L: 144, W: 120, H: 4, o: { surface: 'sand', trench: false } }
     ]
   }
 ]
@@ -266,30 +266,30 @@ export function envBom(items: EnvItem[]): EnvBomLine[] {
         const len = Math.max(...b.s)
         const { stock, n } = stockFor(len)
         const lab = b.lumber.replace('x', '×')
-        add(`lum|${b.lumber}|${stock}`, `${b.lumber} x ${stock / 12}' SPF Lumber`, `Доска ${lab} × ${stock / 12}'`, n, 'шт.')
+        add(`lum|${b.lumber}|${stock}`, `${b.lumber} x ${stock / 12}' SPF Lumber`, `Lumber ${lab} × ${stock / 12}'`, n, 'pcs')
       }
     }
     if (it.type === 'ground') {
       const top = str(it.o.surface, 'grass')
       const area = (it.L * it.W) / 144
-      if (top === 'grass') add('sod', 'Sod (grass)', 'Газон (дёрн)', area, 'кв. фут')
-      if (top === 'gravel' || top === 'sand') add(`fill|${top}`, top === 'gravel' ? 'Gravel' : 'Sand', SURFACES[top], (it.L * it.W * it.H) / 46656, 'куб. ярд')
+      if (top === 'grass') add('sod', 'Sod (grass)', 'Sod (grass)', area, 'sq ft')
+      if (top === 'gravel' || top === 'sand') add(`fill|${top}`, top === 'gravel' ? 'Gravel' : 'Sand', SURFACES[top], (it.L * it.W * it.H) / 46656, 'cu yd')
       if (it.o.trench) {
         const v = it.L * num(it.o.tW, 18) * num(it.o.tD, 24)
-        add('trench', 'Trench excavation', 'Выемка грунта (траншея)', v / 46656, 'куб. ярд')
+        add('trench', 'Trench excavation', 'Trench excavation', v / 46656, 'cu yd')
       }
     }
     // листы считаем по площади (лист 4'×8' = 4608 кв. дюймов)
     for (const b of boards.filter((x) => x.sheet)) {
       const sh = SHEETS[b.sheet!]
       const dims = [...b.s].sort((a, c) => c - a)
-      add(`sheet|${b.sheet}`, sh.en, sh.ru, (dims[0] * dims[1]) / 4608, 'лист')
+      add(`sheet|${b.sheet}`, sh.en, sh.ru, (dims[0] * dims[1]) / 4608, 'sheet')
     }
   }
-  if (concrete > 0) add('concrete', 'Concrete', 'Бетон', concrete / 46656, 'куб. ярд')
+  if (concrete > 0) add('concrete', 'Concrete', 'Concrete', concrete / 46656, 'cu yd')
   return [...lines.values()].map((l) => ({
     ...l,
-    qty: l.unit === 'лист' ? Math.ceil(l.qty - 0.001) : l.unit === 'куб. ярд' ? Math.ceil(l.qty * 4) / 4 : l.unit === 'кв. фут' ? Math.ceil(l.qty) : l.qty
+    qty: l.unit === 'sheet' ? Math.ceil(l.qty - 0.001) : l.unit === 'cu yd' ? Math.ceil(l.qty * 4) / 4 : l.unit === 'sq ft' ? Math.ceil(l.qty) : l.qty
   }))
 }
 
@@ -351,22 +351,22 @@ export function findPenetrations(items: EnvItem[], pipes: { a: Vector3; b: Vecto
         if (b.role === 'joist' || b.role === 'rim') {
           const depth = b.s[1]
           ok = hole <= depth / 3 + 1e-6
-          where = `джойст ${b.lumber?.replace('x', '×')}`
-          note = ok ? `отверстие ${fmt(hole)}` : `отверстие ${fmt(hole)} > 1/3 высоты (${fmt(depth / 3)}) — IRC R502.8`
+          where = `joist ${b.lumber?.replace('x', '×')}`
+          note = ok ? `hole ${fmt(hole)}` : `hole ${fmt(hole)} > 1/3 depth (${fmt(depth / 3)}) — IRC R502.8`
         } else if (b.role === 'stud' || b.role === 'plate') {
           const d = b.s[2] // ширина стойки/обвязки поперёк стены
           ok = hole <= d * 0.6 + 1e-6
-          where = b.role === 'stud' ? `стойка ${b.lumber?.replace('x', '×')}` : `обвязка ${b.lumber?.replace('x', '×')}`
-          note = ok ? `отверстие ${fmt(hole)}` : `отверстие ${fmt(hole)} > 60% ширины (${fmt(d * 0.6)}) — IRC R602.6`
+          where = b.role === 'stud' ? `stud ${b.lumber?.replace('x', '×')}` : `plate ${b.lumber?.replace('x', '×')}`
+          note = ok ? `hole ${fmt(hole)}` : `hole ${fmt(hole)} > 60% width (${fmt(d * 0.6)}) — IRC R602.6`
         } else if (b.role === 'concrete') {
-          where = 'бетон'
-          note = `проход Ø${fmt(hole)} (гильза / алмазное сверление)`
+          where = 'concrete'
+          note = `penetration Ø${fmt(hole)} (sleeve / core drill)`
         } else if (b.role === 'sheet') {
-          where = b.sheet ? SHEETS[b.sheet].ru : 'лист'
-          note = `отверстие ${fmt(hole)}`
+          where = b.sheet ? SHEETS[b.sheet].ru : 'sheet'
+          note = `hole ${fmt(hole)}`
         } else {
-          where = `доска ${b.lumber?.replace('x', '×')}`
-          note = `отверстие ${fmt(hole)}`
+          where = `board ${b.lumber?.replace('x', '×')}`
+          note = `hole ${fmt(hole)}`
         }
         out.push({ point, dir, radius: p.r, hole, where, ok, note, envId: it.id })
       }

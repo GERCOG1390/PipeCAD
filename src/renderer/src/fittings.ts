@@ -733,10 +733,10 @@ const NH = 'nohub'
 
 export const FITTINGS: Record<string, FittingDef> = {
   pipe: {
-    ru: 'Труба',
+    ru: 'Pipe',
     en: 'Pipe',
     group: 'common',
-    cat: 'Труба',
+    cat: 'Pipe',
     icon: 'pipe',
     key: 'P',
     sizes: [...PRESSURE_SIZES, ...CU_SIZES, ...SIZES.filter((s) => s.mat === 'ci' || s.mat === 'gs').map((s) => s.id)],
@@ -748,30 +748,30 @@ export const FITTINGS: Record<string, FittingDef> = {
   },
   // ----------------------------- МЕДЬ (NIBCO Wrot, пайка) -----------------------------
   cu90: {
-    ru: 'Колено 90°',
+    ru: '90° Elbow',
     en: '90° Elbow C x C',
     group: CU,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'ell90',
     pn: '607',
     sizes: cuKeys(NB.CU_90),
     build: (p) => cuBend(p.size, 90, NB.CU_90[p.size]![0], 0.85)
   },
   cu90lr: {
-    ru: 'Колено 90° длинное',
+    ru: 'Long Sweep 1/4 Bend',
     en: '90° Elbow Long Radius C x C',
     group: CU,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'long90',
     pn: '607-LT',
     sizes: cuKeys(NB.CU_90_LR),
     build: (p) => cuBend(p.size, 90, NB.CU_90_LR[p.size]![0], 0.95)
   },
   cu90st: {
-    ru: 'Колено 90° street (Ftg × C)',
+    ru: '90° Street Elbow (Ftg x C)',
     en: '90° Fitting Elbow Ftg x C',
     group: CU,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'st90',
     pn: '607-2',
     sizes: cuKeys(NB.CU_90_ST),
@@ -781,20 +781,20 @@ export const FITTINGS: Record<string, FittingDef> = {
     }
   },
   cu45: {
-    ru: 'Колено 45°',
+    ru: '45° Elbow',
     en: '45° Elbow C x C',
     group: CU,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'ell45',
     pn: '606',
     sizes: cuKeys(NB.CU_45),
     build: (p) => cuBend(p.size, 45, NB.CU_45[p.size]![0], 0.8)
   },
   cu45st: {
-    ru: 'Колено 45° street (Ftg × C)',
+    ru: '45° Street Elbow (Ftg x C)',
     en: '45° Fitting Elbow Ftg x C',
     group: CU,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'st45',
     pn: '606-2',
     sizes: cuKeys(NB.CU_45_ST),
@@ -804,14 +804,14 @@ export const FITTINGS: Record<string, FittingDef> = {
     }
   },
   cuTee: {
-    ru: 'Тройник',
+    ru: 'Tee',
     en: 'Tee C x C x C',
     group: CU,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'tee',
     pn: '611',
     sizes: cuKeys(NB.CU_TEE),
-    size2: { label: 'Размер отвода', optional: true, options: (s) => [s, ...pairOpts(NB.CU_TEE_RED, s)] },
+    size2: { label: 'Branch size', optional: true, options: (s) => [s, ...pairOpts(NB.CU_TEE_RED, s)] },
     build: (p) => {
       const s = p.size
       const b = p.size2 ?? s
@@ -825,14 +825,14 @@ export const FITTINGS: Record<string, FittingDef> = {
     }
   },
 cuBull: {
-    ru: 'Тройник bullhead (отвод больше)',
+    ru: 'Bullhead Tee',
     en: 'Bullhead Tee C x C x C',
     group: CU,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'bullhead',
     pn: '611',
     sizes: bullBranches(NB.CU_TEE_BULL),
-    size2: { label: 'Размер прохода (бока)', options: (s) => bullRuns(NB.CU_TEE_BULL, s) },
+    size2: { label: 'Run size (sides)', options: (s) => bullRuns(NB.CU_TEE_BULL, s) },
     build: (p) => {
       const branch = p.size
       const run = p.size2 ?? bullRuns(NB.CU_TEE_BULL, branch)[0]
@@ -845,10 +845,10 @@ cuBull: {
     }
   },
 showerCC: {
-    ru: 'Смеситель душа под стену (CC, пайка)',
+    ru: 'Shower Rough-In Valve (CC, sweat)',
     en: 'Posi-Temp Pressure-Balancing Rough-In Valve 1/2" CC',
     group: CU,
-    cat: 'Смесители',
+    cat: 'Shower Valves',
     icon: 'shower',
     pn: '2520',
     sizes: ['cu1/2'],
@@ -857,10 +857,10 @@ showerCC: {
     bom: () => [{ name: 'Moen 2520 Posi-Temp Pressure-Balancing Rough-In Valve 1/2" CC', pn: '2520' }]
   },
   showerIPS: {
-    ru: 'Смеситель душа под стену (IPS, резьба)',
+    ru: 'Shower Rough-In Valve (IPS, threaded)',
     en: 'Posi-Temp Pressure-Balancing Rough-In Valve 1/2" IPS',
     group: P,
-    cat: 'Смесители',
+    cat: 'Shower Valves',
     icon: 'shower',
     pn: '2510',
     sizes: ['1/2'],
@@ -870,10 +870,10 @@ showerCC: {
   },
 
   cuCross: {
-    ru: 'Крестовина (литая)',
+    ru: 'Cross (cast)',
     en: 'Cross C x C x C x C - Cast',
     group: CU,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'cross',
     pn: '735',
     sizes: cuKeys(NB.CU_CROSS),
@@ -883,10 +883,10 @@ showerCC: {
     }
   },
   cuCoupling: {
-    ru: 'Муфта (с упором)',
+    ru: 'Coupling (with stop)',
     en: 'Coupling with Dimpled Tube Stop C x C',
     group: CU,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'coupling',
     pn: '600-DS',
     sizes: cuKeys(NB.CU_COUPLING),
@@ -897,14 +897,14 @@ showerCC: {
     }
   },
   cuReducer: {
-    ru: 'Муфта переходная',
+    ru: 'Reducing Coupling',
     en: 'Reducing Coupling C x C',
     group: CU,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'reducer',
     pn: '600',
     sizes: CU_SIZES.filter((s) => cuRedPartners(s).length),
-    size2: { label: 'Второй размер', reversible: true, options: (s) => cuRedPartners(s) },
+    size2: { label: 'Second size', reversible: true, options: (s) => cuRedPartners(s) },
     build: (p) => {
       const a = p.size
       const b = p.size2 ?? cuRedPartners(a)[0]
@@ -924,10 +924,10 @@ showerCC: {
     }
   },
   cuUnion: {
-    ru: 'Разъёмная муфта (union)',
+    ru: 'Union',
     en: 'Union C x C',
     group: CU,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'union',
     pn: '633-W',
     sizes: cuKeys(NB.CU_UNION),
@@ -946,10 +946,10 @@ showerCC: {
     }
   },
   cuFa: {
-    ru: 'Адаптер FPT (female)',
+    ru: 'Female Adapter (FPT)',
     en: 'Adapter C x F',
     group: CU,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'fa',
     pn: '603',
     sizes: cuKeys(NB.CU_FA),
@@ -971,10 +971,10 @@ showerCC: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} Wrot Copper Adapter C x F (FPT)`, pn: '603' }]
   },
   cuMa: {
-    ru: 'Адаптер MPT (male)',
+    ru: 'Male Adapter (MPT)',
     en: 'Adapter C x M',
     group: CU,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'ma',
     pn: '604',
     sizes: cuKeys(NB.CU_MA),
@@ -991,10 +991,10 @@ showerCC: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} Wrot Copper Adapter C x M (MPT)`, pn: '604' }]
   },
   cuCap: {
-    ru: 'Заглушка',
+    ru: 'Cap',
     en: 'Tube Cap C',
     group: CU,
-    cat: 'Заглушки',
+    cat: 'Caps & Plugs',
     icon: 'cap',
     pn: '617',
     sizes: cuKeys(NB.CU_CAP),
@@ -1005,10 +1005,10 @@ showerCC: {
     }
   },
   cuValve: {
-    ru: 'Шаровый кран, полный проход (пайка)',
+    ru: 'Ball Valve, Full Port (sweat)',
     en: 'Lead Free Brass Ball Valve, Solder, Full Port',
     group: CU,
-    cat: 'Арматура',
+    cat: 'Valves',
     icon: 'valve',
     pn: '7700S',
     sizes: CU_SIZES.filter((s) => s in MV.MUELLER_7700S),
@@ -1019,14 +1019,14 @@ showerCC: {
 
 // ----------------------------- NO-HUB МУФТЫ -----------------------------
   nhStd: {
-    ru: 'No-hub муфта стандартная (чугун)',
+    ru: 'No-Hub Coupling, Standard (CI)',
     en: 'No-Hub Standard Coupling (CISPI 310)',
     group: NH,
-    cat: 'Чугун ↔ чугун',
+    cat: 'Cast Iron ↔ Cast Iron',
     icon: 'nohub',
     pn: 'NH 1',
     sizes: nhSizes(NHD.NH_STD),
-    size2: { label: 'Вторая сторона', reversible: true, options: (s) => nhOptions(NHD.NH_STD, s) },
+    size2: { label: 'Other side', reversible: true, options: (s) => nhOptions(NHD.NH_STD, s) },
     build: (p) => {
       const b = p.size2 ?? p.size
       const spec = NHD.NH_STD.get(nhKey(p.size, b))!
@@ -1039,10 +1039,10 @@ showerCC: {
     }
   },
   nhHD: {
-    ru: 'No-hub муфта Heavy Duty (чугун)',
+    ru: 'No-Hub Coupling, Heavy Duty (CI)',
     en: 'No-Hub Heavy Duty Coupling (ASTM C1540)',
     group: NH,
-    cat: 'Чугун ↔ чугун',
+    cat: 'Cast Iron ↔ Cast Iron',
     icon: 'nohub',
     pn: 'SDC 4',
     sizes: nhSizes(NHD.NH_HD),
@@ -1053,14 +1053,14 @@ showerCC: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} Charlotte Heavy Duty No-Hub Coupling (ASTM C1540)`, pn: 'SDC 4' }]
   },
   nhTrans: {
-    ru: 'Переходная no-hub муфта (Fernco ProFlex)',
+    ru: 'Transition Coupling (Fernco ProFlex)',
     en: 'Shielded Transition Coupling',
     group: NH,
-    cat: 'Переходы PVC / оцинковка / чугун',
+    cat: 'PVC / Galvanized / Cast Iron Transitions',
     icon: 'nohub',
     pn: 'ProFlex',
     sizes: nhSizes(NHD.PROFLEX),
-    size2: { label: 'Вторая сторона', reversible: true, options: (s) => nhOptions(NHD.PROFLEX, s) },
+    size2: { label: 'Other side', reversible: true, options: (s) => nhOptions(NHD.PROFLEX, s) },
     build: (p) => {
       const b = p.size2 ?? nhOptions(NHD.PROFLEX, p.size)[0]
       return noHubCoupling(p.size, b, NHD.PROFLEX_W, 2)
@@ -1074,10 +1074,10 @@ showerCC: {
 
   // ----------------------------- НАПОРНЫЕ Sch 40 -----------------------------
   elbow90: {
-    ru: 'Отвод 90°',
+    ru: '90° Elbow',
     en: '90° Elbow S x S',
     group: P,
-    cat: 'Отводы',
+    cat: 'Elbows',
     icon: 'ell90',
     key: 'E',
     pn: '2300',
@@ -1088,10 +1088,10 @@ showerCC: {
     }
   },
   p90fpt: {
-    ru: 'Отвод 90° раструб × FPT',
+    ru: '90° Elbow (S x FPT)',
     en: '90° Elbow S x FPT',
     group: P,
-    cat: 'Отводы',
+    cat: 'Elbows',
     icon: 'ell90',
     pn: '2301',
     sizes: keysOf(PR.ELL90_FPT),
@@ -1105,10 +1105,10 @@ showerCC: {
     }
   },
   p90st: {
-    ru: 'Отвод 90° street',
+    ru: '90° Street Elbow',
     en: '90° Street Elbow SPG x S',
     group: P,
-    cat: 'Отводы',
+    cat: 'Elbows',
     icon: 'st90',
     pn: '2304',
     sizes: keysOf(PR.ELL90_ST),
@@ -1122,10 +1122,10 @@ showerCC: {
     }
   },
   p90mpt: {
-    ru: 'Отвод 90° MPT × раструб',
+    ru: '90° Street Elbow (MPT x S)',
     en: '90° Street Elbow MPT x S',
     group: P,
-    cat: 'Отводы',
+    cat: 'Elbows',
     icon: 'st90',
     pn: '2306',
     sizes: keysOf(PR.ELL90_MPT),
@@ -1139,10 +1139,10 @@ showerCC: {
     }
   },
   elbow45: {
-    ru: 'Отвод 45°',
+    ru: '45° Elbow',
     en: '45° Elbow S x S',
     group: P,
-    cat: 'Отводы',
+    cat: 'Elbows',
     icon: 'ell45',
     key: 'F',
     pn: '2309',
@@ -1153,15 +1153,15 @@ showerCC: {
     }
   },
   tee: {
-    ru: 'Тройник',
+    ru: 'Tee',
     en: 'Tee S x S x S',
     group: P,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'tee',
     key: 'T',
     pn: '2400',
     sizes: keysOf(PR.TEE),
-    size2: { label: 'Размер отвода', optional: true, options: (s) => [s, ...pairOpts(PR.TEE_RED, s)] },
+    size2: { label: 'Branch size', optional: true, options: (s) => [s, ...pairOpts(PR.TEE_RED, s)] },
     build: (p) => {
       const s = p.size
       const red = p.size2 && p.size2 !== s ? PR.TEE_RED.get(PR.pairKey(s, p.size2)) : undefined
@@ -1177,15 +1177,15 @@ showerCC: {
     }
   },
 pbull: {
-    ru: 'Тройник bullhead (отвод больше)',
+    ru: 'Bullhead Tee',
     en: 'Bullhead Tee S x S x S',
     group: P,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'bullhead',
     pn: '2400',
     // size — отвод (центр), size2 — проход (бока)
     sizes: bullBranches(PR.TEE_BULL),
-    size2: { label: 'Размер прохода (бока)', options: (s) => bullRuns(PR.TEE_BULL, s) },
+    size2: { label: 'Run size (sides)', options: (s) => bullRuns(PR.TEE_BULL, s) },
     build: (p) => {
       const branch = p.size
       const run = p.size2 ?? bullRuns(PR.TEE_BULL, branch)[0]
@@ -1198,10 +1198,10 @@ pbull: {
     }
   },
   pteefpt: {
-    ru: 'Тройник с FPT отводом',
+    ru: 'Tee (S x S x FPT)',
     en: 'Tee S x S x FPT',
     group: P,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'tee',
     pn: '2401',
     sizes: keysOf(PR.TEE_FPT),
@@ -1211,10 +1211,10 @@ pbull: {
     }
   },
   cross: {
-    ru: 'Крестовина',
+    ru: 'Cross',
     en: 'Cross',
     group: P,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'cross',
     key: 'X',
     pn: '2410',
@@ -1226,10 +1226,10 @@ pbull: {
     }
   },
   coupling: {
-    ru: 'Муфта',
+    ru: 'Coupling',
     en: 'Coupling S x S',
     group: P,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'coupling',
     key: 'C',
     pn: '2100',
@@ -1241,15 +1241,15 @@ pbull: {
     }
   },
   reducer: {
-    ru: 'Муфта переходная',
+    ru: 'Reducing Coupling',
     en: 'Reducing Coupling S x S',
     group: P,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'reducer',
     key: 'D',
     pn: '2100',
     sizes: PRESSURE_SIZES.slice(1),
-    size2: { label: 'Второй размер', reversible: true, options: (s) => smaller(s, PRESSURE_SIZES) },
+    size2: { label: 'Second size', reversible: true, options: (s) => smaller(s, PRESSURE_SIZES) },
     build: (p) => {
       const a = p.size
       const b = p.size2 ?? PRESSURE_SIZES[Math.max(0, sizeIndex(a) - 1)]
@@ -1278,10 +1278,10 @@ pbull: {
     }
   },
   punion: {
-    ru: 'Разъёмная муфта (union)',
+    ru: 'Union',
     en: 'Union S x S, EPDM O-ring',
     group: P,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'union',
     pn: '2710',
     sizes: keysOf(PR.UNION),
@@ -1302,10 +1302,10 @@ pbull: {
     }
   },
   pfa: {
-    ru: 'Адаптер FPT (female)',
+    ru: 'Female Adapter (FPT)',
     en: 'Female Adapter S x FPT',
     group: P,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'fa',
     pn: '2101',
     sizes: keysOf(PR.FEMALE_ADAPTER),
@@ -1318,10 +1318,10 @@ pbull: {
     }
   },
   pma: {
-    ru: 'Адаптер MPT (male)',
+    ru: 'Male Adapter (MPT)',
     en: 'Male Adapter MPT x S',
     group: P,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'ma',
     pn: '2109',
     sizes: keysOf(PR.MALE_ADAPTER),
@@ -1337,14 +1337,14 @@ pbull: {
     }
   },
   pbush: {
-    ru: 'Втулка переходная SPG × S',
+    ru: 'Reducer Bushing (SPG x S)',
     en: 'Reducer Bushing, Flush Style SPG x S',
     group: P,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'bushing',
     pn: '2107',
     sizes: [...new Set([...PR.BUSHING.keys()].map((k) => k.split('|')[0] as SizeId))],
-    size2: { label: 'Внутренний размер', options: (s) => pairOpts(PR.BUSHING, s) },
+    size2: { label: 'Inside size', options: (s) => pairOpts(PR.BUSHING, s) },
     build: (p) => {
       const big = p.size
       const small = p.size2 ?? pairOpts(PR.BUSHING, big)[0]
@@ -1363,14 +1363,14 @@ pbull: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} x ${sizeLabel(p.size2 ?? p.size)} PVC Sch 40 Reducer Bushing SPG x S`, pn: PR.BUSHING.get(PR.pairKey(p.size, p.size2 ?? p.size))?.pn }]
   },
   pbushT: {
-    ru: 'Втулка переходная MPT × FPT',
+    ru: 'Reducer Bushing (MPT x FPT)',
     en: 'Reducer Bushing MPT x FPT',
     group: P,
-    cat: 'Муфты и адаптеры',
+    cat: 'Couplings & Adapters',
     icon: 'bushing',
     pn: '2112',
     sizes: [...new Set([...PR.BUSHING_THD.keys()].map((k) => k.split('|')[0] as SizeId))],
-    size2: { label: 'Внутренний размер', options: (s) => pairOpts(PR.BUSHING_THD, s) },
+    size2: { label: 'Inside size', options: (s) => pairOpts(PR.BUSHING_THD, s) },
     build: (p) => {
       const big = p.size
       const small = p.size2 ?? pairOpts(PR.BUSHING_THD, big)[0]
@@ -1392,10 +1392,10 @@ pbull: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} x ${sizeLabel(p.size2 ?? p.size)} PVC Sch 40 Reducer Bushing MPT x FPT`, pn: PR.BUSHING_THD.get(PR.pairKey(p.size, p.size2 ?? p.size))?.pn }]
   },
   cap: {
-    ru: 'Заглушка',
+    ru: 'Cap',
     en: 'Cap S',
     group: P,
-    cat: 'Заглушки',
+    cat: 'Caps & Plugs',
     icon: 'cap',
     key: 'K',
     pn: '2116',
@@ -1406,10 +1406,10 @@ pbull: {
     }
   },
   pcapfpt: {
-    ru: 'Заглушка FPT',
+    ru: 'Cap (FPT)',
     en: 'Cap FPT',
     group: P,
-    cat: 'Заглушки',
+    cat: 'Caps & Plugs',
     icon: 'cap',
     pn: '2117',
     sizes: keysOf(PR.CAP_FPT),
@@ -1419,10 +1419,10 @@ pbull: {
     }
   },
   pplug: {
-    ru: 'Пробка SPG',
+    ru: 'Plug (SPG)',
     en: 'Plug SPG',
     group: P,
-    cat: 'Заглушки',
+    cat: 'Caps & Plugs',
     icon: 'plug',
     pn: '2118',
     sizes: keysOf(PR.PLUG_SPG),
@@ -1438,10 +1438,10 @@ pbull: {
     }
   },
   pplugmpt: {
-    ru: 'Пробка MPT',
+    ru: 'Plug (MPT)',
     en: 'Plug MPT',
     group: P,
-    cat: 'Заглушки',
+    cat: 'Caps & Plugs',
     icon: 'plug',
     pn: '2113',
     sizes: keysOf(PR.PLUG_MPT),
@@ -1460,10 +1460,10 @@ pbull: {
     }
   },
   valve: {
-    ru: 'Шаровый кран',
+    ru: 'Ball Valve',
     en: 'Ball Valve S x S',
     group: P,
-    cat: 'Арматура',
+    cat: 'Valves',
     icon: 'valve',
     key: 'V',
     sizes: PRESSURE_SIZES.slice(0, 8),
@@ -1473,20 +1473,20 @@ pbull: {
 
   // ----------------------------- DWV -----------------------------
   dwv90: {
-    ru: 'Колено 90° (1/4 Bend)',
+    ru: '1/4 Bend (90°)',
     en: '1/4 Bend',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'bend90',
     pn: '300',
     sizes: keysOf(DW.D_BEND90),
     build: (p) => dwvBend(p.size, 90, DW.D_BEND90[p.size]![0], 0.75)
   },
   st90: {
-    ru: 'Колено 90° street',
+    ru: '1/4 Bend, Street',
     en: '1/4 Bend, Street (Spigot x Hub)',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'st90',
     pn: '302',
     sizes: keysOf(DW.D_BEND90_ST),
@@ -1496,20 +1496,20 @@ pbull: {
     }
   },
   dwvLong90: {
-    ru: 'Колено 90° длинное',
+    ru: 'Long Sweep 1/4 Bend',
     en: 'Long Sweep 1/4 Bend',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'long90',
     pn: '304',
     sizes: keysOf(DW.D_LONG90),
     build: (p) => dwvBend(p.size, 90, DW.D_LONG90[p.size]![0], 0.93)
   },
   dlongst: {
-    ru: 'Колено 90° длинное street',
+    ru: 'Long Sweep 1/4 Bend, Street',
     en: 'Long Sweep 1/4 Bend, Street (Hub x Spigot)',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'long90',
     pn: '309',
     sizes: keysOf(DW.D_LONG90_ST),
@@ -1519,20 +1519,20 @@ pbull: {
     }
   },
   dvent90: {
-    ru: 'Вентиляционное колено 90°',
+    ru: 'Vent Ell 90°',
     en: 'Vent Ell (90° Short Turn)',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'ell90',
     pn: '331',
     sizes: keysOf(DW.D_VENT90),
     build: (p) => dwvBend(p.size, 90, DW.D_VENT90[p.size]![0], 0.55)
   },
   dvent90st: {
-    ru: 'Вент. колено 90° street',
+    ru: 'Vent Street Ell 90°',
     en: 'Vent Ell, Street (Hub x Spigot)',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'st90',
     pn: '333',
     sizes: keysOf(DW.D_VENT90_ST),
@@ -1542,20 +1542,20 @@ pbull: {
     }
   },
   d60: {
-    ru: 'Колено 60° (1/6 Bend)',
+    ru: '1/6 Bend (60°)',
     en: '1/6 Bend',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'bend45',
     pn: '319',
     sizes: keysOf(DW.D_BEND60),
     build: (p) => dwvBend(p.size, 60, DW.D_BEND60[p.size]![0], 0.65)
   },
   d60st: {
-    ru: 'Колено 60° street',
+    ru: '1/6 Bend, Street',
     en: '1/6 Bend, Street (Hub x Spigot)',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'st45',
     pn: '320',
     sizes: keysOf(DW.D_BEND60_ST),
@@ -1565,20 +1565,20 @@ pbull: {
     }
   },
   dwv45: {
-    ru: 'Колено 45° (1/8 Bend)',
+    ru: '1/8 Bend (45°)',
     en: '1/8 Bend',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'bend45',
     pn: '321',
     sizes: keysOf(DW.D_BEND45),
     build: (p) => dwvBend(p.size, 45, DW.D_BEND45[p.size]![0], 0.6)
   },
   st45: {
-    ru: 'Колено 45° street',
+    ru: '1/8 Bend, Street',
     en: '1/8 Bend, Street (Spigot x Hub)',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'st45',
     pn: '323',
     sizes: keysOf(DW.D_BEND45_ST),
@@ -1588,20 +1588,20 @@ pbull: {
     }
   },
   dwv22: {
-    ru: 'Колено 22.5° (1/16 Bend)',
+    ru: '1/16 Bend (22.5°)',
     en: '1/16 Bend',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'bend22',
     pn: '324',
     sizes: keysOf(DW.D_BEND22),
     build: (p) => dwvBend(p.size, 22.5, DW.D_BEND22[p.size]![0], 0.5)
   },
   d22st: {
-    ru: 'Колено 22.5° street',
+    ru: '1/16 Bend, Street',
     en: '1/16 Bend, Street (Spigot x Hub)',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'bend22',
     pn: '326',
     sizes: keysOf(DW.D_BEND22_ST),
@@ -1611,10 +1611,10 @@ pbull: {
     }
   },
   d90dbl: {
-    ru: 'Двойное колено 90°',
+    ru: 'Double 1/4 Bend',
     en: 'Double 1/4 Bend',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'dbl90',
     pn: '327',
     sizes: keysOf(DW.D_DBL90),
@@ -1628,14 +1628,14 @@ pbull: {
     }
   },
   closetBend: {
-    ru: 'Колено для унитаза 4×3',
+    ru: 'Closet Bend 4×3',
     en: 'Closet Bend, Reducing',
     group: D,
-    cat: 'Колена',
+    cat: 'Bends',
     icon: 'bend90',
     pn: '329',
     sizes: ['4'],
-    size2: { label: 'Выход', options: () => ['3'] },
+    size2: { label: 'Outlet', options: () => ['3'] },
     build: (p) => {
       const [A, B] = DW.D_CLOSET_BEND['4']!
       const small = p.size2 ?? '3'
@@ -1649,14 +1649,14 @@ pbull: {
   },
 
   sanTee: {
-    ru: 'Санитарный тройник',
+    ru: 'Sanitary Tee',
     en: 'Sanitary Tee',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'santee',
     pn: '400',
     sizes: keysOf(DW.D_SAN),
-    size2: { label: 'Размер отвода', optional: true, options: (s) => [s, ...pairOpts(DW.D_SAN_RED, s)] },
+    size2: { label: 'Branch size', optional: true, options: (s) => [s, ...pairOpts(DW.D_SAN_RED, s)] },
     build: (p) => {
       const s = p.size
       const b = p.size2 ?? s
@@ -1670,10 +1670,10 @@ pbull: {
     }
   },
   dsanst: {
-    ru: 'Санитарный тройник street',
+    ru: 'Sanitary Tee, Street',
     en: 'Sanitary Tee, Street (Spigot x Hub x Hub)',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'santee',
     pn: '403',
     sizes: keysOf(DW.D_SAN_ST),
@@ -1683,10 +1683,10 @@ pbull: {
     }
   },
   dblSanTee: {
-    ru: 'Двойной санитарный тройник',
+    ru: 'Double Sanitary Tee',
     en: 'Double Sanitary Tee (Sanitary Cross)',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'dblsan',
     pn: '428',
     sizes: keysOf(DW.D_DBL_SAN),
@@ -1696,10 +1696,10 @@ pbull: {
     }
   },
   dventtee: {
-    ru: 'Вентиляционный тройник',
+    ru: 'Vent Tee',
     en: 'Vent Tee',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'tee',
     pn: '441',
     sizes: keysOf(DW.D_VENT_TEE),
@@ -1709,10 +1709,10 @@ pbull: {
     }
   },
   dcotee: {
-    ru: 'Тройник-ревизия с пробкой',
+    ru: 'Cleanout Tee with Plug',
     en: 'Cleanout Tee with Cleanout Plug',
     group: D,
-    cat: 'Ревизии и заглушки',
+    cat: 'Cleanouts & Caps',
     icon: 'cotee',
     pn: '444X',
     sizes: keysOf(DW.D_CO_TEE),
@@ -1734,14 +1734,14 @@ pbull: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} PVC DWV Cleanout Tee with Cleanout Plug`, pn: '444X' }]
   },
   wye: {
-    ru: 'Косой тройник (Wye)',
+    ru: 'Wye',
     en: 'Wye (45°)',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'wye',
     pn: '600',
     sizes: keysOf(DW.D_WYE),
-    size2: { label: 'Размер отвода', optional: true, options: (s) => [s, ...pairOpts(DW.D_WYE_RED, s)] },
+    size2: { label: 'Branch size', optional: true, options: (s) => [s, ...pairOpts(DW.D_WYE_RED, s)] },
     build: (p) => {
       const s = p.size
       const b = p.size2 ?? s
@@ -1753,7 +1753,7 @@ pbull: {
     ru: 'Wye street',
     en: 'Wye, Street (Spigot x Hub x Hub)',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'wye',
     pn: '602',
     sizes: keysOf(DW.D_WYE_ST),
@@ -1763,10 +1763,10 @@ pbull: {
     }
   },
   ddblwye: {
-    ru: 'Двойной Wye',
+    ru: 'Double Wye',
     en: 'Double Wye',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'dblwye',
     pn: '611',
     sizes: keysOf(DW.D_DBL_WYE),
@@ -1776,14 +1776,14 @@ pbull: {
     }
   },
   combo: {
-    ru: 'Комбо (Wye + 1/8 Bend)',
+    ru: 'Combo Wye & 1/8 Bend',
     en: 'Combination Wye & 1/8 Bend',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'combo',
     pn: '501',
     sizes: keysOf(DW.D_COMBO),
-    size2: { label: 'Размер отвода', optional: true, options: (s) => [s, ...pairOpts(DW.D_COMBO_RED, s)] },
+    size2: { label: 'Branch size', optional: true, options: (s) => [s, ...pairOpts(DW.D_COMBO_RED, s)] },
     build: (p) => {
       const s = p.size
       const b = p.size2 ?? s
@@ -1792,10 +1792,10 @@ pbull: {
     }
   },
   ddblcombo: {
-    ru: 'Двойное комбо',
+    ru: 'Double Combo Wye & 1/8 Bend',
     en: 'Double Combination Wye & 1/8 Bend',
     group: D,
-    cat: 'Тройники',
+    cat: 'Tees',
     icon: 'dblcombo',
     pn: '507',
     sizes: keysOf(DW.D_DBL_COMBO),
@@ -1809,10 +1809,10 @@ pbull: {
   },
 
   dcoup: {
-    ru: 'Муфта DWV',
+    ru: 'DWV Coupling',
     en: 'Coupling (Hub x Hub)',
     group: D,
-    cat: 'Муфты и переходы',
+    cat: 'Couplings & Reducers',
     icon: 'coupling',
     pn: '100',
     sizes: keysOf(DW.D_COUPLING),
@@ -1823,14 +1823,14 @@ pbull: {
     }
   },
   dincr: {
-    ru: 'Переход (increaser-reducer)',
+    ru: 'Increaser-Reducer',
     en: 'Pipe Increaser-Reducer (Hub x Hub)',
     group: D,
-    cat: 'Муфты и переходы',
+    cat: 'Couplings & Reducers',
     icon: 'reducer',
     pn: '102',
     sizes: ALL_SIZES.filter((s) => incrPartners(s).length),
-    size2: { label: 'Второй размер', reversible: true, options: (s) => incrPartners(s) },
+    size2: { label: 'Second size', reversible: true, options: (s) => incrPartners(s) },
     build: (p) => {
       // порт 0 — размер size (снизу), порт 1 — size2 (сверху); работает в обе стороны
       const a = p.size
@@ -1854,14 +1854,14 @@ pbull: {
     }
   },
   dbush: {
-    ru: 'Втулка DWV (flush bushing)',
+    ru: 'Flush Bushing (DWV)',
     en: 'Flush Bushing (Spigot x Hub)',
     group: D,
-    cat: 'Муфты и переходы',
+    cat: 'Couplings & Reducers',
     icon: 'bushing',
     pn: '107',
     sizes: [...new Set([...DW.D_BUSHING.keys()].map((k) => k.split('|')[0] as SizeId))],
-    size2: { label: 'Внутренний размер', options: (s) => pairOpts(DW.D_BUSHING, s) },
+    size2: { label: 'Inside size', options: (s) => pairOpts(DW.D_BUSHING, s) },
     build: (p) => {
       const big = p.size
       const small = p.size2 ?? pairOpts(DW.D_BUSHING, big)[0]
@@ -1880,10 +1880,10 @@ pbull: {
     bom: (p) => [{ name: `${sizeLabel(p.size)} x ${sizeLabel(p.size2 ?? p.size)} PVC DWV Flush Bushing`, pn: '107' }]
   },
   dfa: {
-    ru: 'Адаптер FPT × раструб',
+    ru: 'Female Adapter (FPT x Hub)',
     en: 'Female Adapter (FPT x Hub)',
     group: D,
-    cat: 'Муфты и переходы',
+    cat: 'Couplings & Reducers',
     icon: 'fa',
     pn: '101',
     sizes: keysOf(DW.D_FEMALE_ADAPTER),
@@ -1894,10 +1894,10 @@ pbull: {
     }
   },
   dma: {
-    ru: 'Адаптер MPT × раструб',
+    ru: 'Male Adapter (MPT x Hub)',
     en: 'Male Adapter (MPT x Hub)',
     group: D,
-    cat: 'Муфты и переходы',
+    cat: 'Couplings & Reducers',
     icon: 'ma',
     pn: '109',
     sizes: keysOf(DW.D_MALE_ADAPTER),
@@ -1908,10 +1908,10 @@ pbull: {
     }
   },
   dtrapad: {
-    ru: 'Адаптер сифона (trap adapter)',
+    ru: 'Trap Adapter',
     en: 'Trap Adapter, Hub x Tubular Slip w/ Nut',
     group: D,
-    cat: 'Муфты и переходы',
+    cat: 'Couplings & Reducers',
     icon: 'trapad',
     pn: '104W',
     sizes: keysOf(DW.D_TRAP_ADAPTER),
@@ -1919,10 +1919,10 @@ pbull: {
   },
 
   cleanout: {
-    ru: 'Ревизия: адаптер + пробка',
+    ru: 'Cleanout: Adapter + Plug',
     en: 'Female Adapter (FPT x Hub) + Cleanout Plug',
     group: D,
-    cat: 'Ревизии и заглушки',
+    cat: 'Cleanouts & Caps',
     icon: 'cleanout',
     pn: '101+106',
     sizes: keysOf(DW.D_FEMALE_ADAPTER).filter((s) => s in DW.D_CO_PLUG),
@@ -1948,10 +1948,10 @@ pbull: {
     ]
   },
   dfco: {
-    ru: 'Ревизия в раструб (spigot) + пробка',
+    ru: 'Fitting Cleanout Adapter + Plug',
     en: 'Fitting Cleanout Adapter with Cleanout Plug (Spigot x FPT)',
     group: D,
-    cat: 'Ревизии и заглушки',
+    cat: 'Cleanouts & Caps',
     icon: 'cleanout',
     pn: '105X',
     sizes: keysOf(DW.D_FITTING_CO).filter((s) => s in DW.D_CO_PLUG),
@@ -1977,10 +1977,10 @@ pbull: {
     ]
   },
   dplug: {
-    ru: 'Пробка ревизии MPT',
+    ru: 'Cleanout Plug (MPT)',
     en: 'Cleanout Plug (MPT)',
     group: D,
-    cat: 'Ревизии и заглушки',
+    cat: 'Cleanouts & Caps',
     icon: 'plug',
     pn: '106',
     sizes: keysOf(DW.D_CO_PLUG),
@@ -1999,10 +1999,10 @@ pbull: {
     }
   },
   dcap: {
-    ru: 'Заглушка DWV',
+    ru: 'DWV Cap',
     en: 'Cap (Socket)',
     group: D,
-    cat: 'Ревизии и заглушки',
+    cat: 'Cleanouts & Caps',
     icon: 'cap',
     pn: '116',
     sizes: keysOf(DW.D_CAP),
@@ -2013,10 +2013,10 @@ pbull: {
   },
 
   ptrap: {
-    ru: 'Сифон P-trap',
+    ru: 'P-Trap',
     en: 'P-Trap with Solvent Weld Joint',
     group: D,
-    cat: 'Сифоны и фланцы',
+    cat: 'Traps & Flanges',
     icon: 'ptrap',
     pn: '706X',
     sizes: keysOf(DW.D_PTRAP),
@@ -2027,10 +2027,10 @@ pbull: {
     }
   },
   dptrapu: {
-    ru: 'Сифон P-trap с гайкой (union)',
+    ru: 'P-Trap with Union Nut',
     en: 'P-Trap with Union & Plastic Nut',
     group: D,
-    cat: 'Сифоны и фланцы',
+    cat: 'Traps & Flanges',
     icon: 'ptrap',
     pn: '708P',
     sizes: keysOf(DW.D_PTRAP_UNION),
@@ -2047,10 +2047,10 @@ pbull: {
     }
   },
   dreturn: {
-    ru: 'U-колено (return bend)',
+    ru: 'Return Bend',
     en: 'Return Bend (Hub x Hub)',
     group: D,
-    cat: 'Сифоны и фланцы',
+    cat: 'Traps & Flanges',
     icon: 'return',
     pn: '700',
     sizes: keysOf(DW.D_RETURN),
@@ -2065,10 +2065,10 @@ pbull: {
     }
   },
   closet: {
-    ru: 'Фланец унитаза',
+    ru: 'Closet Flange',
     en: 'Closet Flange (Hub End)',
     group: D,
-    cat: 'Сифоны и фланцы',
+    cat: 'Traps & Flanges',
     icon: 'closet',
     pn: '800',
     sizes: keysOf(DW.D_CLOSET),
@@ -2077,10 +2077,10 @@ pbull: {
     bom: (p) => [{ name: `4" x ${sizeLabel(p.size)} PVC DWV Closet Flange`, pn: '800' }]
   },
   closetAdj: {
-    ru: 'Фланец унитаза с металл. кольцом',
+    ru: 'Closet Flange, Metal Ring',
     en: 'Closet Flange, Adjustable with Metal Ring',
     group: D,
-    cat: 'Сифоны и фланцы',
+    cat: 'Traps & Flanges',
     icon: 'closet',
     pn: '811',
     sizes: keysOf(DW.D_CLOSET_ADJ),
