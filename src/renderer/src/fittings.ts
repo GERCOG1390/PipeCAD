@@ -944,6 +944,62 @@ function dielectricUnion(size: SizeId): Built {
   }
 }
 
+// ---------- Расширительный бак Watts PLT ----------
+// Начало — низ бака (клапан ниппеля воздуха), +Y — к подключению. D — диаметр, L — длина вместе с патрубком.
+const XT_ALMOND = '#ece3c6'
+const XT: { model: string; gal: number; D: number; L: number; conn: 'mpt' | 'fpt'; size: SizeId; floor?: boolean }[] = [
+  { model: 'PLT-5', gal: 2.1, D: 8, L: 11, conn: 'mpt', size: '3/4' },
+  { model: 'PLT-12', gal: 4.5, D: 10.5, L: 13.5, conn: 'mpt', size: '3/4' },
+  { model: 'PLT-20', gal: 8.5, D: 12.5, L: 19.2, conn: 'mpt', size: '3/4' },
+  { model: 'PLT-35', gal: 14, D: 16, L: 21.7, conn: 'fpt', size: '1', floor: true }
+]
+function expansionTank(t: (typeof XT)[number]): Built {
+  const R = t.D / 2
+  const seg = 128
+  const stub = 0.75
+  const neckR = 0.95
+  const base = t.floor ? 3.2 : 0.7 // высота низа корпуса (у напольного — стойка)
+  const top = t.L - (t.conn === 'mpt' ? stub + 0.55 : 0.6)
+  const hd = R * 0.42 // высота днищ
+  const prof: [number, number][] = [[0.001, base]]
+  for (let i = 1; i <= 14; i++) {
+    const a = (i / 14) * (Math.PI / 2)
+    prof.push([Math.sin(a) * R, base + hd * (1 - Math.cos(a))])
+  }
+  prof.push([R, top - hd])
+  for (let i = 1; i <= 14; i++) {
+    const a = (i / 14) * (Math.PI / 2)
+    prof.push([Math.max(neckR, Math.cos(a) * R), top - hd + hd * Math.sin(a)])
+  }
+  prof.push([neckR, top], [0.001, top + 0.05])
+  const mid = (base + top) / 2
+  const shapes: Shape[] = [
+    lathe(O, Y, prof, { color: XT_ALMOND, seg }),
+    // шов сварки половин корпуса
+    lathe(O, Y, rounded([[R - 0.01, mid - 0.18], [R + 0.08, mid - 0.1], [R + 0.08, mid + 0.1], [R - 0.01, mid + 0.18]], 0.05), { color: '#ddd3b4', seg }),
+    // этикетка Watts: белое поле с синей полосой
+    lathe(O, Y, [[R + 0.02, mid + 0.6], [R + 0.05, mid + 0.6], [R + 0.05, mid + R * 0.55], [R + 0.02, mid + R * 0.55]], { color: '#f4f4f0', seg: 64, phi: [-35, 70] }),
+    lathe(O, Y, [[R + 0.03, mid + R * 0.3], [R + 0.08, mid + R * 0.3], [R + 0.08, mid + R * 0.45], [R + 0.03, mid + R * 0.45]], { color: '#1f5fae', seg: 64, phi: [-35, 70] }),
+    // горловина из нержавейки
+    lathe([0, top - 0.1, 0], Y, rounded([[0.001, 0], [neckR + 0.1, 0], [neckR + 0.1, 0.25], [0.62, 0.45], [0.62, t.L - top - (t.conn === 'mpt' ? stub : 0.6) + 0.1], [0.001, t.L - top - (t.conn === 'mpt' ? stub : 0.6) + 0.1]], 0.06), { color: '#c9ced3', metal: true, seg: 64 }),
+    // ниппель воздуха (Schrader) с колпачком внизу
+    lathe([0, base - 0.05, 0], [0, -1, 0], [[0.001, 0], [0.18, 0], [0.18, 0.45], [0.001, 0.45]], { color: BRASS, metal: true, seg: 24 }),
+    lathe([0, base - 0.5, 0], [0, -1, 0], rounded([[0.001, 0], [0.24, 0], [0.24, 0.42], [0.001, 0.48]], 0.06), { color: '#15171a', seg: 24 })
+  ]
+  if (t.floor) {
+    // напольная стойка-юбка с вырезом
+    shapes.push(lathe(O, Y, rounded([[R * 0.78, 0], [R * 0.86, 0], [R * 0.8, base + hd * 0.3], [R * 0.72, base + hd * 0.3]], 0.08), { color: XT_ALMOND, seg }))
+    shapes.push(lathe(O, Y, [[R * 0.86, 0.6], [R * 0.9, 0.6], [R * 0.9, 1.8], [R * 0.86, 1.8]], { color: '#1a1b1e', seg: 48, phi: [-20, 40] }))
+  }
+  const port =
+    t.conn === 'mpt'
+      ? mpt([0, t.L, 0], Y, t.size, 'p', stub, { preferCu: true })
+      : fpt([0, t.L - NPT[t.size], 0], Y, t.size, 'p', NPT[t.size], { face: NPT[t.size], R: 0.95, preferCu: true })
+  const built = finalize({ ports: [port], shapes })
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: '#c9ced3', metal: true } : s))
+  return built
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -2429,6 +2485,22 @@ for (const h of WH.HEATERS) {
     place: { rot: [0, 0, 0], height: 0, always: true },
     build: () => waterHeater(h),
     bom: () => [{ name: `Bradford White ${h.model} ${h.gal} Gal Natural Gas Water Heater, ${h.vent === 'pv' ? 'Power Vent' : 'Atmospheric Vent'}${h.btu ? ', ' + h.btu.toLocaleString('en-US') + ' BTU' : ''}`, pn: h.model }]
+  }
+}
+
+// Расширительные баки
+for (const t of XT) {
+  FITTINGS['xt_' + t.model] = {
+    ru: 'Expansion Tank ' + t.gal + ' Gal' + (t.floor ? ' · Floor' : ''),
+    en: 'Watts ' + t.model + ' Potable Water Thermal Expansion Tank',
+    group: 'heater',
+    cat: 'Thermal Expansion Tanks',
+    icon: 'xtank',
+    pn: t.model,
+    sizes: ALL_SIZES,
+    place: { rot: [0, 0, 0], height: 0 },
+    build: () => expansionTank(t),
+    bom: () => [{ name: 'Watts ' + t.model + ' Thermal Expansion Tank, ' + t.gal + ' Gal, ' + sizeLabel(t.size) + (t.conn === 'mpt' ? ' MNPT' : ' FNPT'), pn: t.model }]
   }
 }
 

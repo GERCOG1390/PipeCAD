@@ -42,7 +42,7 @@ function famNear(parts: Part[], id: string, kind: string): 'p' | 'd' {
 }
 
 // Переходная деталь, когда концы не стыкуются: раструб-раструб, труба-труба, резьба
-function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: number }, famHint: 'p' | 'd', wantCu = false): { part: Part; free: number; note: string } | null {
+function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: number }, famHint: 'p' | 'd', wantCu = false, nextKinds: string[] = []): { part: Part; free: number; note: string } | null {
   const cu = isCu(to.size) || (wantCu && (to.kind === 'fpt' || to.kind === 'mpt'))
   const base = { id: newId(), size: (cu && !isCu(to.size) ? 'cu' + to.size : to.size) as SizeId, roll: 0, parent: target }
   const pick = (a: string, b: string): string => (fittingDef(a).sizes.includes(to.size) ? a : b)
@@ -51,6 +51,9 @@ function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: 
   if (to.kind === 'hub') {
     part = { ...base, kind: 'pipe', attach: 0, length: nippleLength(to.depth, nextDepth) }
     note = `hub-to-hub can't be glued — added a ${formatLength(part.length!)} nipple`
+  } else if (to.kind === 'spigot' && nextKinds.includes('mpt') && !nextKinds.includes('hub') && !nextKinds.includes('spigot')) {
+    part = { ...base, kind: cu ? 'cuFa' : pick('pfa', 'dfa'), attach: 0 }
+    note = cu ? 'pipe to MPT — added a copper FPT adapter (603)' : 'pipe to MPT — added an FPT adapter'
   } else if (to.kind === 'spigot' && to.size.startsWith('ci')) {
     part = { ...base, kind: 'nhStd', size2: to.size, attach: 0 }
     note = 'cast iron to cast iron — added a no-hub coupling'
@@ -419,7 +422,7 @@ export const useStore = create<State>((set, get) => ({
         }
         const sample = { ...part, ...cands[0] }
         const wantCu = def.group === 'copper' || (def.group === 'common' && isCu(paletteSize)) || !!pport.preferCu
-        const adapter = adapterFor(pport, Math.max(...portsOf(sample).map((p) => p.depth)), target!, famNear(all, target!.id, kind), wantCu)
+        const adapter = adapterFor(pport, Math.max(...portsOf(sample).map((p) => p.depth)), target!, famNear(all, target!.id, kind), wantCu, portsOf(sample).map((p) => p.kind))
         if (!adapter || step > 2) {
           set({ message: 'These ends can\'t be joined directly' })
           return

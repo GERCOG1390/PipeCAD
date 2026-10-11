@@ -15,6 +15,7 @@ const ICONS: Record<string, string> = {
   ell45: 'M2 16h9l9-9',
   tee: 'M3 9h18M12 9v12',
   heater: 'M7 4h10v17H7zM9 2v2M15 2v2M10 16h4',
+  xtank: 'M12 2v4M8 6h8a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3zM5 13h14',
   nohub: 'M2 12h20M6 7h12v10H6zM9 7v10M15 7v10',
   shower: 'M3 13h18M12 3v18M8 9h8v8H8z',
   bullhead: 'M3 10h18M12 10v11M7 10v-3M17 10v-3M9 21h6',
@@ -83,7 +84,7 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: 'dwv', title: 'DWV — Drain, Waste & Vent' },
   { id: 'copper', title: 'Copper — Sweat (NIBCO Wrot)' },
   { id: 'nohub', title: 'No-Hub Couplings (Transitions)' },
-  { id: 'heater', title: 'Water Heaters (Bradford White)' }
+  { id: 'heater', title: 'Water Heaters & Expansion Tanks' }
 ]
 
 function readOpen(): Record<string, boolean> {
