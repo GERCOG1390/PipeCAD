@@ -5,6 +5,8 @@ import {
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
+  CatmullRomCurve3,
+  Float32BufferAttribute,
   Box3,
   Curve,
   CurvePath,
@@ -100,6 +102,89 @@ function knurlGeometry(r: number, h: number, ribs: number): BufferGeometry {
   return g
 }
 
+// Гайка с фасками: многогранник со скошенными углами (как точёная латунная гайка)
+function nutGeometry(sides: number, r: number, h: number, ch: number): BufferGeometry {
+  const corner = r / Math.cos(Math.PI / sides) // радиус до угла
+  const g = new CylinderGeometry(corner, corner, h, sides * 24, 10, false)
+  const pos = g.attributes.position
+  const sector = (Math.PI * 2) / sides
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const y = pos.getY(i)
+    const z = pos.getZ(i)
+    const d = Math.hypot(x, z)
+    if (d < 1e-6) continue
+    const a = Math.atan2(z, x)
+    // радиус многогранника под этим углом
+    const local = ((a % sector) + sector) % sector - sector / 2
+    let rr = r / Math.cos(local)
+    // фаска: конус, срезающий углы у торцов
+    const fromEnd = h / 2 - Math.abs(y)
+    rr = Math.min(rr, r - ch * 0.3 + fromEnd * 1.4)
+    pos.setX(i, (x / d) * rr)
+    pos.setZ(i, (z / d) * rr)
+  }
+  g.computeVertexNormals()
+  return g
+}
+
+// Протяжка скруглённого прямоугольника вдоль сглаженной кривой (рычаг крана, ручка)
+function sweepGeometry(path: V3[], w: number, th: number, rad: number, side: V3): BufferGeometry {
+  const curve = new CatmullRomCurve3(path.map((p) => new Vector3(...p)), false, 'centripetal')
+  const N = Math.max(24, path.length * 16)
+  // сечение: скруглённый прямоугольник, x — ширина (side), y — толщина
+  const sec: [number, number][] = []
+  const rx = Math.min(rad, w / 2 - 1e-4)
+  const ry = Math.min(rad, th / 2 - 1e-4)
+  const K = 6
+  const corners: [number, number, number][] = [
+    [w / 2 - rx, th / 2 - ry, 0],
+    [-(w / 2 - rx), th / 2 - ry, Math.PI / 2],
+    [-(w / 2 - rx), -(th / 2 - ry), Math.PI],
+    [w / 2 - rx, -(th / 2 - ry), (Math.PI * 3) / 2]
+  ]
+  for (const [cx, cy, a0] of corners) for (let j = 0; j <= K; j++) {
+    const a = a0 + (j / K) * (Math.PI / 2)
+    sec.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry])
+  }
+  const S = sec.length
+  const sideV = new Vector3(...side).normalize()
+  const verts: number[] = []
+  for (let i = 0; i <= N; i++) {
+    const t = i / N
+    const p = curve.getPointAt(t)
+    const T = curve.getTangentAt(t).normalize()
+    const U = new Vector3().crossVectors(T, sideV).normalize() // «вверх» сечения
+    const Sd = new Vector3().crossVectors(U, T).normalize()
+    for (const [x, y] of sec) verts.push(p.x + Sd.x * x + U.x * y, p.y + Sd.y * x + U.y * y, p.z + Sd.z * x + U.z * y)
+  }
+  const idx: number[] = []
+  for (let i = 0; i < N; i++) for (let j = 0; j < S; j++) {
+    const a = i * S + j
+    const b = i * S + ((j + 1) % S)
+    const c = (i + 1) * S + j
+    const d = (i + 1) * S + ((j + 1) % S)
+    idx.push(a, c, b, b, c, d)
+  }
+  // торцы
+  for (const [ring, flip] of [[0, true], [N, false]] as [number, boolean][]) {
+    const p = curve.getPointAt(ring / N)
+    const ci = verts.length / 3
+    verts.push(p.x, p.y, p.z)
+    for (let j = 0; j < S; j++) {
+      const a = ring * S + j
+      const b = ring * S + ((j + 1) % S)
+      if (flip) idx.push(ci, b, a)
+      else idx.push(ci, a, b)
+    }
+  }
+  const g = new BufferGeometry()
+  g.setAttribute('position', new Float32BufferAttribute(verts, 3))
+  g.setIndex(idx)
+  g.computeVertexNormals()
+  return g
+}
+
 // ---------- геометрия формы (в координатах детали) ----------
 interface Geo {
   geom: BufferGeometry
@@ -124,7 +209,7 @@ function shapeGeo(s: Shape): Geo | null {
     }
     case 'lathe': {
       const pts = s.prof.map(([r, z]) => new Vector2(Math.max(0.0005, r), z))
-      return { geom: new LatheGeometry(pts, 64), pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }
+      return { geom: new LatheGeometry(pts, s.seg ?? 64), pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }
     }
     case 'prism': {
       const dir = new Vector3(...s.dir).normalize()
@@ -137,6 +222,12 @@ function shapeGeo(s: Shape): Geo | null {
     }
     case 'box':
       return { geom: new BoxGeometry(...s.size), pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }
+    case 'nut': {
+      const dir = new Vector3(...s.dir).normalize()
+      return { geom: nutGeometry(s.sides, s.r, s.h, s.ch ?? s.h * 0.18), pos: new Vector3(...s.at).addScaledVector(dir, s.h / 2), quat: quatTo(dir), color: s.color ?? PVC, metal: s.metal }
+    }
+    case 'sweep':
+      return { geom: sweepGeometry(s.path, s.w, s.th, s.rad ?? Math.min(s.w, s.th) * 0.45, s.side), pos: new Vector3(), quat: new Quaternion(), color: s.color ?? PVC, metal: s.metal }
     case 'pipe':
       return null
   }

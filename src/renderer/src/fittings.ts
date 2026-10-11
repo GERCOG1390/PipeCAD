@@ -26,7 +26,11 @@ export interface PortDef {
 export type PathSeg = { t: 'line'; a: V3; b: V3 } | { t: 'arc'; a: V3; t0: V3; n: V3; r: number; ang: number }
 export type Shape =
   | { t: 'tube'; segs: PathSeg[]; r: number }
-  | { t: 'lathe'; at: V3; dir: V3; prof: [number, number][]; color?: string; metal?: boolean }
+  | { t: 'lathe'; at: V3; dir: V3; prof: [number, number][]; color?: string; metal?: boolean; seg?: number }
+  // гайка с фасками: r — до грани (под ключ/2), h — высота, ch — фаска
+  | { t: 'nut'; at: V3; dir: V3; sides: number; r: number; h: number; ch?: number; color?: string; metal?: boolean }
+  // протяжка скруглённого прямоугольного сечения w×th вдоль кривой; side — направление ширины
+  | { t: 'sweep'; path: V3[]; w: number; th: number; rad?: number; side: V3; color?: string; metal?: boolean }
   | { t: 'prism'; at: V3; dir: V3; sides: number; r: number; h: number; color?: string }
   | { t: 'knurl'; at: V3; dir: V3; r: number; h: number; ribs: number; color?: string }
   | { t: 'box'; at: V3; dir: V3; size: V3; color?: string; metal?: boolean }
@@ -216,7 +220,33 @@ function trapPath(A: number, B: number, Cc: number, bodyTo = 0): PathSeg[] {
 }
 
 const tube = (r: number, ...segs: PathSeg[]): Shape => ({ t: 'tube', r, segs })
-const lathe = (at: V3, dir: V3, prof: [number, number][], o: { color?: string; metal?: boolean } = {}): Shape => ({ t: 'lathe', at, dir, prof, ...o })
+const lathe = (at: V3, dir: V3, prof: [number, number][], o: { color?: string; metal?: boolean; seg?: number } = {}): Shape => ({ t: 'lathe', at, dir, prof, ...o })
+
+// Скругляет углы профиля (r, z): каждый внутренний угол заменяется дугой радиуса rad
+function rounded(prof: [number, number][], rad: number, k = 6): [number, number][] {
+  const out: [number, number][] = [prof[0]]
+  for (let i = 1; i < prof.length - 1; i++) {
+    const [p0, p1, p2] = [prof[i - 1], prof[i], prof[i + 1]]
+    const a = [p0[0] - p1[0], p0[1] - p1[1]]
+    const b = [p2[0] - p1[0], p2[1] - p1[1]]
+    const la = Math.hypot(a[0], a[1])
+    const lb = Math.hypot(b[0], b[1])
+    const t = Math.min(rad, la * 0.45, lb * 0.45)
+    if (t < 1e-4) {
+      out.push(p1)
+      continue
+    }
+    const s: [number, number] = [p1[0] + (a[0] / la) * t, p1[1] + (a[1] / la) * t]
+    const e: [number, number] = [p1[0] + (b[0] / lb) * t, p1[1] + (b[1] / lb) * t]
+    // квадратичная Безье через угол — плавная дуга
+    for (let j = 0; j <= k; j++) {
+      const u = j / k
+      out.push([(1 - u) * (1 - u) * s[0] + 2 * u * (1 - u) * p1[0] + u * u * e[0], (1 - u) * (1 - u) * s[1] + 2 * u * (1 - u) * p1[1] + u * u * e[1]])
+    }
+  }
+  out.push(prof[prof.length - 1])
+  return out
+}
 
 // Колпак-купол (заглушка) поверх раструба: от z0 до z1 по оси dir
 function domeProfile(R: number, z0: number, z1: number, o: number, inner = true): [number, number][] {
@@ -293,56 +323,171 @@ function showerValve(kind: 'cc' | 'ips'): Built {
 }
 
 // Шаровый кран под пайку по чертежу Mueller Streamline 7700S. Ось трубы — Z, шток — вверх (+Y),
-// рычаг в положении «открыто» — вдоль трубы (+Z).
+// рычаг в положении «открыто» — вдоль трубы (+Z). Двухсоставный корпус: основной корпус + ввёрнутая торцевая часть (слева).
 const LEVER = '#b9bdc3'
 const GRIP = '#f1f1ec'
 function muellerBallValve(size: SizeId): Built {
   const d = MV.MUELLER_7700S[size]!
   const o = sp(size).od / 2
-  const cupR = o + Math.max(0.05, sp(size).od * 0.06)
-  const bodyR = Math.max(cupR * 1.5, o + 0.3)
-  const half = d.C * 0.24 // половина длины центральной части корпуса
+  const cw = Math.max(0.05, sp(size).od * 0.065) // стенка раструба
+  const cupR = o + cw
+  const bodyR = Math.max(cupR * 1.55, o + 0.32)
+  const half = d.C * 0.25
   const B = d.B
-  const shapes: Shape[] = [
-    // корпус: раструбы по краям, утолщение в центре, внутри — канал полного прохода
-    lathe(O, Z, [
-      [o, -B],
-      [cupR - 0.02, -B],
-      [cupR, -B + 0.03],
-      [cupR, -half - 0.1],
-      [bodyR * 0.88, -half],
-      [bodyR, -half + 0.05],
-      [bodyR, half - 0.05],
-      [bodyR * 0.92, half],
-      [cupR * 1.08, half + 0.12],
-      [cupR, half + 0.18],
-      [cupR, B - 0.03],
-      [cupR - 0.02, B],
-      [o, B],
+  const bore = d.A / 2
+  const seg = 128
+  const S = 0.03 + sp(size).od * 0.02 // скругления
+  // основной корпус: правый раструб + шаровая камера (наружный контур, дальше — внутренний канал)
+  const body = rounded(
+    [
+      [bore, -half * 0.55],
+      [bodyR * 0.82, -half * 0.55],
+      [bodyR * 0.82, -half * 0.62],
+      [bodyR, -half * 0.62],
+      [bodyR, half * 0.7],
+      [bodyR * 0.9, half],
+      [cupR + cw * 0.6, half + 0.14],
+      [cupR, half + 0.2],
+      [cupR, B - 0.06],
+      [cupR + cw * 0.35, B - 0.02],
+      [cupR + cw * 0.1, B],
+      [o + 0.015, B],
+      [o, B - 0.03],
       [o, B - d.F],
-      [d.A / 2, B - d.F - 0.01],
-      [d.A / 2, -B + d.F + 0.01],
+      [bore, B - d.F - 0.02],
+      [bore, -half * 0.55]
+    ],
+    S
+  )
+  // торцевая часть (end piece): левый раструб + резьбовая шейка в корпус
+  const end = rounded(
+    [
+      [bore, -half * 0.5],
+      [bodyR * 0.8, -half * 0.5],
+      [bodyR * 0.8, -half * 0.62],
+      [cupR + cw * 0.5, -half - 0.12],
+      [cupR, -half - 0.22],
+      [cupR, -B + 0.06],
+      [cupR + cw * 0.35, -B + 0.02],
+      [cupR + cw * 0.1, -B],
+      [o + 0.015, -B],
+      [o, -B + 0.03],
       [o, -B + d.F],
-      [o, -B]
-    ], { color: BRASS, metal: true }),
-    // поясок резьбового соединения корпуса (как на чертеже — слева)
-    { t: 'prism', at: [0, 0, -half - 0.02], dir: Z, sides: 8, r: bodyR * 1.04, h: Math.max(0.12, half * 0.45), color: BRASS },
-    // горловина штока и сальниковая гайка
-    lathe([0, bodyR * 0.6, 0], Y, [[0.001, 0], [bodyR * 0.48, 0], [bodyR * 0.48, d.D * 0.32], [0.001, d.D * 0.32]], { color: BRASS, metal: true }),
-    { t: 'prism', at: [0, bodyR * 0.6 + d.D * 0.3, 0], dir: Y, sides: 6, r: bodyR * 0.42, h: d.D * 0.14, color: BRASS },
+      [bore, -B + d.F + 0.02],
+      [bore, -half * 0.5]
+    ],
+    S * 0.8
+  )
+  // горловина штока: плавно вырастает из корпуса
+  const neckR = bodyR * 0.46
+  const neckTop = bodyR + d.D * 0.17
+  const neck = rounded(
+    [
+      [0.001, bodyR * 0.5],
+      [neckR * 1.55, bodyR * 0.5],
+      [neckR * 1.25, bodyR * 0.9],
+      [neckR, bodyR * 1.0],
+      [neckR, neckTop],
+      [neckR * 0.85, neckTop + 0.02],
+      [0.001, neckTop + 0.02]
+    ],
+    S
+  )
+  const packH = d.D * 0.14
+  const packTop = neckTop + packH
+  const stemR = Math.max(0.09, bodyR * 0.15)
+  const leverTh = Math.max(0.06, d.E * 0.017)
+  const leverW = Math.max(0.3, d.E * 0.1)
+  const leverY = d.D - leverTh * 0.5 // верх рычага у ручки — на высоте D
+  const y0 = packTop + 0.03 + leverTh * 0.5 // у штока рычаг лежит сразу на сальниковой гайке
+  const nutY = y0 + leverTh * 0.5
+  const shapes: Shape[] = [
+    lathe(O, Z, body, { color: BRASS, metal: true, seg }),
+    lathe(O, Z, end, { color: BRASS, metal: true, seg }),
+    // восьмигранник торцевой части — под ключ при сборке корпуса
+    { t: 'nut', at: [0, 0, -half * 0.62 - 0.02 - Math.max(0.12, half * 0.36)], dir: Z, sides: 8, r: bodyR * 0.98, h: Math.max(0.12, half * 0.36), color: BRASS, metal: true },
+    lathe(O, Y, neck, { color: BRASS, metal: true, seg }),
+    // сальниковая гайка
+    { t: 'nut', at: [0, neckTop, 0], dir: Y, sides: 6, r: neckR * 0.92, h: packH, color: BRASS, metal: true },
     // шток
-    lathe([0, bodyR * 0.6, 0], Y, [[0.001, 0], [bodyR * 0.16, 0], [bodyR * 0.16, d.D - bodyR * 0.6 + 0.1], [0.001, d.D - bodyR * 0.6 + 0.1]], { color: LEVER, metal: true }),
-    // рычаг: стальная полоса вдоль трубы, загиб-упор сзади, виниловая ручка
-    { t: 'box', at: [0, d.D - 0.04, d.E * 0.42], dir: Y, size: [Math.max(0.3, d.E * 0.1), 0.07, d.E * 1.02], color: LEVER, metal: true },
-    { t: 'box', at: [0, d.D - 0.22, -0.18], dir: Y, size: [Math.max(0.3, d.E * 0.1), 0.38, 0.07], color: LEVER, metal: true },
-    { t: 'box', at: [0, d.D - 0.04, d.E * 0.7], dir: Y, size: [Math.max(0.36, d.E * 0.12), 0.14, d.E * 0.56], color: GRIP },
-    // гайка рычага
-    { t: 'prism', at: [0, d.D - 0.01, 0], dir: Y, sides: 6, r: bodyR * 0.24, h: 0.14, color: LEVER }
+    lathe([0, packTop, 0], Y, [[0.001, 0], [stemR, 0], [stemR, nutY - packTop + 0.12], [stemR * 0.7, nutY - packTop + 0.16], [0.001, nutY - packTop + 0.16]], { color: LEVER, metal: true, seg: 48 }),
+    // рычаг: от гайки полоса поднимается и уходит вдоль трубы; сзади — загиб-упор
+    {
+      t: 'sweep',
+      path: [
+        [0, y0 - 0.3, -0.3],
+        [0, y0 - 0.02, -0.24],
+        [0, y0, -0.05],
+        [0, y0, d.E * 0.12],
+        [0, leverY, d.E * 0.4],
+        [0, leverY, d.E]
+      ],
+      w: leverW,
+      th: leverTh,
+      rad: leverTh * 0.45,
+      side: X,
+      color: LEVER,
+      metal: true
+    },
+    // виниловая ручка на конце рычага
+    {
+      t: 'sweep',
+      path: [
+        [0, leverY, d.E * 0.5],
+        [0, leverY, d.E * 0.75],
+        [0, leverY, d.E + 0.06]
+      ],
+      w: leverW * 1.3,
+      th: leverTh * 3,
+      rad: leverTh * 1.3,
+      side: X,
+      color: GRIP
+    },
+    // шайба и гайка рычага
+    lathe([0, nutY, 0], Y, [[stemR, 0], [stemR * 2.2, 0], [stemR * 2.2, 0.03], [stemR, 0.03]], { color: LEVER, metal: true, seg: 48 }),
+    { t: 'nut', at: [0, nutY + 0.03, 0], dir: Y, sides: 6, r: stemR * 1.7, h: Math.max(0.1, stemR * 1.2), color: LEVER, metal: true }
   ]
   return {
     ports: [hub([0, 0, -(B - d.F)], NZ, size, 'p', { bare: true, depth: d.F }), hub([0, 0, B - d.F], Z, size, 'p', { bare: true, depth: d.F })],
     shapes
   }
+}
+
+// PVC шаровый кран (компактный, под клей): белый корпус, красная рукоятка-флажок
+function pvcBallValve(size: SizeId): Built {
+  const s = sp(size)
+  const o = s.od / 2
+  const R = hubR(size, 'p')
+  const g = s.od * 0.9 + 0.4
+  const bodyR = R * 1.42
+  const seg = 128
+  const face = s.socket + 0.15
+  const body = rounded(
+    [
+      [o - s.wall, -g],
+      [R * 1.02, -g],
+      [R * 1.02, -g * 0.62],
+      [bodyR, -g * 0.3],
+      [bodyR, g * 0.3],
+      [R * 1.02, g * 0.62],
+      [R * 1.02, g],
+      [o - s.wall, g]
+    ],
+    0.04 + s.od * 0.03
+  )
+  const neckR = bodyR * 0.42
+  const neckTop = bodyR + s.od * 0.25
+  const hy = neckTop + 0.08
+  const hw = Math.max(0.45, R * 1.2)
+  const hl = R * 3.6
+  const shapes: Shape[] = [
+    lathe(O, Z, body, { seg }),
+    lathe(O, Y, rounded([[0.001, bodyR * 0.6], [neckR * 1.5, bodyR * 0.6], [neckR, bodyR * 0.98], [neckR, neckTop], [0.001, neckTop]], 0.04), { seg }),
+    // рукоятка-флажок: от штока вдоль трубы, конец шире
+    { t: 'sweep', path: [[0, hy, -neckR * 0.9], [0, hy, hl * 0.4], [0, hy + 0.02, hl]], w: hw, th: Math.max(0.1, R * 0.28), rad: Math.max(0.04, R * 0.12), side: X, color: '#c8352e' },
+    lathe([0, hy, 0], Y, [[0.001, 0], [neckR * 1.15, 0], [neckR * 1.15, Math.max(0.12, R * 0.35)], [0.001, Math.max(0.12, R * 0.35)]], { color: '#c8352e', seg: 64 })
+  ]
+  return finalize({ ports: [hub([0, 0, -g], NZ, size, 'p', { face }), hub([0, 0, g], Z, size, 'p', { face })], shapes })
 }
 
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
@@ -1104,20 +1249,7 @@ pbull: {
     icon: 'valve',
     key: 'V',
     sizes: PRESSURE_SIZES.slice(0, 8),
-    build: (p) => {
-      const s = p.size
-      const od = sp(s).od
-      const g = od * 0.9 + 0.4
-      const R = hubR(s, 'p')
-      return finalize({
-        ports: [hub([0, 0, -g], NZ, s, 'p', { face: sp(s).socket + 0.15 }), hub([0, 0, g], Z, s, 'p', { face: sp(s).socket + 0.15 })],
-        shapes: [
-          lathe(O, Z, [[R * 0.9, -g], [R * 1.05, -g * 0.75], [R * 1.42, -g * 0.35], [R * 1.48, 0], [R * 1.42, g * 0.35], [R * 1.05, g * 0.75], [R * 0.9, g]]),
-          lathe(O, Y, [[R * 0.32, 0], [R * 0.32, R * 1.9], [0.001, R * 1.9]]),
-          { t: 'box', at: [R * 1.1, R * 2.05, 0], dir: Y, size: [R * 3.4, R * 0.36, R * 0.75], color: '#c8352e' }
-        ]
-      })
-    },
+    build: (p) => pvcBallValve(p.size),
     bom: (p) => [{ name: `${sizeLabel(p.size)} PVC Ball Valve (Slip x Slip)` }]
   },
 
