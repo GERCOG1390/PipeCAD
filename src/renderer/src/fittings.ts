@@ -239,6 +239,9 @@ const pairOpts = (m: Map<string, unknown>, main: SizeId, side: 'a' | 'b' = 'a'):
   [...m.keys()].map((k) => k.split('|') as [SizeId, SizeId]).filter((p) => (side === 'a' ? p[0] : p[1]) === main).map((p) => (side === 'a' ? p[1] : p[0]))
 const incrPartners = (s: SizeId): SizeId[] => [...pairOpts(DW.D_INCREASER, s, 'a'), ...pairOpts(DW.D_INCREASER, s, 'b')]
 const smaller = (s: SizeId, pool: SizeId[]): SizeId[] => pool.filter((x) => sizeIndex(x) < sizeIndex(s))
+// bullhead: ключи таблицы "ствол|отвод"; в каталоге деталь живёт под размером отвода
+const bullBranches = (m: Map<string, unknown>): SizeId[] => ALL_SIZES.filter((s) => [...m.keys()].some((k) => k.split('|')[1] === s))
+const bullRuns = (m: Map<string, unknown>, branch: SizeId): SizeId[] => [...m.keys()].map((k) => k.split('|') as [SizeId, SizeId]).filter((x) => x[1] === branch).map((x) => x[0])
 const cuKeys = (t: object): SizeId[] => CU_SIZES.filter((s) => s in t)
 const cuRedPartners = (s: SizeId): SizeId[] => [...pairOpts(NB.CU_REDUCER, s, 'a'), ...pairOpts(NB.CU_REDUCER, s, 'b')]
 const BRASS = '#c9a64a'
@@ -426,6 +429,26 @@ export const FITTINGS: Record<string, FittingDef> = {
     bom: (p) => {
       const b = p.size2 && p.size2 !== p.size ? p.size2 : undefined
       return [{ name: b ? `${sizeLabel(p.size)} x ${sizeLabel(p.size)} x ${sizeLabel(b)} Wrot Copper Tee C x C x C` : `${sizeLabel(p.size)} Wrot Copper Tee C x C x C`, pn: '611' }]
+    }
+  },
+cuBull: {
+    ru: 'Тройник bullhead (отвод больше)',
+    en: 'Bullhead Tee C x C x C',
+    group: CU,
+    cat: 'Тройники',
+    icon: 'bullhead',
+    pn: '611',
+    sizes: bullBranches(NB.CU_TEE_BULL),
+    size2: { label: 'Размер прохода (бока)', options: (s) => bullRuns(NB.CU_TEE_BULL, s) },
+    build: (p) => {
+      const branch = p.size
+      const run = p.size2 ?? bullRuns(NB.CU_TEE_BULL, branch)[0]
+      const [Cc, G] = NB.CU_TEE_BULL.get(`${run}|${branch}`)!
+      return teeLike(run, 'p', Cc, Cc, [{ dir: X, G, size: branch }])
+    },
+    bom: (p) => {
+      const run = p.size2 ?? p.size
+      return [{ name: `${sizeLabel(run)} x ${sizeLabel(run)} x ${sizeLabel(p.size)} Wrot Copper Tee C x C x C (Bullhead)`, pn: '611' }]
     }
   },
   cuCross: {
@@ -690,6 +713,27 @@ export const FITTINGS: Record<string, FittingDef> = {
     bom: (p) => {
       const red = p.size2 && p.size2 !== p.size ? PR.TEE_RED.get(PR.pairKey(p.size, p.size2)) : undefined
       return [{ name: red ? `${sizeLabel(p.size)} x ${sizeLabel(p.size)} x ${sizeLabel(p.size2!)} PVC Sch 40 Reducing Tee` : `${sizeLabel(p.size)} PVC Sch 40 Tee`, pn: red?.pn ?? PR.TEE[p.size]?.pn }]
+    }
+  },
+pbull: {
+    ru: 'Тройник bullhead (отвод больше)',
+    en: 'Bullhead Tee S x S x S',
+    group: P,
+    cat: 'Тройники',
+    icon: 'bullhead',
+    pn: '2400',
+    // size — отвод (центр), size2 — проход (бока)
+    sizes: bullBranches(PR.TEE_BULL),
+    size2: { label: 'Размер прохода (бока)', options: (s) => bullRuns(PR.TEE_BULL, s) },
+    build: (p) => {
+      const branch = p.size
+      const run = p.size2 ?? bullRuns(PR.TEE_BULL, branch)[0]
+      const r = PR.TEE_BULL.get(PR.pairKey(run, branch))!
+      return teeLike(run, 'p', r.G, r.G, [{ dir: X, G: r.G1, size: branch, face: r.H1 - r.G1 }], undefined, [r.H - r.G, r.H - r.G])
+    },
+    bom: (p) => {
+      const run = p.size2 ?? p.size
+      return [{ name: `${sizeLabel(run)} x ${sizeLabel(run)} x ${sizeLabel(p.size)} PVC Sch 40 Bullhead Tee`, pn: PR.TEE_BULL.get(PR.pairKey(run, p.size))?.pn }]
     }
   },
   pteefpt: {

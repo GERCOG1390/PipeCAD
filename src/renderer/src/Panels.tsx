@@ -14,6 +14,7 @@ const ICONS: Record<string, string> = {
   st90: 'M6 1v10a2 2 0 0 0 2 2h13M3 5h6',
   ell45: 'M2 16h9l9-9',
   tee: 'M3 9h18M12 9v12',
+  bullhead: 'M3 10h18M12 10v11M7 10v-3M17 10v-3M9 21h6',
   cross: 'M3 12h18M12 3v18',
   coupling: 'M2 12h20M8 7v10M16 7v10',
   reducer: 'M2 9h8l4 2h8M2 15h8l4-2h8',
@@ -43,6 +44,8 @@ const ICONS: Record<string, string> = {
   return: 'M5 2v10a7 7 0 0 0 14 0V2',
   closet: 'M12 23V12M3 11h18'
 }
+
+const nominalLabel = (s: SizeId): string => sizeLabel(s)
 
 export function KindIcon({ kind }: { kind: string }) {
   return (
@@ -398,6 +401,7 @@ export function Inspector({ model }: { model: Model }) {
   const s2 = def.size2
   const s2opts = s2 ? s2.options(part.size) : []
   const title2 = part.size2 && part.size2 !== part.size ? ` × ${sizeLabel(part.size2)}` : ''
+  const bull = part.kind === 'pbull' || part.kind === 'cuBull'
 
   return (
     <div className="inspector">
@@ -405,8 +409,7 @@ export function Inspector({ model }: { model: Model }) {
         <KindIcon kind={part.kind} />
         <div>
           <div className="insp-title">
-            {def.ru} {sizeLabel(part.size)}
-            {title2}
+            {bull ? `Тройник bullhead ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size)}` : <>{def.ru} {sizeLabel(part.size)}{title2}</>}
           </div>
           <div className="insp-sub">
             {def.en}
