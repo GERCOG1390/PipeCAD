@@ -4,7 +4,7 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import type { V3 } from './catalog'
 
-export type EnvType = 'concreteWall' | 'slab' | 'footing' | 'ground' | 'studWall' | 'joists' | 'lumber' | 'sheet'
+export type EnvType = 'concreteWall' | 'slab' | 'footing' | 'ground' | 'studWall' | 'joists' | 'lumber' | 'sheet' | 'person'
 export type Mat = 'concrete' | 'wood' | 'plywood' | 'osb' | 'drywall' | 'dirt' | 'grass' | 'gravel' | 'sand'
 
 export interface EnvItem {
@@ -66,7 +66,8 @@ export const ENV_DEFS: Record<EnvType, EnvDef> = {
   studWall: { ru: 'Каркасная стена', cat: 'Каркас', fields: { L: 'Длина', H: 'Высота' } },
   joists: { ru: 'Перекрытие (джойсты)', cat: 'Каркас', fields: { L: 'Пролёт', W: 'Ширина' } },
   lumber: { ru: 'Доска / брус', cat: 'Пиломатериал', fields: { L: 'Длина' } },
-  sheet: { ru: 'Лист', cat: 'Листы', fields: { L: 'Длина', W: 'Ширина' } }
+  sheet: { ru: 'Лист', cat: 'Листы', fields: { L: 'Длина', W: 'Ширина' } },
+  person: { ru: 'Сантехник (в натуральную величину)', cat: 'Люди', fields: { H: 'Рост' } }
 }
 
 export interface Preset {
@@ -120,6 +121,10 @@ export const PRESETS: { cat: string; items: Preset[] }[] = [
       { label: 'Гравий (подсыпка 4")', type: 'ground', L: 144, W: 120, H: 4, o: { surface: 'gravel', trench: false } },
       { label: 'Песок (подсыпка 4")', type: 'ground', L: 144, W: 120, H: 4, o: { surface: 'sand', trench: false } }
     ]
+  },
+  {
+    cat: 'Люди',
+    items: [{ label: `Сантехник (рост 5' 10")`, type: 'person', L: 0, W: 0, H: 70, o: { face: true } }]
   }
 ]
 
@@ -146,15 +151,22 @@ export function normalize(it: EnvItem): EnvItem {
       const sh = SHEETS[str(it.o.sheet, 'ply-3/4')] ?? SHEETS['ply-3/4']
       return { ...it, H: str(it.o.orient, 'floor') === 'floor' ? sh.th : it.W }
     }
+    case 'person':
+      // ширина фигуры по пропорциям фото
+      return { ...it, L: Math.round(it.H * PERSON_ASPECT * 100) / 100, W: 1 }
     default:
       return it
   }
 }
 
+export const PERSON_ASPECT = 111 / 500
+
 export function boardsOf(it: EnvItem): Board[] {
   const { L, W, H } = it
   const o = it.o
   switch (it.type) {
+    case 'person':
+      return []
     case 'concreteWall':
     case 'slab':
     case 'footing':

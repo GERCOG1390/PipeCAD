@@ -1,7 +1,8 @@
 import { TransformControls } from '@react-three/drei'
-import { ThreeEvent } from '@react-three/fiber'
-import { useEffect, useMemo, useState } from 'react'
-import { BoxGeometry, BufferGeometry, Group, Material, Mesh, Object3D, Quaternion, Vector3 } from 'three'
+import { ThreeEvent, useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { BoxGeometry, BufferGeometry, DoubleSide, Group, Material, Mesh, Object3D, Quaternion, SRGBColorSpace, Texture, TextureLoader, Vector3 } from 'three'
+import plumberPng from './assets/plumber.png'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { Part, V3, sizeSpec } from './catalog'
 import { Board, EnvItem, Mat, Penetration, boardsOf, findPenetrations } from './environment'
@@ -75,6 +76,44 @@ function EnvMesh({ it, look, selected, onPick }: { it: EnvItem; look: EnvLook; s
   )
 }
 
+// Сантехник в натуральную величину: вырезанное фото на плоскости, поворачивается к камере
+let personTex: Texture | null = null
+function PersonStandee({ it, selected, onPick }: { it: EnvItem; selected: boolean; onPick: (e: ThreeEvent<MouseEvent>) => void }) {
+  const turn = useRef<Group>(null)
+  const { camera } = useThree()
+  if (!personTex) {
+    personTex = new TextureLoader().load(plumberPng)
+    personTex.colorSpace = SRGBColorSpace
+    personTex.anisotropy = 8
+  }
+  const w = it.L
+  const h = it.H
+  useFrame(() => {
+    const g = turn.current
+    if (!g || it.o.face === false || !g.parent) return
+    const p = new Vector3()
+    g.getWorldPosition(p)
+    const parentRot = g.parent.getWorldQuaternion(new Quaternion())
+    const yaw = Math.atan2(camera.position.x - p.x, camera.position.z - p.z)
+    g.quaternion.copy(parentRot.invert()).multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw))
+  })
+  return (
+    <group position={[w / 2, 0, 0.5]}>
+      <group ref={turn}>
+        <mesh position={[0, h / 2, 0]} onClick={onPick}>
+          <planeGeometry args={[w, h]} />
+          <meshBasicMaterial map={personTex} transparent alphaTest={0.08} depthWrite={false} side={DoubleSide} color={selected ? '#9ff3ea' : '#ffffff'} toneMapped={false} />
+        </mesh>
+      </group>
+      {/* тень-пятно под ногами */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+        <circleGeometry args={[w * 0.45, 32]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.25} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
 function EnvObject({ it }: { it: EnvItem }) {
   const look = useStore((s) => (s.envMode === 'ghost' ? 'ghost' : 'solid')) as EnvLook
   const selected = useStore((s) => s.selectedEnv === it.id)
@@ -89,7 +128,7 @@ function EnvObject({ it }: { it: EnvItem }) {
   return (
     <>
       <group ref={setObj} position={it.pos} rotation={[0, (it.rotY * Math.PI) / 180, 0]}>
-        <EnvMesh it={it} look={look} selected={selected} onPick={look === 'ghost' ? undefined : onPick} />
+        {it.type === 'person' ? <PersonStandee it={it} selected={selected} onPick={onPick} /> : <EnvMesh it={it} look={look} selected={selected} onPick={look === 'ghost' ? undefined : onPick} />}
       </group>
       {selected && obj && <Mover object={obj} snap={snap} onMove={(p) => moveEnv(it.id, p)} />}
     </>
