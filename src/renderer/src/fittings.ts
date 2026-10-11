@@ -1002,6 +1002,131 @@ function expansionTank(t: (typeof XT)[number]): Built {
   return built
 }
 
+// ---------- Проточные (tankless) конденсационные котлы ----------
+// Начало — центр дна корпуса, +Y вверх, +Z — перед, задняя стенка (к стене) на z = −D/2.
+// Подключения снизу: x — от левого края (вид спереди), z — от задней стенки.
+interface TanklessSpec {
+  model: string
+  brand: 'Navien' | 'Rinnai'
+  btu: number
+  W: number
+  H: number
+  D: number
+  conns: { name: string; x: number; z: number; kind: 'mpt'; size: SizeId; water?: boolean }[]
+  vents: { x: number; z: number; size: SizeId; name: string }[]
+}
+// Navien NPE Series Spec Sheet (Rev. 12/15): 17.3 x 27.4 x 13.2; hot 2.3" от левого края, recirc +3.0", cold +8.3"; 2.4" от задней стенки;
+// вентиляция сверху: intake 4.5" от левого края, exhaust +6.7"; 3.0"/2.6" от задней стенки.
+const NAVIEN_CONNS: TanklessSpec['conns'] = [
+  { name: 'Hot Out', x: 2.3, z: 2.4, kind: 'mpt', size: '3/4', water: true },
+  { name: 'Recirc In', x: 5.3, z: 2.4, kind: 'mpt', size: '3/4', water: true },
+  { name: 'Cold In', x: 13.6, z: 2.4, kind: 'mpt', size: '3/4', water: true },
+  { name: 'Gas', x: 1.8, z: 6.2, kind: 'mpt', size: '3/4' },
+  { name: 'Condensate', x: 10.8, z: 2.4, kind: 'mpt', size: '1/2' }
+]
+const NAVIEN_VENTS: TanklessSpec['vents'] = [
+  { x: 4.5, z: 3.0, size: '2', name: 'Intake' },
+  { x: 11.2, z: 2.6, size: '2', name: 'Exhaust' }
+]
+// Rinnai Sensei Spec Sheet (RUi-SP-1): 18.5 x 26.4 x 11.45; размеры снизу от правого края (E, F, H) и от передней кромки (B, C, D);
+// вентиляция: 5.90" от левого края.
+const rinnaiConn = (fromRight: number, fromFront: number): { x: number; z: number } => ({ x: 18.5 - fromRight, z: 11.45 - fromFront })
+const RINNAI_CONNS: TanklessSpec['conns'] = [
+  { name: 'Hot Out', ...rinnaiConn(14.27, 6.16), kind: 'mpt', size: '3/4', water: true },
+  { name: 'Cold In', ...rinnaiConn(9.54, 3.56), kind: 'mpt', size: '3/4', water: true },
+  { name: 'Gas', ...rinnaiConn(3.57, 2.78), kind: 'mpt', size: '3/4' },
+  { name: 'Condensate', x: 2.6, z: 3.0, kind: 'mpt', size: '1/2' }
+]
+const RINNAI_VENTS: TanklessSpec['vents'] = [{ x: 5.9, z: 11.45 - 6.08, size: '2', name: 'Exhaust' }]
+const TANKLESS: TanklessSpec[] = [
+  { model: 'NPE-240A2', brand: 'Navien', btu: 199900, W: 17.3, H: 27.4, D: 13.2, conns: NAVIEN_CONNS, vents: NAVIEN_VENTS },
+  { model: 'NPE-210A2', brand: 'Navien', btu: 180000, W: 17.3, H: 27.4, D: 13.2, conns: NAVIEN_CONNS, vents: NAVIEN_VENTS },
+  { model: 'NPE-180A2', brand: 'Navien', btu: 150000, W: 17.3, H: 27.4, D: 13.2, conns: NAVIEN_CONNS, vents: NAVIEN_VENTS },
+  { model: 'RU199iN', brand: 'Rinnai', btu: 199000, W: 18.5, H: 26.4, D: 11.45, conns: RINNAI_CONNS, vents: RINNAI_VENTS },
+  { model: 'RU180iN', brand: 'Rinnai', btu: 180000, W: 18.5, H: 26.4, D: 11.45, conns: RINNAI_CONNS, vents: RINNAI_VENTS },
+  { model: 'RU160iN', brand: 'Rinnai', btu: 160000, W: 18.5, H: 26.4, D: 11.45, conns: RINNAI_CONNS, vents: RINNAI_VENTS }
+]
+
+function tankless(t: TanklessSpec): Built {
+  const { W, H, D } = t
+  const back = -D / 2
+  const nav = t.brand === 'Navien'
+  const body = nav ? '#e6e7e9' : '#eceef0'
+  const frame = nav ? '#9fa4a9' : '#b8bdc2'
+  const shapes: Shape[] = [
+    // корпус (задняя часть / рама) и передняя крышка
+    { t: 'rbox', at: [0, H / 2, back + D * 0.42], dir: Y, size: [W, H, D * 0.84], r: 0.6, color: frame, metal: true },
+    { t: 'rbox', at: [0, H / 2, back + D * 0.6], dir: Y, size: [W - 0.4, H - 0.5, D * 0.8], r: 1.4, color: body },
+    // задний настенный кронштейн
+    { t: 'rbox', at: [0, H - 2, back + 0.15], dir: Y, size: [W * 0.6, 1.6, 0.3], r: 0.1, color: '#6e747a', metal: true },
+    // нижняя плита с отверстиями под подключения
+    { t: 'rbox', at: [0, 0.35, back + D * 0.45], dir: Y, size: [W - 0.6, 0.7, D * 0.88], r: 0.15, color: '#5f6469', metal: true }
+  ]
+  const fz = back + D * 0.6 + D * 0.4 // передняя плоскость крышки
+  if (nav) {
+    // фирменные «волны» крышки и нижняя панель управления
+    for (const s of [-1, 1]) {
+      shapes.push({
+        t: 'sweep',
+        path: [
+          [s * W * 0.22, H - 1.2, fz + 0.02],
+          [s * W * 0.16, H * 0.6, fz + 0.06],
+          [s * W * 0.12, H * 0.32, fz + 0.06],
+          [s * W * 0.1, H * 0.12, fz + 0.02]
+        ],
+        w: 0.22,
+        th: 0.12,
+        side: X,
+        color: '#c7cacd'
+      })
+    }
+    shapes.push(
+      { t: 'rbox', at: [0, H * 0.2, fz - 0.05], dir: Y, size: [W * 0.2, H * 0.3, 0.35], r: 0.3, color: '#cfd2d5' },
+      { t: 'rbox', at: [0, H * 0.16, fz + 0.12], dir: Y, size: [2.6, 2.6, 0.12], r: 0.25, color: '#1b1d20' },
+      { t: 'box', at: [0, H * 0.17, fz + 0.2], dir: Y, size: [1.8, 1.0, 0.04], color: '#47c3ff' },
+      { t: 'box', at: [0, H * 0.82, fz + 0.06], dir: Y, size: [3.6, 0.5, 0.04], color: '#1c3f8e' }
+    )
+  } else {
+    // Rinnai: панель управления справа внизу, логотип
+    shapes.push(
+      { t: 'rbox', at: [W * 0.22, H * 0.14, fz + 0.05], dir: Y, size: [3.2, 4.2, 0.25], r: 0.3, color: '#2a2d31' },
+      { t: 'box', at: [W * 0.22, H * 0.18, fz + 0.2], dir: Y, size: [2.2, 1.1, 0.04], color: '#7fe0a0' },
+      { t: 'box', at: [W * 0.22, H * 0.08, fz + 0.2], dir: Y, size: [2.4, 0.5, 0.04], color: '#c22a2a' },
+      { t: 'rbox', at: [0, H * 0.06, fz - 0.4], dir: Y, size: [W - 1.2, 0.6, 0.8], r: 0.2, color: '#9aa0a6', metal: true }
+    )
+  }
+  // подключения снизу: латунные ниппели с шестигранником
+  const ports: PortDef[] = []
+  for (const c of t.conns) {
+    const x = -W / 2 + c.x
+    const z = back + c.z
+    const o = sp(c.size).od / 2
+    shapes.push(
+      { t: 'nut', at: [x, -0.05, z], dir: [0, -1, 0], sides: 6, r: o + 0.22, h: 0.45, color: BRASS, metal: true },
+      lathe([x, -0.5, z], [0, -1, 0], [[o - 0.05, 0], [o + 0.12, 0], [o + 0.12, 0.25], [o - 0.05, 0.25]], { color: c.water ? (c.name.startsWith('Hot') ? '#c8352e' : c.name.startsWith('Cold') ? '#2563eb' : '#e0a21c') : c.name === 'Gas' ? '#e8c51a' : '#9aa0a6', seg: 32 })
+    )
+    ports.push(mpt([x, -1.6, z], [0, -1, 0], c.size, 'p', 0.85, c.water ? { preferCu: true } : {}))
+  }
+  // вентиляция сверху: патрубки 2" PVC с фланцами
+  for (const v of t.vents) {
+    const x = -W / 2 + v.x
+    const z = back + v.z
+    const vo = sp(v.size).od / 2
+    shapes.push(
+      lathe([x, H - 0.05, z], Y, rounded([[vo + 0.6, 0], [vo + 1.4, 0], [vo + 1.4, 0.25], [vo + 0.6, 0.3]], 0.08), { color: '#3a3e44', seg: 64 }),
+      lathe([x, H + 0.2, z], Y, [[vo + 0.02, 0], [vo + 0.28, 0], [vo + 0.28, 1.5], [vo + 0.02, 1.5]], { color: '#e9e9e4', seg: 64 })
+    )
+    for (const a of [45, 135, 225, 315]) {
+      const r = ((a * Math.PI) / 180)
+      shapes.push({ t: 'nut', at: [x + Math.cos(r) * (vo + 1.05), H + 0.2, z + Math.sin(r) * (vo + 1.05)], dir: Y, sides: 6, r: 0.14, h: 0.12, color: '#c9ced3', metal: true })
+    }
+    ports.push(hub([x, H + 1.7 - sp(v.size).socket, z], Y, v.size, 'p', { bare: true, R: vo + 0.28 }))
+  }
+  const built = finalize({ ports, shapes })
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: BRASS, metal: true } : s))
+  return built
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -2503,6 +2628,23 @@ for (const t of XT) {
     place: { rot: [0, 0, 0], height: 0 },
     build: () => expansionTank(t),
     bom: () => [{ name: 'Watts ' + t.model + ' Thermal Expansion Tank, ' + t.gal + ' Gal, ' + sizeLabel(t.size) + (t.conn === 'mpt' ? ' MNPT' : ' FNPT'), pn: t.model }]
+  }
+}
+
+// Проточные котлы (tankless)
+for (const t of TANKLESS) {
+  FITTINGS['tl_' + t.model] = {
+    ru: t.brand + ' ' + t.model + ' · ' + Math.round(t.btu / 1000) + 'k BTU',
+    en: t.brand + ' ' + t.model + ' Condensing Tankless Water Heater',
+    group: 'heater',
+    cat: 'Gas — Tankless (Condensing)',
+    icon: 'tankless',
+    pn: t.model,
+    sizes: ALL_SIZES,
+    // висит на стене: низ корпуса на высоте 48" от пола
+    place: { rot: [0, 0, 0], height: 48, always: true },
+    build: () => tankless(t),
+    bom: () => [{ name: t.brand + ' ' + t.model + ' Indoor Condensing Tankless Water Heater, Natural Gas, ' + t.btu.toLocaleString('en-US') + ' BTU', pn: t.model }]
   }
 }
 
