@@ -796,9 +796,11 @@ function waterHeater(h: WH.HeaterSpec): Built {
     },
     lathe([c[0], h.D + 1.85, c[2]], Y, [[0.001, 0], [0.18, 0], [0.18, 0.25], [0.001, 0.25]], { color: '#c9cdd1', metal: true, seg: 24 }),
     // прилив выхода вниз
-    lathe([c[0], h.D - 0.3, c[2]], [0, -1, 0], rounded([[0.001, -0.3], [0.62, -0.3], [0.62, 0.6], [0.001, 0.6]], 0.08), { color: BRASS, metal: true, seg: 48 })
+    lathe([c[0], h.D - 0.3, c[2]], [0, -1, 0], rounded([[0.001, -0.3], [0.62, -0.3], [0.62, 0.55], [0.68, 0.6], [0.68, 0.95], [0.6, 1.0], [0.001, 1.0]], 0.05), { color: BRASS, metal: true, seg: 48 }),
+    { t: 'nut', at: [c[0], h.D - 1.3, c[2]], dir: Y, sides: 6, r: 0.66, h: 0.42, color: BRASS, metal: true }
   )
-  ports.push(fpt([c[0], h.D - 1.15, c[2]], [0, -1, 0], '3/4', 'p', NPT['3/4'], { face: 0.25, R: 0.66, bare: true, preferCu: true }))
+  // вход резьбы FPT — ровно на торце прилива (y = D − 1.3)
+  ports.push(fpt([c[0], h.D - 1.3 + NPT['3/4'], c[2]], [0, -1, 0], '3/4', 'p', NPT['3/4'], { face: NPT['3/4'], R: 0.66, bare: true, preferCu: true }))
 
   // ---- сливной кран у дна (слева-спереди): корпус, маховичок, штуцер под шланг ----
   const dA = -38

@@ -961,6 +961,7 @@ function CameraRig({ model }: { model: Model }) {
   const { camera, scene } = useThree()
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
   const view = useStore((s) => s.view)
+  ;(window as unknown as { pipecadControls: unknown }).pipecadControls = controls // для автотестов
   useEffect(() => {
     if (!controls || view.tick === 0) return
     const box = new Box3()
