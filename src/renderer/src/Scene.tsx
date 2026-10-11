@@ -759,22 +759,53 @@ function PlacementLayer() {
   )
 }
 
+// Подписи длин труб: свой слой поверх холста, без React-порталов (drei Html при массовом удалении
+// конфликтует с React 19). Элементы создаём и двигаем сами, каждый кадр.
 function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
-  return (
-    <>
-      {parts
-        .filter((p) => p.kind === 'pipe')
-        .map((p) => {
-          const xf = model.xfs.get(p.id)!
-          const mid = new Vector3(0, 0, (p.length ?? 0) / 2).applyQuaternion(xf.quat).add(xf.pos)
-          return (
-            <Html key={p.id} position={mid} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
-              <div className="dim">{formatLength(p.length ?? 0)}</div>
-            </Html>
-          )
-        })}
-    </>
-  )
+  const { camera, gl, size } = useThree()
+  const layer = useRef<HTMLDivElement | null>(null)
+  const items = useRef<{ el: HTMLDivElement; pos: Vector3 }[]>([])
+  useEffect(() => {
+    const host = gl.domElement.parentElement
+    if (!host) return
+    const div = document.createElement('div')
+    div.className = 'dim-layer'
+    host.appendChild(div)
+    layer.current = div
+    return () => {
+      div.remove()
+      layer.current = null
+      items.current = []
+    }
+  }, [gl])
+  useEffect(() => {
+    const div = layer.current
+    if (!div) return
+    div.textContent = ''
+    items.current = parts
+      .filter((p) => p.kind === 'pipe')
+      .map((p) => {
+        const xf = model.xfs.get(p.id)!
+        const el = document.createElement('div')
+        el.className = 'dim'
+        el.textContent = formatLength(p.length ?? 0)
+        div.appendChild(el)
+        return { el, pos: new Vector3(0, 0, (p.length ?? 0) / 2).applyQuaternion(xf.quat).add(xf.pos) }
+      })
+  }, [parts, model])
+  const v = useMemo(() => new Vector3(), [])
+  useFrame(() => {
+    for (const it of items.current) {
+      v.copy(it.pos).project(camera)
+      if (v.z > 1 || v.z < -1) {
+        it.el.style.display = 'none'
+        continue
+      }
+      it.el.style.display = ''
+      it.el.style.transform = `translate(-50%, -50%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`
+    }
+  })
+  return null
 }
 
 // Мягкое окружение для отражений на пластике (без загрузки HDR из сети)

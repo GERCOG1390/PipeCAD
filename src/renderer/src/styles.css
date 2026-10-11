@@ -160,3 +160,5 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .mat-tabs { padding: 0; border: none; }
 .mat-tabs button.cu.on { background: #6b3a1f; border-color: #e0915f; }
 .tag.cu { background: #4a2c1a; color: #f2b48a; }
+.dim-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+.dim-layer .dim { position: absolute; left: 0; top: 0; will-change: transform; }

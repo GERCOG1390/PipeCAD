@@ -63,7 +63,7 @@ export interface FittingDef {
   size2?: { label: string; options: (s: SizeId) => SizeId[]; optional?: boolean; reversible?: boolean }
   build: (p: Part) => Built
   // установка отдельной веткой: поворот (градусы, порядок YXZ) и «верх вровень с поверхностью» (локальная Z верхней плоскости)
-  place?: { rot: V3; flushTop?: (p: Part) => number }
+  place?: { rot: V3; flushTop?: (p: Part) => number; height?: number }
   bom?: (p: Part) => { name: string; pn?: string }[]
 }
 
@@ -260,6 +260,37 @@ function cuBend(size: SizeId, angDeg: number, Cc: number, f: number, B?: number)
   })
 }
 
+// Смеситель душа (rough-in valve) по чертежу Moen 2520/2510 Posi-Temp.
+// Локальные оси: +Z — в комнату (ось картриджа), +Y — вверх. Порты: 0 горячая (−X), 1 холодная (+X), 2 душ (вверх), 3 излив ванны (вниз).
+// Торцы входов — 2-3/4" между собой (±1-3/8"), выходы — 1-3/8" от центра.
+const SHOWER_END = 1.375
+function showerValve(kind: 'cc' | 'ips'): Built {
+  const dirs: V3[] = [NX, X, Y, [0, -1, 0]]
+  const ports: PortDef[] = dirs.map((d) => {
+    if (kind === 'cc') {
+      const sz: SizeId = 'cu1/2'
+      const depth = sp(sz).socket
+      return hub(mul(d, SHOWER_END - depth), d, sz, 'p', { face: depth, R: sp(sz).od / 2 + 0.09 })
+    }
+    const T = NPT['1/2']
+    return fpt(mul(d, SHOWER_END - T), d, '1/2', 'p', T, { face: T, R: 0.6 })
+  })
+  const armR = 0.42
+  const shapes: Shape[] = [
+    // корпус и выходы к портам
+    ...dirs.map((d, i) => tube(armR, line(O, mul(d, SHOWER_END - ports[i].depth)))),
+    lathe([0, 0, -0.85], Z, [[0.001, 0], [0.9, 0], [1.0, 0.15], [1.0, 1.35], [0.62, 1.5], [0.62, 2.15], [0.5, 2.15], [0.5, 2.55], [0.001, 2.6]]),
+    // защитная пластиковая рамка под штукатурку (plaster ground) 4-1/2"
+    { t: 'box', at: [0, 0, 1.5], dir: Y, size: [4.5, 4.5, 0.08], color: '#e6e6e0' },
+    // заглушка-тест (test plug) спереди
+    lathe([0, 0, 1.5], Z, [[0.001, 0.05], [0.66, 0.05], [0.66, 0.45], [0.001, 0.5]], { color: '#2b2f34' })
+  ]
+  const built = finalize({ ports, shapes })
+  // латунь: всё, что без своего цвета
+  built.shapes = built.shapes.map((s) => (s.t !== 'pipe' && !('color' in s && s.color) ? { ...s, color: BRASS, ...(s.t === 'lathe' ? { metal: true } : {}) } as Shape : s))
+  return built
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -451,6 +482,31 @@ cuBull: {
       return [{ name: `${sizeLabel(run)} x ${sizeLabel(run)} x ${sizeLabel(p.size)} Wrot Copper Tee C x C x C (Bullhead)`, pn: '611' }]
     }
   },
+showerCC: {
+    ru: 'Смеситель душа под стену (CC, пайка)',
+    en: 'Posi-Temp Pressure-Balancing Rough-In Valve 1/2" CC',
+    group: CU,
+    cat: 'Смесители',
+    icon: 'shower',
+    pn: '2520',
+    sizes: ['cu1/2'],
+    place: { rot: [0, 0, 0], height: 48 },
+    build: () => showerValve('cc'),
+    bom: () => [{ name: 'Moen 2520 Posi-Temp Pressure-Balancing Rough-In Valve 1/2" CC', pn: '2520' }]
+  },
+  showerIPS: {
+    ru: 'Смеситель душа под стену (IPS, резьба)',
+    en: 'Posi-Temp Pressure-Balancing Rough-In Valve 1/2" IPS',
+    group: P,
+    cat: 'Смесители',
+    icon: 'shower',
+    pn: '2510',
+    sizes: ['1/2'],
+    place: { rot: [0, 0, 0], height: 48 },
+    build: () => showerValve('ips'),
+    bom: () => [{ name: 'Moen 2510 Posi-Temp Pressure-Balancing Rough-In Valve 1/2" IPS', pn: '2510' }]
+  },
+
   cuCross: {
     ru: 'Крестовина (литая)',
     en: 'Cross C x C x C x C - Cast',

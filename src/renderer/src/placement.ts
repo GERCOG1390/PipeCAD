@@ -25,7 +25,10 @@ export function placementFor(pl: Placing, at: V3, o: { id: string; size: SizeId;
   if (pl.kind === 'pipe') part.length = o.lastPipe || DEFAULT_PIPE
   const q = new Quaternion().setFromEuler(new Euler(rot[0] * DEG, rot[1] * DEG, rot[2] * DEG, 'YXZ'))
   let offY: number
-  if (def.place?.flushTop) {
+  if (def.place?.height !== undefined) {
+    // арматура в стене: центр на заданной высоте над полом (например, смеситель душа 48")
+    offY = def.place.height
+  } else if (def.place?.flushTop) {
     // верх (например, фланец унитаза) вровень с поверхностью, раструб уходит вниз
     offY = -new Vector3(0, 0, def.place.flushTop(part)).applyQuaternion(q).y
   } else {

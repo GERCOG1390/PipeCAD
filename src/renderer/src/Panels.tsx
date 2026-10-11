@@ -14,6 +14,7 @@ const ICONS: Record<string, string> = {
   st90: 'M6 1v10a2 2 0 0 0 2 2h13M3 5h6',
   ell45: 'M2 16h9l9-9',
   tee: 'M3 9h18M12 9v12',
+  shower: 'M3 13h18M12 3v18M8 9h8v8H8z',
   bullhead: 'M3 10h18M12 10v11M7 10v-3M17 10v-3M9 21h6',
   cross: 'M3 12h18M12 3v18',
   coupling: 'M2 12h20M8 7v10M16 7v10',
