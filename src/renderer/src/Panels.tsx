@@ -184,7 +184,7 @@ export function Palette({ model }: { model: Model }) {
           <div className="chips">
             {extra.map((x) => (
               <button key={x} className="chip" onClick={() => addPart(kind, x)} title={`${sizeLabel(size)} × ${sizeLabel(x)}`}>
-                × {x}"
+                × {sizeLabel(x)}
               </button>
             ))}
           </div>

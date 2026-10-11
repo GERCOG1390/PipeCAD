@@ -3,6 +3,7 @@
 import * as DW from './data/charlotteDwv'
 import * as PR from './data/charlottePressure'
 import * as NB from './data/nibcoCopper'
+import * as MV from './data/muellerValves'
 import { ALL_SIZES, CU_SIZES, DWV_SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeSpec, threadSize } from './data/sizes'
 
 export type V3 = [number, number, number]
@@ -289,6 +290,59 @@ function showerValve(kind: 'cc' | 'ips'): Built {
   // латунь: всё, что без своего цвета
   built.shapes = built.shapes.map((s) => (s.t !== 'pipe' && !('color' in s && s.color) ? { ...s, color: BRASS, ...(s.t === 'lathe' ? { metal: true } : {}) } as Shape : s))
   return built
+}
+
+// Шаровый кран под пайку по чертежу Mueller Streamline 7700S. Ось трубы — Z, шток — вверх (+Y),
+// рычаг в положении «открыто» — вдоль трубы (+Z).
+const LEVER = '#b9bdc3'
+const GRIP = '#f1f1ec'
+function muellerBallValve(size: SizeId): Built {
+  const d = MV.MUELLER_7700S[size]!
+  const o = sp(size).od / 2
+  const cupR = o + Math.max(0.05, sp(size).od * 0.06)
+  const bodyR = Math.max(cupR * 1.5, o + 0.3)
+  const half = d.C * 0.24 // половина длины центральной части корпуса
+  const B = d.B
+  const shapes: Shape[] = [
+    // корпус: раструбы по краям, утолщение в центре, внутри — канал полного прохода
+    lathe(O, Z, [
+      [o, -B],
+      [cupR - 0.02, -B],
+      [cupR, -B + 0.03],
+      [cupR, -half - 0.1],
+      [bodyR * 0.88, -half],
+      [bodyR, -half + 0.05],
+      [bodyR, half - 0.05],
+      [bodyR * 0.92, half],
+      [cupR * 1.08, half + 0.12],
+      [cupR, half + 0.18],
+      [cupR, B - 0.03],
+      [cupR - 0.02, B],
+      [o, B],
+      [o, B - d.F],
+      [d.A / 2, B - d.F - 0.01],
+      [d.A / 2, -B + d.F + 0.01],
+      [o, -B + d.F],
+      [o, -B]
+    ], { color: BRASS, metal: true }),
+    // поясок резьбового соединения корпуса (как на чертеже — слева)
+    { t: 'prism', at: [0, 0, -half - 0.02], dir: Z, sides: 8, r: bodyR * 1.04, h: Math.max(0.12, half * 0.45), color: BRASS },
+    // горловина штока и сальниковая гайка
+    lathe([0, bodyR * 0.6, 0], Y, [[0.001, 0], [bodyR * 0.48, 0], [bodyR * 0.48, d.D * 0.32], [0.001, d.D * 0.32]], { color: BRASS, metal: true }),
+    { t: 'prism', at: [0, bodyR * 0.6 + d.D * 0.3, 0], dir: Y, sides: 6, r: bodyR * 0.42, h: d.D * 0.14, color: BRASS },
+    // шток
+    lathe([0, bodyR * 0.6, 0], Y, [[0.001, 0], [bodyR * 0.16, 0], [bodyR * 0.16, d.D - bodyR * 0.6 + 0.1], [0.001, d.D - bodyR * 0.6 + 0.1]], { color: LEVER, metal: true }),
+    // рычаг: стальная полоса вдоль трубы, загиб-упор сзади, виниловая ручка
+    { t: 'box', at: [0, d.D - 0.04, d.E * 0.42], dir: Y, size: [Math.max(0.3, d.E * 0.1), 0.07, d.E * 1.02], color: LEVER, metal: true },
+    { t: 'box', at: [0, d.D - 0.22, -0.18], dir: Y, size: [Math.max(0.3, d.E * 0.1), 0.38, 0.07], color: LEVER, metal: true },
+    { t: 'box', at: [0, d.D - 0.04, d.E * 0.7], dir: Y, size: [Math.max(0.36, d.E * 0.12), 0.14, d.E * 0.56], color: GRIP },
+    // гайка рычага
+    { t: 'prism', at: [0, d.D - 0.01, 0], dir: Y, sides: 6, r: bodyR * 0.24, h: 0.14, color: LEVER }
+  ]
+  return {
+    ports: [hub([0, 0, -(B - d.F)], NZ, size, 'p', { bare: true, depth: d.F }), hub([0, 0, B - d.F], Z, size, 'p', { bare: true, depth: d.F })],
+    shapes
+  }
 }
 
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
@@ -632,7 +686,7 @@ showerCC: {
     ru: 'Заглушка',
     en: 'Tube Cap C',
     group: CU,
-    cat: 'Заглушки и арматура',
+    cat: 'Заглушки',
     icon: 'cap',
     pn: '617',
     sizes: cuKeys(NB.CU_CAP),
@@ -643,27 +697,15 @@ showerCC: {
     }
   },
   cuValve: {
-    ru: 'Шаровый кран (пайка)',
-    en: 'Ball Valve Sweat x Sweat (Lead-Free Brass)',
+    ru: 'Шаровый кран, полный проход (пайка)',
+    en: 'Lead Free Brass Ball Valve, Solder, Full Port',
     group: CU,
-    cat: 'Заглушки и арматура',
+    cat: 'Арматура',
     icon: 'valve',
-    sizes: CU_SIZES.slice(0, 6),
-    build: (p) => {
-      const s = p.size
-      const od = sp(s).od
-      const g = od * 0.95 + 0.35
-      const R = hubR(s, 'p')
-      return finalize({
-        ports: [hub([0, 0, -g], NZ, s, 'p', { face: sp(s).socket + 0.12 }), hub([0, 0, g], Z, s, 'p', { face: sp(s).socket + 0.12 })],
-        shapes: [
-          { t: 'prism', at: [0, 0, -g + 0.05], dir: Z, sides: 8, r: R * 1.75, h: g * 2 - 0.1, color: BRASS },
-          lathe(O, Y, [[R * 0.35, 0], [R * 0.35, R * 2.3], [0.001, R * 2.3]], { color: BRASS, metal: true }),
-          { t: 'box', at: [R * 1.8, R * 2.45, 0], dir: Y, size: [R * 5, R * 0.35, R * 0.9], color: '#c8352e' }
-        ]
-      })
-    },
-    bom: (p) => [{ name: `${sizeLabel(p.size)} Lead-Free Brass Ball Valve Sweat x Sweat` }]
+    pn: '7700S',
+    sizes: CU_SIZES.filter((s) => s in MV.MUELLER_7700S),
+    build: (p) => muellerBallValve(p.size),
+    bom: (p) => [{ name: `${sizeLabel(p.size)} Mueller Streamline 7700S Lead Free Brass Ball Valve, Solder x Solder, Full Port`, pn: MV.MUELLER_7700S[p.size]?.pn }]
   },
 
 
