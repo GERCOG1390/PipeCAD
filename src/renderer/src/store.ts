@@ -415,7 +415,7 @@ export const useStore = create<State>((set, get) => ({
           break
         }
         const sample = { ...part, ...cands[0] }
-        const wantCu = def.group === 'copper' || (def.group === 'common' && isCu(paletteSize))
+        const wantCu = def.group === 'copper' || (def.group === 'common' && isCu(paletteSize)) || !!pport.preferCu
         const adapter = adapterFor(pport, Math.max(...portsOf(sample).map((p) => p.depth)), target!, famNear(all, target!.id, kind), wantCu)
         if (!adapter || step > 2) {
           set({ message: 'These ends can\'t be joined directly' })

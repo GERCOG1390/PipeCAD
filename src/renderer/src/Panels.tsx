@@ -112,11 +112,12 @@ export function Palette({ model }: { model: Model }) {
   const portSize = activePort ? model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.size : undefined
 
   // Выбрали свободный конец — каталог переключается на его размер
+  const portPrefersCu = activePort ? !!model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.def.preferCu : false
   useEffect(() => {
     if (!portSize) return
-    setPaletteSize(portSize)
+    setPaletteSize(portPrefersCu && !portSize.startsWith('cu') ? (('cu' + portSize) as SizeId) : portSize)
     setStep('catalog')
-  }, [portSize])
+  }, [portSize, portPrefersCu])
 
   const toggle = (k: string): void => {
     const next = { ...open, [k]: !(open[k] ?? true) }
@@ -237,7 +238,7 @@ export function Palette({ model }: { model: Model }) {
         </button>
       )}
       {parts.length > 0 && !portSize && !placing && <div className="hint">Pick a green ring — the open end to connect to — or start a new branch: pick a part and click the floor</div>}
-      {portSize && portSize !== size && (
+      {portSize && portSize !== size && !(portPrefersCu && size === 'cu' + portSize) && (
         <div className="hint warn-box">
           Selected end is {sizeLabel(portSize)} — {sizeLabel(size)} parts will go on through a reducer if one exists
         </div>

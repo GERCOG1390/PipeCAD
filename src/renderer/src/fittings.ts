@@ -24,6 +24,7 @@ export interface PortDef {
   R?: number // наружный радиус раструба
   bare?: boolean // форму для порта рисует сам фитинг
   mech?: boolean // механическое соединение (no-hub хомут), не клей и не пайка
+  preferCu?: boolean // к этому концу обычно подключают медь (вода у бойлера)
 }
 
 export type PathSeg = { t: 'line'; a: V3; b: V3 } | { t: 'arc'; a: V3; t0: V3; n: V3; r: number; ang: number }
@@ -754,7 +755,7 @@ function waterHeater(h: WH.HeaterSpec): Built {
   const wsize = h.M as SizeId
   const wo = sp(wsize).od / 2
   for (const [x, color] of [[-h.J / 2, '#c8352e'], [h.J / 2, '#2563eb']] as [number, string][]) {
-    ports.push(mpt([x, h.G, 0], Y, wsize, 'p', stub))
+    ports.push(mpt([x, h.G, 0], Y, wsize, 'p', stub, { preferCu: true }))
     shapes.push(
       // приварная муфта бака, шестигранник ниппеля, цветная пластиковая втулка-маркер
       lathe([x, top - 0.1, 0], Y, rounded([[0.001, 0], [wo + 0.5, 0], [wo + 0.5, 0.18], [0.001, 0.22]], 0.06), { color: '#cfcdc6', seg: 48 }),
@@ -797,7 +798,7 @@ function waterHeater(h: WH.HeaterSpec): Built {
     // прилив выхода вниз
     lathe([c[0], h.D - 0.3, c[2]], [0, -1, 0], rounded([[0.001, -0.3], [0.62, -0.3], [0.62, 0.6], [0.001, 0.6]], 0.08), { color: BRASS, metal: true, seg: 48 })
   )
-  ports.push(fpt([c[0], h.D - 1.15, c[2]], [0, -1, 0], '3/4', 'p', NPT['3/4'], { face: 0.25, R: 0.66, bare: true }))
+  ports.push(fpt([c[0], h.D - 1.15, c[2]], [0, -1, 0], '3/4', 'p', NPT['3/4'], { face: 0.25, R: 0.66, bare: true, preferCu: true }))
 
   // ---- сливной кран у дна (слева-спереди): корпус, маховичок, штуцер под шланг ----
   const dA = -38
@@ -826,18 +827,20 @@ function waterHeater(h: WH.HeaterSpec): Built {
   if (h.vent === 'atm') {
     // ---- колпак тяги (draft diverter) ----
     const cR = h.C / 2
+    // юбка колпака не должна доходить до водяных патрубков
+    const sk = Math.min(2.6, h.J / 2 - sp(wsize).od / 2 - 0.55 - cR)
     const legH = 1.1
     for (const a of [30, 150, 270]) {
-      const p0 = P(a, cR + 2.2, top + 0.1)
-      const p1 = P(a, cR + 2.0, top + legH)
+      const p0 = P(a, cR + sk - 0.4, top + 0.1)
+      const p1 = P(a, cR + sk - 0.6, top + legH)
       const p2 = P(a, cR + 1.6, top + legH + 0.25)
       shapes.push({ t: 'sweep', path: [p0, p1, p2], w: 0.6, th: 0.07, side: [Math.cos((a * Math.PI) / 180), 0, -Math.sin((a * Math.PI) / 180)], color: WH_GALV, metal: true })
     }
     const skirtTop = top + legH + 1.6
     shapes.push(
       // юбка колпака с завальцованной кромкой
-      lathe([0, top + legH, 0], Y, rounded([[cR + 2.5, 0.05], [cR + 2.6, 0], [cR + 2.6, 0.35], [cR + 0.2, skirtTop - top - legH], [cR + 0.1, skirtTop - top - legH + 0.1]], 0.08), { color: WH_GALV, metal: true, seg }),
-      lathe([0, top + legH, 0], Y, [[cR + 2.5, 0.1], [cR + 2.55, 0.1], [cR + 0.15, skirtTop - top - legH], [cR + 0.1, skirtTop - top - legH]], { color: '#8f959a', metal: true, seg }),
+      lathe([0, top + legH, 0], Y, rounded([[cR + sk - 0.1, 0.05], [cR + sk, 0], [cR + sk, 0.35], [cR + 0.2, skirtTop - top - legH], [cR + 0.1, skirtTop - top - legH + 0.1]], 0.08), { color: WH_GALV, metal: true, seg }),
+      lathe([0, top + legH, 0], Y, [[cR + sk - 0.1, 0.1], [cR + sk - 0.05, 0.1], [cR + 0.15, skirtTop - top - legH], [cR + 0.1, skirtTop - top - legH]], { color: '#8f959a', metal: true, seg }),
       // патрубок с гофрой (crimp) под B-vent
       lathe([0, skirtTop, 0], Y, [[cR - 0.04, 0], [cR + 0.05, 0], ...sawtooth(cR + 0.02, cR + 0.07, 0.15, Math.min(1.2, h.A - skirtTop - 0.2), 0.18), [cR + 0.05, h.A - skirtTop], [cR - 0.04, h.A - skirtTop]], { color: WH_GALV, metal: true, seg })
     )
@@ -847,32 +850,37 @@ function waterHeater(h: WH.HeaterSpec): Built {
     // ---- power vent: плита, корпус вентилятора, мотор с рёбрами, электрика, адаптер дымохода ----
     const by = top + 0.15
     const housH = h.A - top - 3.4
+    // блок вентилятора сзади: водяные патрубки (z = 0) остаются свободными
+    const dz = R * 0.6
+    const bz = -1.4 - dz / 2
+    const hx = 0.4
+    const hw = R * 0.95
     shapes.push(
-      { t: 'rbox', at: [0, by + 0.15, 0.2], dir: Y, size: [R * 1.15, 0.3, R * 1.05], r: 0.12, color: WH_DARK, metal: true },
-      { t: 'rbox', at: [0.4, by + 0.3 + housH / 2, 0.2], dir: Y, size: [R * 0.95, housH, R * 0.8], r: 1.0, color: WH_BLACK },
+      { t: 'rbox', at: [hx, by + 0.15, bz], dir: Y, size: [hw + 1.2, 0.3, dz + 0.8], r: 0.12, color: WH_DARK, metal: true },
+      { t: 'rbox', at: [hx, by + 0.3 + housH / 2, bz], dir: Y, size: [hw, housH, dz], r: 1.0, color: WH_BLACK },
       // мотор вентилятора: корпус с рёбрами охлаждения и крышкой
-      { t: 'knurl', at: [R * 0.18, by + 0.3 + housH, 0.4], dir: Y, r: 2.3, h: 1.6, ribs: 24, color: '#3b3f45' },
-      lathe([R * 0.18, by + 0.3 + housH + 1.6, 0.4], Y, rounded([[0.001, 0], [2.3, 0], [2.1, 0.35], [0.001, 0.45]], 0.15), { color: '#2a2d31', seg: 64 }),
+      { t: 'knurl', at: [R * 0.18, by + 0.3 + housH, bz + 0.3], dir: Y, r: 2.3, h: 1.6, ribs: 24, color: '#3b3f45' },
+      lathe([R * 0.18, by + 0.3 + housH + 1.6, bz + 0.3], Y, rounded([[0.001, 0], [2.3, 0], [2.1, 0.35], [0.001, 0.45]], 0.15), { color: '#2a2d31', seg: 64 }),
       // клеммная коробка и шнур питания вниз по кожуху
-      { t: 'rbox', at: [R * 0.42, by + 1.6, R * 0.42 + 0.2], dir: Y, size: [2.6, 2.4, 1.2], r: 0.2, color: '#4a4e55' },
+      { t: 'rbox', at: [hx + hw / 2 + 0.6, by + 1.6, bz], dir: Y, size: [1.2, 2.4, 2.6], r: 0.2, color: '#4a4e55' },
       {
         t: 'tube',
         r: 0.17,
         color: '#15171a',
         segs: [
-          { t: 'line', a: [R * 0.42 + 1.4, by + 1.2, R * 0.42 + 0.2], b: [R * 0.75, by + 0.6, R * 0.6] },
-          { t: 'line', a: [R * 0.75, by + 0.6, R * 0.6], b: [R * 0.72, by + 0.2, -R * 0.72] },
+          { t: 'line', a: [hx + hw / 2 + 1.25, by + 1.2, bz], b: [R * 0.75, by + 0.6, bz - 1] },
+          { t: 'line', a: [R * 0.75, by + 0.6, bz - 1], b: [R * 0.72, by + 0.2, -R * 0.72] },
           { t: 'line', a: [R * 0.72, by + 0.2, -R * 0.72], b: [R * 0.72, top - 10, -R * 0.72] }
         ]
       },
       // реле давления с силиконовой трубкой
-      { t: 'rbox', at: [-R * 0.42, by + housH * 0.55, R * 0.42 + 0.3], dir: Y, size: [1.6, 1.6, 0.9], r: 0.15, color: '#3a3e44' },
-      { t: 'tube', r: 0.12, color: '#c8352e', segs: [{ t: 'line', a: [-R * 0.42, by + housH * 0.55 + 0.8, R * 0.42 + 0.3], b: [-R * 0.3 + 0.4, h.A - 3.0, -0.2] }] }
+      { t: 'rbox', at: [hx - hw / 2 - 0.45, by + housH * 0.55, bz], dir: Y, size: [0.9, 1.6, 1.6], r: 0.15, color: '#3a3e44' },
+      { t: 'tube', r: 0.12, color: '#c8352e', segs: [{ t: 'line', a: [hx - hw / 2 - 0.45, by + housH * 0.55 + 0.8, bz], b: [-R * 0.3 + 0.4, h.A - 3.0, bz - 0.4] }] }
     )
     // выход дымохода: адаптер, резиновая муфта с двумя хомутами, раструб под PVC C"
     const vSize = String(h.C) as SizeId
     const vx = -R * 0.3
-    const vz = -0.6
+    const vz = bz - 0.6
     const vo = sp(vSize).od / 2
     const rubTop = h.A
     shapes.push(
