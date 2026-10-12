@@ -54,6 +54,14 @@ const ICONS: Record<string, string> = {
 
 const nominalLabel = (s: SizeId): string => sizeLabel(s)
 
+function GlyphIcon({ name }: { name: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22">
+      <path d={ICONS[name]} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function KindIcon({ kind }: { kind: string }) {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22">
@@ -86,7 +94,10 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: 'pressure', title: 'Pressure Sch 40' },
   { id: 'dwv', title: 'DWV — Drain, Waste & Vent' },
   { id: 'copper', title: 'Copper — Sweat (NIBCO Wrot)' },
-  { id: 'nohub', title: 'No-Hub Couplings (Transitions)' },
+  { id: 'nohub', title: 'No-Hub Couplings (Transitions)' }
+]
+// Сантехническое оборудование — отдельный раздел, не зависит от размера трубы
+const FIXTURE_GROUPS: { id: Group; title: string }[] = [
   { id: 'heater', title: 'Water Heaters & Expansion Tanks' },
   { id: 'pump', title: 'Sump & Sewage Pumps, Basins' }
 ]
@@ -110,7 +121,7 @@ export function Palette({ model }: { model: Model }) {
   const cancelPlacing = useStore((s) => s.cancelPlacing)
   const joining = useStore((s) => s.joining)
   const startJoin = useStore((s) => s.startJoin)
-  const [step, setStep] = useState<'size' | 'catalog'>(parts.length ? 'catalog' : 'size')
+  const [step, setStep] = useState<'size' | 'catalog' | 'fixtures'>(parts.length ? 'catalog' : 'size')
   const [mat, setMat] = useState<Material>(sizeSpec(paletteSize).mat)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen)
@@ -161,6 +172,10 @@ export function Palette({ model }: { model: Model }) {
             Galv.
           </button>
         </div>
+        <button className="wide fixtures-btn" onClick={() => setStep('fixtures')}>
+          <GlyphIcon name="heater" /> Plumbing Fixtures
+          <small>heaters, tanks, pumps, basins</small>
+        </button>
         <div className="size-grid">
           {SIZES.filter((s) => s.mat === mat).map((s) => {
             const count = Object.values(FITTINGS).filter((d) => d.group !== 'common' && d.group !== 'heater' && d.group !== 'pump' && d.sizes.includes(s.id)).length
@@ -217,21 +232,77 @@ export function Palette({ model }: { model: Model }) {
     )
   }
 
+  const fixtures = step === 'fixtures'
+  const renderGroups = (groups: { id: Group; title: string }[]) =>
+    groups.map((g) => {
+      const kinds = Object.keys(FITTINGS).filter((k) => FITTINGS[k].group === g.id && (fixtures || inSize(FITTINGS[k])) && match(FITTINGS[k]))
+      if (!kinds.length) return null
+      const cats = [...new Set(kinds.map((k) => FITTINGS[k].cat))]
+      const gOpen = q ? true : open[g.id] ?? true
+      return (
+        <div key={g.id} className="group">
+          <button className="group-head" onClick={() => toggle(g.id)}>
+            <span className="chev">{gOpen ? '▾' : '▸'}</span>
+            {g.title}
+            <span className="count">{kinds.length}</span>
+          </button>
+          {gOpen &&
+            cats.map((c) => {
+              const key = `${g.id}/${c}`
+              const cOpen = q ? true : open[key] ?? true
+              return (
+                <div key={c} className="cat">
+                  <button className="cat-head" onClick={() => toggle(key)}>
+                    <span className="chev">{cOpen ? '▾' : '▸'}</span>
+                    {c}
+                  </button>
+                  {cOpen && <div className="kinds">{kinds.filter((k) => FITTINGS[k].cat === c).map(item)}</div>}
+                </div>
+              )
+            })}
+        </div>
+      )
+    })
+
   return (
     <aside className="palette">
-      <div className="step-title">
-        <span className="step-num">2</span>Fittings catalog
-      </div>
-      <div className="size-head">
-        <span className="size-badge">{sizeLabel(size)}</span>
-        <div className="size-head-text">
-          <div>{MAT_HEAD[sizeSpec(size).mat](size)}</div>
-          <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · {MAT_SRC[sizeSpec(size).mat]}</div>
-        </div>
-        <button className="link" onClick={() => setStep('size')}>
-          Change
-        </button>
-      </div>
+      {fixtures ? (
+        <>
+          <div className="step-title">Plumbing Fixtures</div>
+          <div className="size-head">
+            <span className="size-badge fixtures-badge">
+              <GlyphIcon name="heater" />
+            </span>
+            <div className="size-head-text">
+              <div>Heaters, tanks, pumps & basins</div>
+              <div className="muted small">Any pipe size · connect with adapters</div>
+            </div>
+            <button className="link" onClick={() => setStep(parts.length ? 'catalog' : 'size')}>
+              Back
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="step-title">
+            <span className="step-num">2</span>Fittings catalog
+          </div>
+          <div className="size-head">
+            <span className="size-badge">{sizeLabel(size)}</span>
+            <div className="size-head-text">
+              <div>{MAT_HEAD[sizeSpec(size).mat](size)}</div>
+              <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · {MAT_SRC[sizeSpec(size).mat]}</div>
+            </div>
+            <button className="link" onClick={() => setStep('size')}>
+              Change
+            </button>
+          </div>
+          <button className="wide fixtures-btn" onClick={() => setStep('fixtures')}>
+            <GlyphIcon name="heater" /> Plumbing Fixtures
+            <small>heaters, tanks, pumps, basins</small>
+          </button>
+        </>
+      )}
       {parts.length > 0 && (
         <button className={'wide branch' + (placing ? ' on' : '')} onClick={() => (placing ? cancelPlacing() : newBranch())}>
           {placing ? '✕ Cancel placing' : '＋ New branch (place separately)'}
@@ -248,38 +319,10 @@ export function Palette({ model }: { model: Model }) {
           Selected end is {sizeLabel(portSize)} — {sizeLabel(size)} parts will go on through a reducer if one exists
         </div>
       )}
-      <input className="search" placeholder="Search: tee, wye, 2300…" value={query} onChange={(e) => setQuery(e.target.value)} />
-      <div className="kinds">{match(FITTINGS.pipe) && item('pipe')}</div>
-      {GROUPS.map((g) => {
-        const kinds = Object.keys(FITTINGS).filter((k) => FITTINGS[k].group === g.id && inSize(FITTINGS[k]) && match(FITTINGS[k]))
-        if (!kinds.length) return null
-        const cats = [...new Set(kinds.map((k) => FITTINGS[k].cat))]
-        const gOpen = q ? true : open[g.id] ?? true
-        return (
-          <div key={g.id} className="group">
-            <button className="group-head" onClick={() => toggle(g.id)}>
-              <span className="chev">{gOpen ? '▾' : '▸'}</span>
-              {g.title}
-              <span className="count">{kinds.length}</span>
-            </button>
-            {gOpen &&
-              cats.map((c) => {
-                const key = `${g.id}/${c}`
-                const cOpen = q ? true : open[key] ?? true
-                return (
-                  <div key={c} className="cat">
-                    <button className="cat-head" onClick={() => toggle(key)}>
-                      <span className="chev">{cOpen ? '▾' : '▸'}</span>
-                      {c}
-                    </button>
-                    {cOpen && <div className="kinds">{kinds.filter((k) => FITTINGS[k].cat === c).map(item)}</div>}
-                  </div>
-                )
-              })}
-          </div>
-        )
-      })}
-      {sizeSpec(size).dwv === 0 && sizeSpec(size).mat === 'pvc' && !q && <div className="muted small">No DWV fittings are made in {sizeLabel(size)}.</div>}
+      <input className="search" placeholder={fixtures ? "Search: 50 gal, Navien, M267…" : "Search: tee, wye, 2300…"} value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="kinds">{!fixtures && match(FITTINGS.pipe) && item('pipe')}</div>
+      {renderGroups(fixtures ? FIXTURE_GROUPS : GROUPS)}
+      {!fixtures && sizeSpec(size).dwv === 0 && sizeSpec(size).mat === 'pvc' && !q && <div className="muted small">No DWV fittings are made in {sizeLabel(size)}.</div>}
     </aside>
   )
 }

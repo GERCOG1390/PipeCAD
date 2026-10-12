@@ -164,3 +164,6 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .dim-layer .dim { position: absolute; left: 0; top: 0; will-change: transform; }
 .mat-tabs { flex-wrap: wrap; }
 .mat-tabs button { flex: 1 1 45%; padding: 5px 4px; }
+.fixtures-btn { display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 8px 10px; text-align: left; flex-wrap: wrap; }
+.fixtures-btn small { flex-basis: 100%; padding-left: 30px; margin-top: -4px; color: var(--muted, #8b949e); font-size: 11px; }
+.fixtures-badge { display: grid; place-items: center; }
