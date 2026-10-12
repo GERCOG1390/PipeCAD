@@ -9,7 +9,7 @@ import * as WH from './data/waterHeaters'
 import { ALL_SIZES, CU_SIZES, DWV_SIZES, SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeMatLabel, sizeSpec, threadSize } from './data/sizes'
 
 export type V3 = [number, number, number]
-export type PortKind = 'hub' | 'spigot' | 'fpt' | 'mpt' | 'slip' | 'seat'
+export type PortKind = 'hub' | 'spigot' | 'fpt' | 'mpt' | 'slip' | 'seat' | 'lid'
 type Fam = 'p' | 'd'
 
 export interface PortDef {
@@ -111,7 +111,7 @@ const spig = (pos: V3, dir: V3, size: SizeId, fam: Fam, stub: number, o: Partial
 const mpt = (pos: V3, dir: V3, size: SizeId, fam: Fam, stub = NPT[size], o: Partial<PortDef> = {}): PortDef => ({ pos, dir, size, kind: 'mpt', depth: 0, fam, stub, ...o })
 
 export const mates = (a: PortKind, b: PortKind): boolean =>
-  (a === 'hub' && b === 'spigot') || (a === 'spigot' && b === 'hub') || (a === 'fpt' && b === 'mpt') || (a === 'mpt' && b === 'fpt') || (a === 'seat' && b === 'seat')
+  (a === 'hub' && b === 'spigot') || (a === 'spigot' && b === 'hub') || (a === 'fpt' && b === 'mpt') || (a === 'mpt' && b === 'fpt') || (a === 'seat' && b === 'seat') || (a === 'lid' && b === 'lid')
 
 // ---------- профили (r, z): z — вдоль оси порта наружу, 0 — дно раструба / торец ----------
 const pitchOf = (s: SizeId): number => 1 / sp(s).tpi
@@ -1209,8 +1209,8 @@ interface PumpSpec {
 // Zoeller FM2958 (M53): 10-1/16" высота, 1-1/2" FNPT вертикально у основания, поплавок вкл/выкл 7-1/4"/3".
 // Zoeller M267 Waste-Mate: 14-5/8" × 13-1/16" × 11-1/4", 2" FNPT вертикально у основания.
 const PUMPS: PumpSpec[] = [
-  { model: 'M53', name: 'Mighty-Mate Sump Pump, 3/10 HP, 1-1/2" FNPT', hp: '3/10 HP', H: 10.06, baseR: 3.7, baseTop: 2.7, motorR0: 3.0, motorR1: 2.55, caseH: 2.5, dx: 3.7, outTop: 3.6, out: '1-1/2', floatX: -4.4, floatR: 1.15, floatH: 4.2 },
-  { model: 'M267', name: 'Waste-Mate Sewage Ejector Pump, 1/2 HP, 2" FNPT', hp: '1/2 HP', H: 14.625, baseR: 4.6, baseTop: 3.9, motorR0: 3.55, motorR1: 2.95, caseH: 2.9, dx: 4.6, outTop: 4.9, out: '2', floatX: -5.3, floatR: 1.3, floatH: 4.8 }
+  { model: 'M53', name: 'Mighty-Mate Sump Pump, 3/10 HP, 1-1/2" FNPT', hp: '3/10 HP', H: 10.06, baseR: 3.7, baseTop: 2.7, motorR0: 3.0, motorR1: 2.55, caseH: 2.5, dx: 4.55, outTop: 3.6, out: '1-1/2', floatX: -4.4, floatR: 1.15, floatH: 4.2 },
+  { model: 'M267', name: 'Waste-Mate Sewage Ejector Pump, 1/2 HP, 2" FNPT', hp: '1/2 HP', H: 14.625, baseR: 4.6, baseTop: 3.9, motorR0: 3.55, motorR1: 2.95, caseH: 2.9, dx: 5.35, outTop: 4.9, out: '2', floatX: -5.3, floatR: 1.3, floatH: 4.8 }
 ]
 const ZOE_GREEN = '#1d5a3d'
 const SS = '#c9ced3'
@@ -1333,23 +1333,8 @@ function basin(b: BasinSpec): Built {
   prof.push([rAt(H - 1.2), H - 1.2], [r1 + 1.8, H - 0.6], [r1 + 1.8, H], [r1 - wall, H], [r0 - wall, floor], [0.001, floor])
   const shapes: Shape[] = [lathe(O, Y, prof, { color: ZOE_PLASTIC, seg })]
   const ports: PortDef[] = [SEAT(floor, Y)]
-  // крышка
-  const lidC = b.sealed ? '#26292d' : '#1d4f2e'
-  shapes.push(lathe([0, H, 0], Y, rounded([[0.001, 0], [r1 + 1.6, 0], [r1 + 1.6, 0.35], [r1 + 1.2, 0.5], [0.001, 0.5]], 0.12), { color: lidC, seg }))
-  // кольцевое рифление крышки
-  for (const rr of [r1 * 0.45, r1 * 0.75]) shapes.push(lathe([0, H + 0.48, 0], Y, [[rr, 0], [rr + 0.25, 0], [rr + 0.25, 0.08], [rr, 0.08]], { color: lidC, seg }))
-  const nb = b.sealed ? 8 : 6
-  for (let i = 0; i < nb; i++) {
-    const a = (i / nb) * Math.PI * 2 + Math.PI / nb
-    shapes.push({ t: 'nut', at: [Math.cos(a) * (r1 + 0.9), H + 0.45, Math.sin(a) * (r1 + 0.9)], dir: Y, sides: 6, r: 0.22, h: 0.2, color: '#b9bec3', metal: true })
-  }
-  // резиновые уплотнители: под напорную трубу (над патрубком насоса) и кабель
-  const grom = (x: number, z: number, r: number): void => {
-    shapes.push(lathe([x, H + 0.45, z], Y, rounded([[r, 0], [r + 0.45, 0], [r + 0.45, 0.25], [r, 0.25]], 0.08), { color: '#0b0b0c', seg: 48 }))
-  }
-  grom(b.sealed ? 4.6 : 3.7, 0, 1.2)
-  grom(-0.9, 0, 0.3)
-  grom(-0.9, -2.2, 0.3)
+  // посадочное место крышки на фланце
+  ports.push({ pos: [0, H, 0], dir: Y, size: b.D > 20 ? '6' : '4', kind: 'lid', depth: 0, fam: 'd', bare: true })
   if (b.sealed) {
     // 4" входной раструб сбоку, 2" вентиляция на крышке
     const yIn = H - 8
@@ -1357,15 +1342,46 @@ function basin(b: BasinSpec): Built {
     const inR = hubR('4', 'd')
     shapes.push(lathe([-rIn + 0.6, yIn, 0], [-1, 0, 0], rounded([[0.001, 0], [inR + 0.5, 0], [inR + 0.5, 0.8], [0.001, 0.8]], 0.2), { color: ZOE_PLASTIC, seg: 64 }))
     ports.push(hub([-rIn - 0.2, yIn, 0], [-1, 0, 0], '4', 'd', { R: inR }))
-    const vR = hubR('2', 'd')
-    shapes.push(lathe([-3.5, H + 0.45, 4], Y, rounded([[0.001, 0], [vR + 0.4, 0], [vR + 0.4, 0.3], [0.001, 0.3]], 0.1), { color: '#0b0b0c', seg: 48 }))
-    ports.push(hub([-3.5, H + 0.75 - 0.05, 4], Y, '2', 'd', { R: vR }))
   } else {
     // ввод дренажа (drain tile) 4"
     const yIn = H - 6
     const rIn = rAt(yIn)
     const inR = hubR('4', 'd')
     ports.push(hub([-rIn - 0.2, yIn, 0], [-1, 0, 0], '4', 'd', { R: inR }))
+  }
+  const built = finalize({ ports, shapes })
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: ZOE_PLASTIC } : s))
+  return built
+}
+
+// Крышка приямка: начало — на фланце приямка, +Y вверх. Снимается (Delete) и ставится обратно на фланец.
+const basinPump = (b: BasinSpec): PumpSpec => PUMPS.find((p) => p.model === (b.sealed ? 'M267' : 'M53'))!
+function basinLid(b: BasinSpec): Built {
+  const r1 = b.D / 2
+  const seg = 128
+  const lidC = b.sealed ? '#26292d' : '#1d4f2e'
+  const shapes: Shape[] = [lathe(O, Y, rounded([[0.001, 0], [r1 + 1.6, 0], [r1 + 1.6, 0.35], [r1 + 1.2, 0.5], [0.001, 0.5]], 0.12), { color: lidC, seg })]
+  // кольцевое рифление
+  for (const rr of [r1 * 0.45, r1 * 0.75]) shapes.push(lathe([0, 0.48, 0], Y, [[rr, 0], [rr + 0.25, 0], [rr + 0.25, 0.08], [rr, 0.08]], { color: lidC, seg }))
+  const nb = b.sealed ? 8 : 6
+  for (let i = 0; i < nb; i++) {
+    const a = (i / nb) * Math.PI * 2 + Math.PI / nb
+    shapes.push({ t: 'nut', at: [Math.cos(a) * (r1 + 0.9), 0.45, Math.sin(a) * (r1 + 0.9)], dir: Y, sides: 6, r: 0.22, h: 0.2, color: '#b9bec3', metal: true })
+  }
+  // уплотнители: напорная труба (над патрубком насоса) и кабели
+  const grom = (x: number, z: number, r: number): void => {
+    shapes.push(lathe([x, 0.45, z], Y, rounded([[r, 0], [r + 0.45, 0], [r + 0.45, 0.25], [r, 0.25]], 0.08), { color: '#0b0b0c', seg: 48 }))
+  }
+  const pump = basinPump(b)
+  grom(pump.dx, 0, sp(pump.out).od / 2 + 0.05)
+  grom(-0.9, 0, 0.3)
+  grom(-0.9, -2.2, 0.3)
+  const ports: PortDef[] = [{ pos: O, dir: [0, -1, 0], size: b.D > 20 ? '6' : '4', kind: 'lid', depth: 0, fam: 'd', bare: true }]
+  if (b.sealed) {
+    // 2" вентиляция
+    const vR = hubR('2', 'd')
+    shapes.push(lathe([-3.5, 0.45, 4], Y, rounded([[0.001, 0], [vR + 0.4, 0], [vR + 0.4, 0.3], [0.001, 0.3]], 0.1), { color: '#0b0b0c', seg: 48 }))
+    ports.push(hub([-3.5, 0.7, 4], Y, '2', 'd', { R: vR }))
   }
   const built = finalize({ ports, shapes })
   built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: ZOE_PLASTIC } : s))
@@ -2922,6 +2938,24 @@ for (const b of BASINS) {
     build: () => basin(b),
     bom: () => [{ name: b.name + ', polyethylene' + (b.sealed ? ', 4" inlet hub, 2" vent' : ', 4" inlet'), pn: b.pn }]
   }
+  FITTINGS['lid_' + b.key] = {
+    ru: (b.sealed ? 'Sealed cover' : 'Lid') + ' for ' + b.pn + ' basin',
+    en: (b.sealed ? 'Sealed bolt-down cover' : 'Snap-on lid') + ' for ' + b.D + '" basin',
+    group: 'pump',
+    cat: 'Basin Covers',
+    icon: 'basin',
+    pn: b.pn,
+    sizes: ALL_SIZES,
+    // ставится только на фланец приямка (выбрать кольцо на верхнем фланце)
+    place: { rot: [0, 0, 0], height: 0, always: true },
+    build: () => basinLid(b),
+    // крышка входит в комплект приямка
+    bom: () => []
+  }
+}
+export const basinRadius = (kind: string): number | undefined => {
+  const b = BASINS.find((x) => 'pit_' + x.key === kind)
+  return b ? b.D / 2 : undefined
 }
 
 export const FITTING_ORDER = Object.keys(FITTINGS)

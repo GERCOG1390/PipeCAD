@@ -3,7 +3,7 @@ import { FITTINGS, Part, fittingDef } from './fittings'
 import { SizeId, sizeIndex } from './data/sizes'
 
 export * from './data/sizes'
-export { DEFAULT_PIPE, FITTINGS, FITTING_ORDER, bodyR, bomLines, buildPart, fittingDef, hubR, isDwvKind, mates, portsOf } from './fittings'
+export { DEFAULT_PIPE, FITTINGS, FITTING_ORDER, basinRadius, bodyR, bomLines, buildPart, fittingDef, hubR, isDwvKind, mates, portsOf } from './fittings'
 export type { Built, FittingDef, Group, Part, PathSeg, PortDef, PortKind, Shape, V3 } from './fittings'
 
 export type PartKind = string

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DEFAULT_PIPE, FITTINGS, isCu, Part, PartKind, PortDef, SizeId, V3, defaultSize2, fittingDef, mates, portsOf, sizeIndex } from './catalog'
+import { DEFAULT_PIPE, FITTINGS, basinRadius, isCu, Part, PartKind, PortDef, SizeId, V3, defaultSize2, fittingDef, mates, portsOf, sizeIndex } from './catalog'
 import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, computeTransforms, portKey } from './geometry'
 import { Euler } from 'three'
@@ -303,8 +303,24 @@ export const useStore = create<State>((set, get) => ({
   placeAt: (at) => {
     const { placing, paletteSize, reducerTo, lastPipe, placeTurn, parts } = get()
     if (!placing) return
+    // насос, поставленный кликом внутрь открытого приямка, садится на его дно
+    if (placing.kind.startsWith('pump_')) {
+      const xfs = computeTransforms(parts)
+      const pit = parts.find((p) => {
+        const r = basinRadius(p.kind)
+        const xf = xfs.get(p.id)
+        return r !== undefined && xf && Math.hypot(at[0] - xf.pos.x, at[2] - xf.pos.z) < r && isOpen(parts, { id: p.id, port: 0 })
+      })
+      if (pit) {
+        set({ placing: null, selectedId: null, activePort: { id: pit.id, port: 0 } })
+        get().addPart(placing.kind)
+        return
+      }
+    }
     const part = placementFor(placing, at, { id: newId(), size: paletteSize, reducerTo, lastPipe, turn: placeTurn })
     const next = [...parts, part]
+    // приямок ставится сразу с крышкой (порт 1 — фланец)
+    if (placing.kind.startsWith('pit_') && FITTINGS['lid_' + placing.kind.slice(4)]) next.push({ id: newId(), kind: 'lid_' + placing.kind.slice(4), size: part.size, attach: 0, roll: 0, parent: { id: part.id, port: 1 } })
     get().commit(next)
     set({ placing: null, placedAt: Date.now(), selectedId: part.id, activePort: firstOpen(next, part.id), message: null })
   },
@@ -382,7 +398,22 @@ export const useStore = create<State>((set, get) => ({
       set({ message: 'This is the pump seat in a basin — pick a sump or ejector pump' })
       return
     }
-    if (def.place?.always && ap?.kind !== 'seat') {
+    if (ap?.kind === 'lid' && !kind.startsWith('lid_')) {
+      set({ message: 'This is the basin rim — pick a basin cover' })
+      return
+    }
+    // насос при выбранном приямке (или его конце) — сразу на дно, если посадочное место свободно
+    if (kind.startsWith('pump_') && ap?.kind !== 'seat') {
+      const sel = activePort?.id ?? selectedId
+      const pit = sel ? parts.find((p) => p.id === sel && p.kind.startsWith('pit_')) : undefined
+      if (pit && isOpen(parts, { id: pit.id, port: 0 })) {
+        set({ activePort: { id: pit.id, port: 0 } })
+        get().addPart(kind, size2)
+        return
+      }
+    }
+    const fits = (ap?.kind === 'seat' && kind.startsWith('pump_')) || (ap?.kind === 'lid' && kind.startsWith('lid_'))
+    if (def.place?.always && !fits) {
       get().startPlacing({ kind, size2 })
       return
     }
