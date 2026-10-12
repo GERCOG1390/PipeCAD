@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { FITTINGS, Part, SizeId, buildPart, defaultSize2, fittingDef, portsOf } from '../catalog'
 import { buildModel } from '../geometry'
 import { useStore } from '../store'
+import { KITS } from '../kits'
 
 const finite = (v: number[]): boolean => v.every((x) => Number.isFinite(x))
 
@@ -85,5 +86,20 @@ describe('pumps and basins', () => {
     parts = useStore.getState().parts
     const pump = parts.find((p) => p.kind === 'pump_M267')!
     expect(pump.parent?.id).toBe(parts[0].id)
+  })
+})
+
+describe('assemblies', () => {
+  it.each(KITS.map((k) => k.id))('%s kit builds cleanly and undoes in one step', (id) => {
+    const kit = KITS.find((k) => k.id === id)!
+    useStore.setState({ parts: [], env: [], past: [], future: [], placing: null, message: null })
+    useStore.getState().startPlacing({ kind: kit.base, kit: kit.id })
+    useStore.getState().placeAt([0, 0, 0])
+    const st = useStore.getState()
+    expect(st.message, st.message ?? '').toMatch(/added/)
+    expect(st.parts.length).toBeGreaterThan(2)
+    expect(buildModel(st.parts).bad.length).toBe(0)
+    st.undo()
+    expect(useStore.getState().parts.length).toBe(0)
   })
 })

@@ -195,3 +195,5 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .length-editor input { width: 120px; font: 600 15px ui-monospace, Consolas, monospace; text-align: center; padding: 5px 8px; border-radius: 8px; border: 2px solid var(--accent); background: var(--panel); color: var(--text, #e6edf3); box-shadow: 0 6px 18px rgba(0,0,0,.45); }
 .length-editor input.bad { border-color: #ef4444; }
 .length-editor .hint { font-size: 11px; color: var(--muted, #8b949e); background: rgba(13,17,23,.75); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+.kind.kit span { display: flex; flex-direction: column; }
+.kind.kit small { color: var(--muted, #8b949e); font-size: 11px; }

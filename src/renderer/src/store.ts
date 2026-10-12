@@ -4,6 +4,7 @@ import { EnvItem, Preset, baseY, normalize } from './environment'
 import { buildModel, computeTransforms, portKey } from './geometry'
 import { Euler } from 'three'
 import { Placing, placementFor } from './placement'
+import { runKit } from './kits'
 import { connectVia, joinPorts } from './join'
 import { Frame, PackedTimeline, addedIn, packTimeline, unpackTimeline } from './timeline'
 import { Vector3 } from 'three'
@@ -130,7 +131,7 @@ export interface ProjectFile {
   stick?: number
 }
 
-interface Snapshot {
+export interface Snapshot {
   parts: Part[]
   env: EnvItem[]
 }
@@ -348,7 +349,7 @@ export const useStore = create<State>((set, get) => ({
   cancelPlacing: () => set({ placing: null, message: null }),
   turnPlacing: (deg) => set((s) => ({ placeTurn: (((s.placeTurn + deg) % 360) + 360) % 360 })),
   placeAt: (at) => {
-    const { placing, paletteSize, reducerTo, lastPipe, placeTurn, parts } = get()
+    const { placing, paletteSize, reducerTo, lastPipe, placeTurn, parts, past } = get()
     if (!placing) return
     // насос, поставленный кликом внутрь открытого приямка, садится на его дно
     if (placing.kind.startsWith('pump_')) {
@@ -370,6 +371,11 @@ export const useStore = create<State>((set, get) => ({
     if (placing.kind.startsWith('pit_') && FITTINGS['lid_' + placing.kind.slice(4)]) next.push({ id: newId(), kind: 'lid_' + placing.kind.slice(4), size: part.size, attach: 0, roll: 0, parent: { id: part.id, port: 1 } })
     get().commit(next)
     get().pushRecent(placing.kind)
+    if (placing.kit) {
+      set({ placing: null, placedAt: Date.now() })
+      runKit(placing.kit, part.id, { parts, past })
+      return
+    }
     if (placing.kind === 'pipe') set({ lengthEdit: { id: part.id, n: Date.now() } })
     set({ placing: null, placedAt: Date.now(), selectedId: part.id, activePort: firstOpen(next, part.id), message: null })
   },

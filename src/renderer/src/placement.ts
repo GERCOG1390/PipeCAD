@@ -5,6 +5,7 @@ import { DEFAULT_PIPE, Part, SizeId, V3, defaultSize2, fittingDef, hubR, portsOf
 export interface Placing {
   kind: string
   size2?: SizeId
+  kit?: string // после установки собрать готовый узел
 }
 
 const DEG = Math.PI / 180

@@ -5,6 +5,7 @@ import { EnvBomSection, EnvInspector, SystemPosition } from './EnvPanel'
 import { Penetration, envBom } from './environment'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
+import { KITS } from './kits'
 import { formatLength, parseLength } from './units'
 
 // Иконки — линия по оси детали
@@ -334,6 +335,22 @@ export function Palette({ model }: { model: Model }) {
         ) : null
       })()}
       <div className="kinds">{!fixtures && match(FITTINGS.pipe) && item('pipe')}</div>
+      {fixtures && !q && (
+        <div className="group">
+          <div className="group-head static">Assemblies — one click</div>
+          <div className="kinds">
+            {KITS.map((k) => (
+              <button key={k.id} className="kind kit" onClick={() => useStore.getState().startPlacing({ kind: k.base, kit: k.id })} title="Click the floor to place; the rest is built automatically">
+                <KindIcon kind={k.base} />
+                <span>
+                  {k.title}
+                  <small>{k.sub}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {renderGroups(fixtures ? FIXTURE_GROUPS : GROUPS)}
       {!fixtures && sizeSpec(size).dwv === 0 && sizeSpec(size).mat === 'pvc' && !q && <div className="muted small">No DWV fittings are made in {sizeLabel(size)}.</div>}
     </aside>
