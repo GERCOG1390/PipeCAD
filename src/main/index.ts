@@ -6,6 +6,9 @@ import { join } from 'path'
 
 const PROJECT_FILTERS = [{ name: 'PipeCAD project', extensions: ['pipe'] }]
 
+// На ноутбуках с двумя видеокартами — рисуем на мощной (дискретной)
+app.commandLine.appendSwitch('force_high_performance_gpu')
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1440,

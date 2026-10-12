@@ -1,4 +1,4 @@
-import { GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls } from '@react-three/drei'
+import { Detailed, GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls } from '@react-three/drei'
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -13,6 +13,7 @@ import {
   CylinderGeometry,
   DoubleSide,
   Group,
+  Matrix4,
   Mesh,
   Plane,
   Ray,
@@ -28,6 +29,7 @@ import {
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Part, PathSeg, Shape, SizeId, V3, buildPart, fittingDef, hubR, sizeLabel, sizeSpec } from './catalog'
 import { Model, WorldPort, Xf, buildModel, computeTransforms, portKey } from './geometry'
@@ -40,6 +42,7 @@ import { LengthEditAnchor } from './LengthEditor'
 import { SnapshotHook } from './Snapshot'
 import { SCENE_COLORS, useViewPrefs } from './viewPrefs'
 import { Effects, useQualityDpr } from './Effects'
+import { FrameControl, useAlwaysRender } from './FrameControl'
 import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength } from './units'
 
@@ -112,8 +115,8 @@ class SegCurve extends Curve<Vector3> {
 
 // Рифлёное кольцо (гайка под руку): скруглённые рёбра, открытые торцы, лёгкая фаска по краям
 function knurlGeometry(r: number, h: number, ribs: number): BufferGeometry {
-  const radial = ribs * 16
-  const g = new CylinderGeometry(r, r, h, radial, 12, true)
+  const radial = ribs * (DETAIL < 1 ? 4 : 16)
+  const g = new CylinderGeometry(r, r, h, radial, DETAIL < 1 ? 2 : 12, true)
   const pos = g.attributes.position
   const depth = 0.07
   for (let i = 0; i < pos.count; i++) {
@@ -230,6 +233,40 @@ interface Geo {
   flat?: boolean
 }
 
+// Детализация при построении: 1 — полная, меньше — облегчённая версия для дальних деталей
+let DETAIL = 1
+const segs = (n: number, min: number): number => Math.max(min, Math.round(n * DETAIL))
+
+// Упрощение профиля (Рамер — Дуглас — Пекер): для дальней версии убираем зубцы резьбы и мелкие ступеньки
+function simplify(pts: Vector2[], eps: number): Vector2[] {
+  if (pts.length < 4) return pts
+  const keep = new Uint8Array(pts.length)
+  keep[0] = keep[pts.length - 1] = 1
+  const stack: [number, number][] = [[0, pts.length - 1]]
+  while (stack.length) {
+    const [a, b] = stack.pop()!
+    const A = pts[a]
+    const B = pts[b]
+    const dx = B.x - A.x
+    const dy = B.y - A.y
+    const len = Math.hypot(dx, dy) || 1e-9
+    let best = -1
+    let bestD = eps
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs((pts[i].x - A.x) * dy - (pts[i].y - A.y) * dx) / len
+      if (d > bestD) {
+        bestD = d
+        best = i
+      }
+    }
+    if (best >= 0) {
+      keep[best] = 1
+      stack.push([a, best], [best, b])
+    }
+  }
+  return pts.filter((_, i) => keep[i])
+}
+
 function shapeGeo(s: Shape): Geo | null {
   switch (s.t) {
     case 'tube': {
@@ -240,12 +277,18 @@ function shapeGeo(s: Shape): Geo | null {
       })
       if (!path.curves.length) return null
       const arcs = s.segs.filter((x) => x.t === 'arc').length
-      return { geom: new TubeGeometry(path, Math.max(6, arcs * 48 + s.segs.length * 2), s.r, 40, false), pos: new Vector3(), quat: new Quaternion(), color: s.color ?? PVC, metal: s.metal }
+      return { geom: new TubeGeometry(path, segs(Math.max(6, arcs * 48 + s.segs.length * 2), 4), s.r, segs(40, 10), false), pos: new Vector3(), quat: new Quaternion(), color: s.color ?? PVC, metal: s.metal }
     }
     case 'lathe': {
-      const pts = s.prof.map(([r, z]) => new Vector2(Math.max(0.0005, r), z))
+      let pts = s.prof.map(([r, z]) => new Vector2(Math.max(0.0005, r), z))
+      if (DETAIL < 1 && pts.length > 6) {
+        const xs = pts.map((p) => p.x)
+        const ys = pts.map((p) => p.y)
+        const span = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
+        pts = simplify(pts, span * 0.02)
+      }
       // phi в градусах; 0° — направление +Z детали (перед)
-      const geom = s.phi ? new LatheGeometry(pts, s.seg ?? 64, (s.phi[0] * Math.PI) / 180, (s.phi[1] * Math.PI) / 180) : new LatheGeometry(pts, s.seg ?? 64)
+      const geom = s.phi ? new LatheGeometry(pts, segs(s.seg ?? 64, 6), (s.phi[0] * Math.PI) / 180, (s.phi[1] * Math.PI) / 180) : new LatheGeometry(pts, segs(s.seg ?? 64, 12))
       return { geom, pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }
     }
     case 'prism': {
@@ -267,7 +310,7 @@ function shapeGeo(s: Shape): Geo | null {
       const dir = new Vector3(...s.dir).normalize()
       const q0 = quatTo(dir)
       if (s.yaw) q0.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), (s.yaw * Math.PI) / 180))
-      return { geom: new RoundedBoxGeometry(s.size[0], s.size[1], s.size[2], 8, Math.min(s.r, Math.min(...s.size) / 2 - 1e-3)), pos: new Vector3(...s.at), quat: q0, color: s.color ?? PVC, metal: s.metal }
+      return { geom: new RoundedBoxGeometry(s.size[0], s.size[1], s.size[2], DETAIL < 1 ? 2 : 8, Math.min(s.r, Math.min(...s.size) / 2 - 1e-3)), pos: new Vector3(...s.at), quat: q0, color: s.color ?? PVC, metal: s.metal }
     }
     case 'sweep':
       return { geom: sweepGeometry(s.path, s.w, s.th, s.rad ?? Math.min(s.w, s.th) * 0.45, s.side), pos: new Vector3(), quat: new Quaternion(), color: s.color ?? PVC, metal: s.metal }
@@ -331,14 +374,105 @@ function PipeBody({ size, len, selected, ghost }: { size: SizeId; len: number; s
   )
 }
 
+// ---------- Склейка детали: все куски одного материала — одна геометрия (один вызов отрисовки) ----------
+// Одинаковые детали (вид + размеры) делят одну склеенную геометрию; освобождаем, когда её никто не использует.
+interface MergedGroup {
+  geom: BufferGeometry
+  color: string
+  metal: boolean
+  flat: boolean
+}
+interface PartLods {
+  hi: MergedGroup[]
+  lo: MergedGroup[]
+  far: number // с какого расстояния до камеры показываем облегчённую версию
+}
+const merged = new Map<string, { groups: PartLods; refs: number }>()
+const partGeoKey = (p: Part): string => `${p.kind}|${p.size}|${p.size2 ?? ''}|${p.kind === 'pipe' ? p.length ?? 0 : ''}`
+
+function mergeLods(built: { shapes: Shape[] }, cu: boolean): PartLods {
+  const hi = mergeParts(built, cu)
+  DETAIL = 0.3
+  let lo: MergedGroup[]
+  try {
+    lo = mergeParts(built, cu)
+  } finally {
+    DETAIL = 1
+  }
+  let R = 1
+  for (const g of hi) R = Math.max(R, g.geom.boundingSphere!.center.length() + g.geom.boundingSphere!.radius)
+  // мелкий фитинг упрощаем раньше, крупный бойлер — позже
+  return { hi, lo, far: Math.max(72, R * 9) }
+}
+
+function mergeParts(built: { shapes: Shape[] }, cu: boolean): MergedGroup[] {
+  const byMat = new Map<string, { color: string; metal: boolean; flat: boolean; list: BufferGeometry[] }>()
+  const m = new Matrix4()
+  const one = new Vector3(1, 1, 1)
+  for (const sh of built.shapes) {
+    const g = shapeGeo(sh)
+    if (!g) continue
+    const asCu = cu && g.color === PVC
+    const color = asCu ? COPPER : g.color
+    const metal = asCu || !!g.metal || g.color === '#c9a64a'
+    const flat = !!g.flat
+    let geo = g.geom.index ? g.geom.toNonIndexed() : g.geom.clone()
+    g.geom.dispose()
+    // одинаковый набор атрибутов для склейки; текстур у деталей нет — uv не нужны
+    for (const name of Object.keys(geo.attributes)) if (name !== 'position' && name !== 'normal') geo.deleteAttribute(name)
+    if (!geo.attributes.normal) geo.computeVertexNormals()
+    geo.applyMatrix4(m.compose(g.pos, g.quat, one))
+    const key = `${color}|${metal}|${flat}`
+    const e = byMat.get(key) ?? { color, metal, flat, list: [] }
+    e.list.push(geo)
+    byMat.set(key, e)
+  }
+  return [...byMat.values()].map((e) => {
+    const geom = e.list.length === 1 ? e.list[0] : mergeGeometries(e.list, false)!
+    if (e.list.length > 1) e.list.forEach((x) => x.dispose())
+    geom.computeBoundingSphere()
+    return { geom, color: e.color, metal: e.metal, flat: e.flat }
+  })
+}
+
+function useMergedPart(part: Part, built: { shapes: Shape[] }): PartLods {
+  const key = partGeoKey(part)
+  const groups = useMemo(() => {
+    let e = merged.get(key)
+    if (!e) {
+      e = { groups: mergeLods(built, isCopper(part.size)), refs: 0 }
+      merged.set(key, e)
+    }
+    return e.groups
+  }, [key])
+  useEffect(() => {
+    const e = merged.get(key)
+    if (e) e.refs++
+    return () => {
+      const x = merged.get(key)
+      if (!x) return
+      x.refs--
+      // освобождаем с задержкой: деталь могли тут же поставить снова (отмена, повтор, замена)
+      if (x.refs <= 0)
+        setTimeout(() => {
+          const y = merged.get(key)
+          if (y && y.refs <= 0) {
+            ;[...y.groups.hi, ...y.groups.lo].forEach((g) => g.geom.dispose())
+            merged.delete(key)
+          }
+        }, 5000)
+    }
+  }, [key])
+  return groups
+}
+
 function PartMesh({ part, xf, open, ghost }: { part: Part; xf: Xf; open: WorldPort[]; ghost?: boolean }) {
   const selected = useStore((s) => s.selectedId === part.id)
   const select = useStore((s) => s.select)
   const selectPort = useStore((s) => s.selectPort)
   const built = buildPart(part)
-  const cu = isCopper(part.size)
-  const geos = useMemo(() => built.shapes.map(shapeGeo).filter((g): g is Geo => !!g), [built])
-  useEffect(() => () => geos.forEach((g) => g.geom.dispose()), [geos])
+  const lods = useMergedPart(part, built)
+  const meshes = (list: MergedGroup[]) => list.map((g, i) => <mesh key={i} geometry={g.geom} material={mat(g.color, selected, { metal: g.metal, flat: g.flat, ghost })} raycast={ghost ? () => null : undefined} />)
   const pipe = built.shapes.find((s): s is Extract<Shape, { t: 'pipe' }> => s.t === 'pipe')
   const onClick = (e: ThreeEvent<MouseEvent>): void => {
     if (e.delta > 4 || busyPlacing()) return
@@ -362,9 +496,14 @@ function PartMesh({ part, xf, open, ghost }: { part: Part; xf: Xf; open: WorldPo
   return (
     <group position={xf.pos} quaternion={xf.quat} onClick={onClick}>
       {pipe && <PipeBody size={pipe.size} len={pipe.len} selected={selected} ghost={ghost} />}
-      {geos.map((g, i) => (
-        <mesh key={i} geometry={g.geom} position={g.pos} quaternion={g.quat} material={cu && g.color === PVC ? mat(COPPER, selected, { metal: true, flat: g.flat, ghost }) : mat(g.color, selected, { metal: g.metal || g.color === '#c9a64a', flat: g.flat, ghost })} raycast={ghost ? () => null : undefined} />
-      ))}
+      {ghost || !lods.lo.length ? (
+        meshes(lods.hi)
+      ) : (
+        <Detailed distances={[0, lods.far]}>
+          <group>{meshes(lods.hi)}</group>
+          <group>{meshes(lods.lo)}</group>
+        </Detailed>
+      )}
     </group>
   )
 }
@@ -1011,6 +1150,7 @@ function CameraRig({ model }: { model: Model }) {
 export function Scene({ model }: { model: Model }) {
   const sceneColors = SCENE_COLORS[useViewPrefs((s) => s.theme)]
   const dpr = useQualityDpr()
+  const always = useAlwaysRender()
   const parts = useStore((s) => s.parts)
   const showDims = useStore((s) => s.showDims)
   const select = useStore((s) => s.select)
@@ -1019,7 +1159,8 @@ export function Scene({ model }: { model: Model }) {
     <Canvas
       camera={{ position: [60, 45, 70], fov: 40, near: 0.05, far: 10000 }}
       dpr={dpr}
-      gl={{ antialias: true, toneMappingExposure: 0.95 }}
+      frameloop={always ? 'always' : 'demand'}
+      gl={{ antialias: true, toneMappingExposure: 0.95, powerPreference: 'high-performance' }}
       onPointerMissed={(e) => e.button === 0 && !busyPlacing() && select(null)}
     >
       <SceneBackground />
@@ -1056,6 +1197,7 @@ export function Scene({ model }: { model: Model }) {
       <LengthEditAnchor model={model} />
       <SnapshotHook />
       <Effects />
+      <FrameControl />
       <OrbitControls makeDefault enableDamping={false} autoRotate={autoRotate} autoRotateSpeed={0.7} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>

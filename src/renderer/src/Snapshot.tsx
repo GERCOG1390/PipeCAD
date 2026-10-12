@@ -26,6 +26,7 @@ export const setComposer = (c: { render: (dt?: number) => void } | null): void =
 export function SnapshotHook() {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
+    ;(window as unknown as { pipecadScene: unknown }).pipecadScene = scene // для автотестов
     grab = (model) => {
       // для печати — светлый фон
       const bg = scene.background
