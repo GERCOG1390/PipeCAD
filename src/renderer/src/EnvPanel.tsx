@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Part, V3 } from './catalog'
+import { FITTINGS, Part, V3 } from './catalog'
 import { ENV_DEFS, EnvItem, LUMBER, PRESETS, Penetration, SHEETS, SURFACES, envBom } from './environment'
 import { LengthInput } from './Panels'
 import { viewTarget } from './Scene'
@@ -50,6 +50,8 @@ function SnapSelect() {
 export function EnvPalette() {
   const addEnv = useStore((s) => s.addEnv)
   const env = useStore((s) => s.env)
+  const startPlacing = useStore((s) => s.startPlacing)
+  const pits = Object.keys(FITTINGS).filter((k) => k.startsWith('pit_'))
   return (
     <aside className="palette">
       <div className="step-title">Site & surroundings</div>
@@ -74,6 +76,19 @@ export function EnvPalette() {
           </div>
         </div>
       ))}
+      <div className="cat">
+        <div className="cat-title">
+          <span className="swatch" style={{ background: 'linear-gradient(180deg,#1b1c1e 0 40%,#3a3e43 40%)' }} />
+          Sump & ejector pits
+        </div>
+        <div className="kinds">
+          {pits.map((k) => (
+            <button key={k} className="kind" onClick={() => startPlacing({ kind: k })} title="Click the floor: the basin is set in flush with it. Then pick its bottom ring and add a Zoeller pump">
+              <span>{FITTINGS[k].ru}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="help">
         <b>How to place</b>
         <p>Objects appear at the screen center at level 0 (ground and slab go below 0). Drag the colored arrows to move, or type coordinates on the right.</p>

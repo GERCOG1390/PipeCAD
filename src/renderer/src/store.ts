@@ -377,7 +377,12 @@ export const useStore = create<State>((set, get) => ({
 
     const added: Part[] = []
     const notes: string[] = []
-    if (def.place?.always) {
+    const ap = activePort && isOpen(parts, activePort) ? portsOf(parts.find((p) => p.id === activePort.id)!)[activePort.port] : null
+    if (ap?.kind === 'seat' && !kind.startsWith('pump_')) {
+      set({ message: 'This is the pump seat in a basin — pick a sump or ejector pump' })
+      return
+    }
+    if (def.place?.always && ap?.kind !== 'seat') {
       get().startPlacing({ kind, size2 })
       return
     }

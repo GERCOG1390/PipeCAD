@@ -9,7 +9,7 @@ import * as WH from './data/waterHeaters'
 import { ALL_SIZES, CU_SIZES, DWV_SIZES, SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeMatLabel, sizeSpec, threadSize } from './data/sizes'
 
 export type V3 = [number, number, number]
-export type PortKind = 'hub' | 'spigot' | 'fpt' | 'mpt' | 'slip'
+export type PortKind = 'hub' | 'spigot' | 'fpt' | 'mpt' | 'slip' | 'seat'
 type Fam = 'p' | 'd'
 
 export interface PortDef {
@@ -61,7 +61,7 @@ export interface Part {
   tie?: { port: number; to: { id: string; port: number } } // соединение этого конца с концом другой ветки
 }
 
-export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub' | 'heater'
+export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub' | 'heater' | 'pump'
 export interface FittingDef {
   ru: string
   en: string
@@ -111,7 +111,7 @@ const spig = (pos: V3, dir: V3, size: SizeId, fam: Fam, stub: number, o: Partial
 const mpt = (pos: V3, dir: V3, size: SizeId, fam: Fam, stub = NPT[size], o: Partial<PortDef> = {}): PortDef => ({ pos, dir, size, kind: 'mpt', depth: 0, fam, stub, ...o })
 
 export const mates = (a: PortKind, b: PortKind): boolean =>
-  (a === 'hub' && b === 'spigot') || (a === 'spigot' && b === 'hub') || (a === 'fpt' && b === 'mpt') || (a === 'mpt' && b === 'fpt')
+  (a === 'hub' && b === 'spigot') || (a === 'spigot' && b === 'hub') || (a === 'fpt' && b === 'mpt') || (a === 'mpt' && b === 'fpt') || (a === 'seat' && b === 'seat')
 
 // ---------- профили (r, z): z — вдоль оси порта наружу, 0 — дно раструба / торец ----------
 const pitchOf = (s: SizeId): number => 1 / sp(s).tpi
@@ -1180,6 +1180,154 @@ function tankless(t: TanklessSpec): Built {
   }
   const built = finalize({ ports, shapes })
   built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: BRASS, metal: true } : s))
+  return built
+}
+
+// ---------- Насосы Zoeller и приямки (sump / sewage ejector basin) ----------
+// Начало — центр дна, +Y вверх. У приямка на дне «посадочное место» (порт seat), у насоса — такой же порт снизу:
+// насос, выбранный при активном seat, встаёт в приямок.
+const SEAT = (y: number, dir: V3): PortDef => ({ pos: [0, y, 0], dir, size: '4', kind: 'seat', depth: 0, fam: 'd', bare: true })
+const ZOE_IRON = '#4b545c'
+const ZOE_PLASTIC = '#18191b'
+
+interface PumpSpec {
+  model: string
+  name: string
+  hp: string
+  H: number // общая высота
+  baseR: number // радиус улитки
+  baseH: number
+  motorR: number
+  dx: number // смещение оси напорного патрубка по X
+  out: SizeId // напорный патрубок FNPT
+  floatX: number
+}
+// Zoeller FM2958 (M53): 10-1/16" высота, 1-1/2" FNPT вертикально, поплавок вкл/выкл 7-1/4"/3".
+// Zoeller M267 Waste-Mate: 14-5/8" × 13-1/16" × 11-1/4", 2" FNPT вертикально, пропускает твёрдые частицы 2".
+const PUMPS: PumpSpec[] = [
+  { model: 'M53', name: 'Mighty-Mate Sump Pump, 3/10 HP, 1-1/2" FNPT', hp: '3/10 HP', H: 10.06, baseR: 3.95, baseH: 2.4, motorR: 2.95, dx: 3.35, out: '1-1/2', floatX: -4.1 },
+  { model: 'M267', name: 'Waste-Mate Sewage Ejector Pump, 1/2 HP, 2" FNPT', hp: '1/2 HP', H: 14.625, baseR: 4.7, baseH: 3.4, motorR: 3.6, dx: 4.35, out: '2', floatX: -5.0 }
+]
+
+function zoellerPump(p: PumpSpec): Built {
+  const { H, baseR, baseH, motorR, dx } = p
+  const seg = 128
+  const legH = 0.9
+  const motorTop = H - 1.1
+  const bossR = sp(p.out).od / 2 + 0.42
+  const shapes: Shape[] = [
+    // три ножки и решётка всасывания снизу
+    lathe([0, 0, 0], Y, rounded([[baseR * 0.55, 0], [baseR * 0.85, 0], [baseR * 0.85, legH + 0.05], [baseR * 0.55, legH + 0.05]], 0.12), { color: ZOE_IRON, metal: true, seg }),
+    lathe([0, legH, 0], Y, [[0.001, 0], [baseR * 0.55, 0], [baseR * 0.55, 0.06], [0.001, 0.06]], { color: '#0d0e10', seg: 64 }),
+    // улитка (volute)
+    lathe([0, legH, 0], Y, rounded([[0.001, 0], [baseR, 0], [baseR, baseH * 0.7], [motorR + 0.5, baseH], [0.001, baseH]], 0.35), { color: ZOE_IRON, metal: true, seg }),
+    // фланец разъёма улитки и корпуса двигателя
+    lathe([0, legH + baseH - 0.05, 0], Y, rounded([[motorR, 0], [motorR + 0.35, 0], [motorR + 0.35, 0.4], [motorR, 0.4]], 0.08), { color: ZOE_IRON, metal: true, seg }),
+    // корпус двигателя с куполом
+    lathe([0, legH + baseH + 0.3, 0], Y, rounded([[0.001, 0], [motorR, 0], [motorR, motorTop - legH - baseH - 1.2], [motorR * 0.55, motorTop - legH - baseH - 0.3], [0.001, motorTop - legH - baseH - 0.3]], 0.6), { color: ZOE_IRON, metal: true, seg }),
+    // рёбра охлаждения
+    { t: 'knurl', at: [0, legH + baseH + 0.6, 0], dir: Y, r: motorR + 0.02, h: (motorTop - legH - baseH) * 0.55, ribs: 18, color: ZOE_IRON },
+    // напорный канал: от улитки вверх вдоль корпуса
+    lathe([dx, legH + baseH * 0.4, 0], Y, rounded([[0.001, 0], [bossR - 0.1, 0], [bossR - 0.1, H - legH - baseH * 0.4 - 0.9], [bossR + 0.05, H - legH - baseH * 0.4 - 0.75], [0.001, H - legH - baseH * 0.4 - 0.75]], 0.15), { color: ZOE_IRON, metal: true, seg: 64 }),
+    { t: 'rbox', at: [(dx + motorR) / 2 - 0.2, legH + baseH, 0], dir: Y, size: [dx - motorR + bossR, (H - legH - baseH) * 0.8, bossR * 1.1], r: 0.4, color: ZOE_IRON, metal: true },
+    // ввод кабеля сверху и сам кабель
+    lathe([-motorR * 0.25, motorTop - 0.4, 0], Y, rounded([[0.001, 0], [0.45, 0], [0.45, 0.9], [0.3, 1.1], [0.001, 1.1]], 0.08), { color: '#3c4248', metal: true, seg: 32 }),
+    { t: 'tube', r: 0.17, color: '#121314', segs: [{ t: 'line', a: [-motorR * 0.25, motorTop + 0.6, 0], b: [-motorR * 0.25, motorTop + 3.5, 0] }, { t: 'arc', a: [-motorR * 0.25, motorTop + 3.5, 0], t0: Y, n: [0, 0, 1], r: 1.5, ang: Math.PI / 2 }] },
+    // табличка
+    { t: 'rbox', at: [0, legH + baseH + (motorTop - legH - baseH) * 0.45, motorR + 0.02], dir: Y, size: [motorR * 0.9, 1.3, 0.06], r: 0.08, color: '#d8d9d4' },
+    { t: 'box', at: [0, legH + baseH + (motorTop - legH - baseH) * 0.45 + 0.35, motorR + 0.06], dir: Y, size: [motorR * 0.8, 0.35, 0.02], color: '#c8202a' }
+  ]
+  // болты фланца
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3
+    shapes.push({ t: 'nut', at: [Math.cos(a) * (motorR + 0.2), legH + baseH + 0.35, Math.sin(a) * (motorR + 0.2)], dir: Y, sides: 6, r: 0.18, h: 0.18, color: '#9aa0a6', metal: true })
+  }
+  // выключатель: корпус, направляющая штанга, поплавок и стопоры
+  const fx = p.floatX
+  const fTop = motorTop - 0.4
+  shapes.push(
+    { t: 'rbox', at: [fx + 0.9, fTop - 0.9, 0], dir: Y, size: [2.2, 2.4, 2.0], r: 0.35, color: ZOE_PLASTIC },
+    { t: 'rbox', at: [-motorR + 0.1, fTop - 0.9, 0], dir: Y, size: [Math.abs(fx) - motorR + 1.4, 0.9, 1.0], r: 0.2, color: ZOE_IRON, metal: true },
+    { t: 'tube', r: 0.12, color: '#c9ced3', metal: true, segs: [{ t: 'line', a: [fx, fTop - 2.1, 0], b: [fx, legH + 0.6, 0] }] },
+    lathe([fx, legH + 2.0, 0], Y, rounded([[0.15, 0], [1.0, 0], [1.1, 0.2], [1.1, 2.1], [1.0, 2.3], [0.15, 2.3]], 0.25), { color: '#d9d6cc', seg: 48 }),
+    lathe([fx, legH + 4.9, 0], Y, [[0.12, 0], [0.4, 0], [0.4, 0.3], [0.12, 0.3]], { color: ZOE_PLASTIC, seg: 24 }),
+    lathe([fx, legH + 1.4, 0], Y, [[0.12, 0], [0.4, 0], [0.4, 0.3], [0.12, 0.3]], { color: ZOE_PLASTIC, seg: 24 })
+  )
+  const T = NPT[p.out]
+  const ports: PortDef[] = [SEAT(0, [0, -1, 0]), fpt([dx, H - T, 0], Y, p.out, 'p', T, { face: T, R: bossR })]
+  const built = finalize({ ports, shapes })
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: ZOE_IRON, metal: true } : s))
+  return built
+}
+
+interface BasinSpec {
+  key: string
+  name: string
+  D: number // диаметр по верху
+  Db: number // диаметр дна
+  H: number
+  sealed: boolean
+  pn: string
+}
+const BASINS: BasinSpec[] = [
+  { key: 'sump1822', name: 'Sump Basin 18" × 22" w/ Lid', D: 18, Db: 15, H: 22, sealed: false, pn: '18x22' },
+  { key: 'sump1824', name: 'Sump Basin 18" × 24" w/ Lid', D: 18, Db: 15, H: 24, sealed: false, pn: '18x24' },
+  { key: 'ej1830', name: 'Sewage Ejector Basin 18" × 30", Sealed Cover', D: 18, Db: 15, H: 30, sealed: true, pn: '18x30' },
+  { key: 'ej2430', name: 'Sewage Ejector Basin 24" × 30", Sealed Cover', D: 24, Db: 20, H: 30, sealed: true, pn: '24x30' }
+]
+
+function basin(b: BasinSpec): Built {
+  const { H } = b
+  const r0 = b.Db / 2
+  const r1 = b.D / 2
+  const wall = 0.22
+  const floor = 0.45
+  const rAt = (y: number): number => r0 + ((r1 - r0) * y) / H
+  const seg = 128
+  // профиль: дно с кольцом против всплытия, гофрированная стенка, фланец сверху, внутренняя гладкая стенка
+  const prof: [number, number][] = [[0.001, 0], [r0 + 1.6, 0], [r0 + 1.6, 0.6], [r0 + 0.2, 0.7]]
+  for (let y = 2.5; y < H - 3; y += 3.2) {
+    prof.push([rAt(y), y], [rAt(y + 0.5) + 0.3, y + 0.6], [rAt(y + 1.4) + 0.3, y + 1.4], [rAt(y + 2), y + 2])
+  }
+  prof.push([rAt(H - 1.2), H - 1.2], [r1 + 1.8, H - 0.6], [r1 + 1.8, H], [r1 - wall, H], [r0 - wall, floor], [0.001, floor])
+  const shapes: Shape[] = [lathe(O, Y, prof, { color: ZOE_PLASTIC, seg })]
+  const ports: PortDef[] = [SEAT(floor, Y)]
+  // крышка
+  const lidC = b.sealed ? '#26292d' : '#1d4f2e'
+  shapes.push(lathe([0, H, 0], Y, rounded([[0.001, 0], [r1 + 1.6, 0], [r1 + 1.6, 0.35], [r1 + 1.2, 0.5], [0.001, 0.5]], 0.12), { color: lidC, seg }))
+  // кольцевое рифление крышки
+  for (const rr of [r1 * 0.45, r1 * 0.75]) shapes.push(lathe([0, H + 0.48, 0], Y, [[rr, 0], [rr + 0.25, 0], [rr + 0.25, 0.08], [rr, 0.08]], { color: lidC, seg }))
+  const nb = b.sealed ? 8 : 6
+  for (let i = 0; i < nb; i++) {
+    const a = (i / nb) * Math.PI * 2 + Math.PI / nb
+    shapes.push({ t: 'nut', at: [Math.cos(a) * (r1 + 0.9), H + 0.45, Math.sin(a) * (r1 + 0.9)], dir: Y, sides: 6, r: 0.22, h: 0.2, color: '#b9bec3', metal: true })
+  }
+  // резиновые уплотнители: под напорную трубу (над патрубком насоса) и кабель
+  const grom = (x: number, z: number, r: number): void => {
+    shapes.push(lathe([x, H + 0.45, z], Y, rounded([[r, 0], [r + 0.45, 0], [r + 0.45, 0.25], [r, 0.25]], 0.08), { color: '#0b0b0c', seg: 48 }))
+  }
+  grom(b.sealed ? 4.35 : 3.35, 0, 1.2)
+  grom(-0.9, 0, 0.3)
+  grom(-0.9, -2.2, 0.3)
+  if (b.sealed) {
+    // 4" входной раструб сбоку, 2" вентиляция на крышке
+    const yIn = H - 8
+    const rIn = rAt(yIn)
+    const inR = hubR('4', 'd')
+    shapes.push(lathe([-rIn + 0.6, yIn, 0], [-1, 0, 0], rounded([[0.001, 0], [inR + 0.5, 0], [inR + 0.5, 0.8], [0.001, 0.8]], 0.2), { color: ZOE_PLASTIC, seg: 64 }))
+    ports.push(hub([-rIn - 0.2, yIn, 0], [-1, 0, 0], '4', 'd', { R: inR }))
+    const vR = hubR('2', 'd')
+    shapes.push(lathe([-3.5, H + 0.45, 4], Y, rounded([[0.001, 0], [vR + 0.4, 0], [vR + 0.4, 0.3], [0.001, 0.3]], 0.1), { color: '#0b0b0c', seg: 48 }))
+    ports.push(hub([-3.5, H + 0.75 - 0.05, 4], Y, '2', 'd', { R: vR }))
+  } else {
+    // ввод дренажа (drain tile) 4"
+    const yIn = H - 6
+    const rIn = rAt(yIn)
+    const inR = hubR('4', 'd')
+    ports.push(hub([-rIn - 0.2, yIn, 0], [-1, 0, 0], '4', 'd', { R: inR }))
+  }
+  const built = finalize({ ports, shapes })
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: ZOE_PLASTIC } : s))
   return built
 }
 
@@ -2701,6 +2849,37 @@ for (const t of TANKLESS) {
     place: { rot: [0, 0, 0], height: 48, always: true },
     build: () => tankless(t),
     bom: () => [{ name: t.brand + ' ' + t.model + ' Indoor Condensing Tankless Water Heater, Natural Gas, ' + t.btu.toLocaleString('en-US') + ' BTU', pn: t.model }]
+  }
+}
+
+for (const p of PUMPS) {
+  FITTINGS['pump_' + p.model] = {
+    ru: 'Zoeller ' + p.model + ' · ' + p.hp + ' · ' + sizeLabel(p.out) + '" out',
+    en: 'Zoeller ' + p.model + ' ' + p.name,
+    group: 'pump',
+    cat: 'Pumps — Zoeller',
+    icon: 'pump',
+    pn: p.model,
+    sizes: ALL_SIZES,
+    // ставится на пол или (если выбрано посадочное место) на дно приямка
+    place: { rot: [0, 0, 0], height: 0, always: true },
+    build: () => zoellerPump(p),
+    bom: () => [{ name: 'Zoeller ' + p.model + ' ' + p.name + ', 115V', pn: p.model }]
+  }
+}
+for (const b of BASINS) {
+  FITTINGS['pit_' + b.key] = {
+    ru: b.name,
+    en: b.name + ' (polyethylene)',
+    group: 'pump',
+    cat: b.sealed ? 'Basins — Sewage Ejector' : 'Basins — Sump',
+    icon: 'basin',
+    pn: b.pn,
+    sizes: ALL_SIZES,
+    // утоплен в пол: крышка на уровне пола
+    place: { rot: [0, 0, 0], height: -b.H, always: true },
+    build: () => basin(b),
+    bom: () => [{ name: b.name + ', polyethylene' + (b.sealed ? ', 4" inlet hub, 2" vent' : ', 4" inlet'), pn: b.pn }]
   }
 }
 

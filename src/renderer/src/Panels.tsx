@@ -15,6 +15,8 @@ const ICONS: Record<string, string> = {
   ell45: 'M2 16h9l9-9',
   tee: 'M3 9h18M12 9v12',
   heater: 'M7 4h10v17H7zM9 2v2M15 2v2M10 16h4',
+  pump: 'M8 21h8M7 18h10v3H7zM9 8h6v10H9zM15 10h3V3M10 8V5',
+  basin: 'M4 4h16M5 4l2 17h10l2-17M9 14h6v7H9z',
   tankless: 'M5 3h14v15H5zM9 18v3M12 18v3M15 18v3M9 1v2M15 1v2M9 13h6',
   xtank: 'M12 2v4M8 6h8a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3zM5 13h14',
   nohub: 'M2 12h20M6 7h12v10H6zM9 7v10M15 7v10',
@@ -85,7 +87,8 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: 'dwv', title: 'DWV — Drain, Waste & Vent' },
   { id: 'copper', title: 'Copper — Sweat (NIBCO Wrot)' },
   { id: 'nohub', title: 'No-Hub Couplings (Transitions)' },
-  { id: 'heater', title: 'Water Heaters & Expansion Tanks' }
+  { id: 'heater', title: 'Water Heaters & Expansion Tanks' },
+  { id: 'pump', title: 'Sump & Sewage Pumps, Basins' }
 ]
 
 function readOpen(): Record<string, boolean> {
@@ -160,7 +163,7 @@ export function Palette({ model }: { model: Model }) {
         </div>
         <div className="size-grid">
           {SIZES.filter((s) => s.mat === mat).map((s) => {
-            const count = Object.values(FITTINGS).filter((d) => d.group !== 'common' && d.group !== 'heater' && d.sizes.includes(s.id)).length
+            const count = Object.values(FITTINGS).filter((d) => d.group !== 'common' && d.group !== 'heater' && d.group !== 'pump' && d.sizes.includes(s.id)).length
             return (
               <button key={s.id} className={`size-card${s.id === paletteSize ? ' on' : ''}`} onClick={() => chooseSize(s.id)}>
                 <span className="size-big">{sizeLabel(s.id)}</span>
