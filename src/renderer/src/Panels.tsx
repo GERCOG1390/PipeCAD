@@ -471,6 +471,8 @@ export function Inspector({ model }: { model: Model }) {
   const s2opts = s2 ? s2.options(part.size) : []
   const title2 = part.size2 && part.size2 !== part.size ? ` × ${sizeLabel(part.size2)}` : ''
   const bull = part.kind === 'pbull' || part.kind === 'cuBull'
+  // оборудование: размер детали условный, в заголовке не показываем
+  const fixture = def.group === 'heater' || def.group === 'pump'
 
   return (
     <div className="inspector">
@@ -478,11 +480,11 @@ export function Inspector({ model }: { model: Model }) {
         <KindIcon kind={part.kind} />
         <div>
           <div className="insp-title">
-            {bull ? `Bullhead Tee ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size)}` : <>{def.ru} {sizeLabel(part.size)}{title2}</>}
+            {bull ? `Bullhead Tee ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size2 ?? part.size)} × ${nominalLabel(part.size)}` : fixture ? def.ru : <>{def.ru} {sizeLabel(part.size)}{title2}</>}
           </div>
           <div className="insp-sub">
             {def.en}
-            {def.pn ? ` · Charlotte ${def.pn}` : ''}
+            {def.pn ? ` · ${def.group === 'pressure' || def.group === 'dwv' ? 'Charlotte ' : def.group === 'copper' ? 'NIBCO ' : '#'}${def.pn}` : ''}
           </div>
         </div>
       </div>

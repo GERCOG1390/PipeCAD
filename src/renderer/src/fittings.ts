@@ -2996,7 +2996,7 @@ for (const t of TANKLESS) {
 
 for (const p of PUMPS) {
   FITTINGS['pump_' + p.model] = {
-    ru: 'Zoeller ' + p.model + ' · ' + p.hp + ' · ' + sizeLabel(p.out) + '" out',
+    ru: 'Zoeller ' + p.model + ' · ' + p.hp + ' · ' + sizeLabel(p.out) + ' out',
     en: 'Zoeller ' + p.model + ' ' + p.name,
     group: 'pump',
     cat: 'Pumps — Zoeller',
@@ -3045,14 +3045,14 @@ export const basinRadius = (kind: string): number | undefined => {
 
 for (const s of ['1-1/4', '1-1/2'] as SizeId[]) {
   FITTINGS['cv_sump_' + s] = {
-    ru: sizeLabel(s) + '" Sump Check Valve · rubber couplings',
-    en: sizeLabel(s) + '" In-Line Sump Pump Check Valve with Rubber Couplings & SS Clamps',
+    ru: sizeLabel(s) + ' Sump Check Valve · rubber couplings',
+    en: sizeLabel(s) + ' In-Line Sump Pump Check Valve with Rubber Couplings & SS Clamps',
     group: 'pump',
     cat: 'Check Valves',
     icon: 'check',
     sizes: [s],
     build: () => sumpCheck(s),
-    bom: () => [{ name: sizeLabel(s) + '" Sump Pump Check Valve, In-Line Spring, Rubber Couplings w/ SS Clamps' }]
+    bom: () => [{ name: sizeLabel(s) + ' Sump Pump Check Valve, In-Line Spring, Rubber Couplings w/ SS Clamps' }]
   }
 }
 FITTINGS['cv_ej_2'] = {
