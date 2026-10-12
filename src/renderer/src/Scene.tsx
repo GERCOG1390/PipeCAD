@@ -39,6 +39,7 @@ import { useStore } from './store'
 import { LengthEditAnchor } from './LengthEditor'
 import { SnapshotHook } from './Snapshot'
 import { SCENE_COLORS, useViewPrefs } from './viewPrefs'
+import { Effects, useQualityDpr } from './Effects'
 import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength } from './units'
 
@@ -1009,6 +1010,7 @@ function CameraRig({ model }: { model: Model }) {
 
 export function Scene({ model }: { model: Model }) {
   const sceneColors = SCENE_COLORS[useViewPrefs((s) => s.theme)]
+  const dpr = useQualityDpr()
   const parts = useStore((s) => s.parts)
   const showDims = useStore((s) => s.showDims)
   const select = useStore((s) => s.select)
@@ -1016,7 +1018,7 @@ export function Scene({ model }: { model: Model }) {
   return (
     <Canvas
       camera={{ position: [60, 45, 70], fov: 40, near: 0.05, far: 10000 }}
-      dpr={[1, 2]}
+      dpr={dpr}
       gl={{ antialias: true, toneMappingExposure: 0.95 }}
       onPointerMissed={(e) => e.button === 0 && !busyPlacing() && select(null)}
     >
@@ -1053,6 +1055,7 @@ export function Scene({ model }: { model: Model }) {
       {showDims && <DimLabels model={model} parts={parts} />}
       <LengthEditAnchor model={model} />
       <SnapshotHook />
+      <Effects />
       <OrbitControls makeDefault enableDamping={false} autoRotate={autoRotate} autoRotateSpeed={0.7} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>

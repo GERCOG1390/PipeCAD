@@ -1,8 +1,9 @@
 // Окно настроек вида: тема и размер интерфейса
-import { ZOOMS, useViewPrefs } from './viewPrefs'
+import { QUALITY } from './Effects'
+import { Quality, ZOOMS, useViewPrefs } from './viewPrefs'
 
 export function ViewSettings({ onClose }: { onClose: () => void }) {
-  const { theme, zoom, setTheme, setZoom } = useViewPrefs()
+  const { theme, zoom, quality, setTheme, setZoom, setQuality } = useViewPrefs()
   return (
     <div className="modal-back" onClick={onClose}>
       <div className="modal settings" onClick={(e) => e.stopPropagation()}>
@@ -27,6 +28,15 @@ export function ViewSettings({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+        <label>Render quality</label>
+        <div className="seg">
+          {(Object.keys(QUALITY) as Quality[]).map((q) => (
+            <button key={q} className={quality === q ? 'on' : ''} onClick={() => setQuality(q)} title={QUALITY[q].hint}>
+              {QUALITY[q].label}
+            </button>
+          ))}
+        </div>
+        <div className="muted small">{QUALITY[quality].hint}</div>
         <div className="muted small">Ctrl + / Ctrl − / Ctrl 0 also change the size. Light theme is easier to read in bright rooms and on a laptop on site.</div>
       </div>
     </div>
