@@ -1051,76 +1051,132 @@ function tankless(t: TanklessSpec): Built {
   const { W, H, D } = t
   const back = -D / 2
   const nav = t.brand === 'Navien'
-  const body = nav ? '#e6e7e9' : '#eceef0'
-  const frame = nav ? '#9fa4a9' : '#b8bdc2'
-  const shapes: Shape[] = [
-    // корпус (задняя часть / рама) и передняя крышка
-    { t: 'rbox', at: [0, H / 2, back + D * 0.42], dir: Y, size: [W, H, D * 0.84], r: 0.6, color: frame, metal: true },
-    { t: 'rbox', at: [0, H / 2, back + D * 0.6], dir: Y, size: [W - 0.4, H - 0.5, D * 0.8], r: 1.4, color: body },
-    // задний настенный кронштейн
-    { t: 'rbox', at: [0, H - 2, back + 0.15], dir: Y, size: [W * 0.6, 1.6, 0.3], r: 0.1, color: '#6e747a', metal: true },
-    // нижняя плита с отверстиями под подключения
-    { t: 'rbox', at: [0, 0.35, back + D * 0.45], dir: Y, size: [W - 0.6, 0.7, D * 0.88], r: 0.15, color: '#5f6469', metal: true }
-  ]
-  const fz = back + D * 0.6 + D * 0.4 // передняя плоскость крышки
+  const body = nav ? '#e9eaec' : '#eef0f2'
+  const frame = nav ? '#8f959b' : '#aeb3b8'
+  const DARK = '#1c1e21'
+  const STEEL = '#c3c8cd'
+  const shapes: Shape[] = []
+  const coverD = D * 0.78
+  const coverZ = back + D - coverD / 2 // центр крышки
+  const fz = back + D // передняя плоскость
+  // ---- корпус: стальная рама, крышка, рамка-окантовка ----
+  shapes.push(
+    { t: 'rbox', at: [0, H / 2, back + D * 0.4], dir: Y, size: [W, H, D * 0.8], r: 0.5, color: frame, metal: true },
+    { t: 'rbox', at: [0, H / 2, coverZ], dir: Y, size: [W - 0.25, H - 0.35, coverD], r: 1.6, color: body },
+    // окантовка (стык крышки и рамы)
+    { t: 'rbox', at: [0, H / 2, back + D - coverD + 0.06], dir: Y, size: [W + 0.05, H - 0.2, 0.12], r: 0.3, color: '#5c6167', metal: true },
+    // настенные кронштейны сверху и снизу
+    { t: 'rbox', at: [0, H - 1.6, back + 0.12], dir: Y, size: [W * 0.62, 1.8, 0.25], r: 0.08, color: '#6e747a', metal: true },
+    { t: 'rbox', at: [0, 2.2, back + 0.12], dir: Y, size: [W * 0.4, 1.2, 0.25], r: 0.08, color: '#6e747a', metal: true }
+  )
+  // винты крышки по углам (снизу)
+  for (const sx of [-1, 1]) shapes.push(lathe([sx * (W / 2 - 1.4), 0.02, fz - 1.0], [0, -1, 0], rounded([[0.001, 0], [0.22, 0], [0.22, 0.08], [0.001, 0.12]], 0.03), { color: STEEL, metal: true, seg: 24 }))
+  // боковые жалюзи (воздух для электроники) на раме
+  for (const sx of [-1, 1]) {
+    for (let i = 0; i < 9; i++) {
+      shapes.push({ t: 'rbox', at: [sx * (W / 2 + 0.02), H * 0.62 + i * 0.55, back + D * 0.36], dir: Y, size: [0.06, 0.18, D * 0.42], r: 0.03, color: '#3d4247' })
+    }
+  }
   if (nav) {
-    // фирменные «волны» крышки и нижняя панель управления
+    // «волны» крышки Navien — выпуклые рёбра
     for (const s of [-1, 1]) {
       shapes.push({
         t: 'sweep',
         path: [
-          [s * W * 0.22, H - 1.2, fz + 0.02],
-          [s * W * 0.16, H * 0.6, fz + 0.06],
-          [s * W * 0.12, H * 0.32, fz + 0.06],
-          [s * W * 0.1, H * 0.12, fz + 0.02]
+          [s * W * 0.23, H - 1.0, fz + 0.01],
+          [s * W * 0.18, H * 0.72, fz + 0.06],
+          [s * W * 0.13, H * 0.42, fz + 0.07],
+          [s * W * 0.11, H * 0.15, fz + 0.03],
+          [s * W * 0.105, 1.0, fz - 0.05]
         ],
-        w: 0.22,
-        th: 0.12,
+        w: 0.3,
+        th: 0.14,
+        rad: 0.07,
         side: X,
-        color: '#c7cacd'
+        color: '#d4d7da'
       })
     }
+    // центральная панель с дисплеем и кнопками
     shapes.push(
-      { t: 'rbox', at: [0, H * 0.2, fz - 0.05], dir: Y, size: [W * 0.2, H * 0.3, 0.35], r: 0.3, color: '#cfd2d5' },
-      { t: 'rbox', at: [0, H * 0.16, fz + 0.12], dir: Y, size: [2.6, 2.6, 0.12], r: 0.25, color: '#1b1d20' },
-      { t: 'box', at: [0, H * 0.17, fz + 0.2], dir: Y, size: [1.8, 1.0, 0.04], color: '#47c3ff' },
-      { t: 'box', at: [0, H * 0.82, fz + 0.06], dir: Y, size: [3.6, 0.5, 0.04], color: '#1c3f8e' }
+      { t: 'rbox', at: [0, H * 0.2, fz - 0.02], dir: Y, size: [W * 0.21, H * 0.32, 0.3], r: 0.35, color: '#d9dcdf' },
+      { t: 'rbox', at: [0, H * 0.17, fz + 0.12], dir: Y, size: [2.9, 3.4, 0.14], r: 0.3, color: DARK },
+      { t: 'rbox', at: [0, H * 0.17 + 0.5, fz + 0.2], dir: Y, size: [2.1, 1.3, 0.04], r: 0.08, color: '#0d2b3c' },
+      { t: 'box', at: [0, H * 0.17 + 0.55, fz + 0.23], dir: Y, size: [1.6, 0.6, 0.02], color: '#5ad0ff' }
+    )
+    for (const [bx, by] of [[-0.75, -0.8], [0, -0.8], [0.75, -0.8], [0, -1.35]] as [number, number][]) {
+      shapes.push(lathe([bx, H * 0.17 + by, fz + 0.2], Z, rounded([[0.001, 0], [0.22, 0], [0.22, 0.06], [0.001, 0.09]], 0.03), { color: '#8a9096', seg: 32 }))
+    }
+    // логотип и табличка
+    shapes.push(
+      { t: 'rbox', at: [0, H * 0.83, fz + 0.04], dir: Y, size: [3.8, 0.55, 0.06], r: 0.05, color: '#1c3f8e' },
+      { t: 'box', at: [-1.3, H * 0.83, fz + 0.08], dir: Y, size: [0.5, 0.35, 0.02], color: '#e8742a' }
+    )
+    // сифон конденсата снизу (белый цилиндр) и ввод кабеля
+    const cx = -W / 2 + 10.8
+    shapes.push(
+      lathe([cx + 1.4, -0.05, back + 4.2], [0, -1, 0], rounded([[0.001, 0], [0.75, 0], [0.75, 3.2], [0.4, 3.5], [0.001, 3.5]], 0.15), { color: '#f2f2ee', seg: 64 }),
+      { t: 'tube', r: 0.18, color: '#f2f2ee', segs: [{ t: 'line', a: [cx + 1.4, -3.2, back + 4.2], b: [cx + 0.4, -3.2, back + 2.4] }] }
     )
   } else {
-    // Rinnai: панель управления справа внизу, логотип
+    // Rinnai: тёмная нижняя полоса, панель управления справа, решётка
     shapes.push(
-      { t: 'rbox', at: [W * 0.22, H * 0.14, fz + 0.05], dir: Y, size: [3.2, 4.2, 0.25], r: 0.3, color: '#2a2d31' },
-      { t: 'box', at: [W * 0.22, H * 0.18, fz + 0.2], dir: Y, size: [2.2, 1.1, 0.04], color: '#7fe0a0' },
-      { t: 'box', at: [W * 0.22, H * 0.08, fz + 0.2], dir: Y, size: [2.4, 0.5, 0.04], color: '#c22a2a' },
-      { t: 'rbox', at: [0, H * 0.06, fz - 0.4], dir: Y, size: [W - 1.2, 0.6, 0.8], r: 0.2, color: '#9aa0a6', metal: true }
+      { t: 'rbox', at: [0, 2.7, fz - 0.08], dir: Y, size: [W - 2.4, 1.5, 0.24], r: 0.25, color: '#3a3e43' },
+      { t: 'rbox', at: [W * 0.22, H * 0.16 + 2.4, fz + 0.04], dir: Y, size: [3.4, 4.4, 0.18], r: 0.35, color: DARK },
+      { t: 'rbox', at: [W * 0.22, H * 0.16 + 2.4 + 0.8, fz + 0.14], dir: Y, size: [2.4, 1.3, 0.04], r: 0.08, color: '#0f2a1a' },
+      { t: 'box', at: [W * 0.22, H * 0.16 + 2.4 + 0.85, fz + 0.17], dir: Y, size: [1.9, 0.7, 0.02], color: '#7fe0a0' },
+      { t: 'rbox', at: [W * 0.22, H * 0.16 + 2.4 - 1.6, fz + 0.13], dir: Y, size: [2.6, 0.45, 0.04], r: 0.1, color: '#c22a2a' },
+      { t: 'rbox', at: [-W * 0.22, H * 0.9, fz + 0.03], dir: Y, size: [3.2, 0.6, 0.05], r: 0.08, color: '#c62828' }
+    )
+    for (const [bx, by] of [[-0.8, -0.5], [0, -0.5], [0.8, -0.5]] as [number, number][]) {
+      shapes.push(lathe([W * 0.22 + bx, H * 0.16 + 2.4 + by, fz + 0.14], Z, rounded([[0.001, 0], [0.26, 0], [0.26, 0.06], [0.001, 0.09]], 0.03), { color: '#9aa0a6', seg: 32 }))
+    }
+    for (let i = 0; i < 14; i++) shapes.push({ t: 'rbox', at: [-W / 2 + 2.3 + i * 1.02, 2.7, fz + 0.05], dir: Y, size: [0.6, 1.0, 0.06], r: 0.05, color: '#16181b' })
+    // PRV (предохранительный клапан) на выходе горячей воды — входит в комплект Rinnai
+    const prv = rinnaiConn(10.39, 7.6)
+    const px = -W / 2 + prv.x
+    const pz = back + prv.z
+    shapes.push(
+      lathe([px, -0.05, pz], [0, -1, 0], rounded([[0.001, 0], [0.55, 0], [0.55, 1.6], [0.001, 1.6]], 0.08), { color: BRASS, metal: true, seg: 48 }),
+      { t: 'nut', at: [px, -0.1, pz], dir: [0, -1, 0], sides: 6, r: 0.6, h: 0.4, color: BRASS, metal: true },
+      { t: 'sweep', path: [[px, -1.0, pz], [px + 0.5, -1.2, pz], [px + 1.6, -1.15, pz]], w: 0.28, th: 0.08, side: [0, 0, 1], color: STEEL, metal: true }
     )
   }
-  // подключения снизу: латунные ниппели с шестигранником
+  // ---- нижняя плита: проходы, кабельный ввод, шнур ----
+  shapes.push(
+    { t: 'rbox', at: [0, 0.25, back + D * 0.42], dir: Y, size: [W - 0.6, 0.5, D * 0.82], r: 0.15, color: '#55595e', metal: true },
+    lathe([W / 2 - 1.4, -0.05, back + 1.6], [0, -1, 0], rounded([[0.001, 0], [0.35, 0], [0.35, 0.5], [0.2, 0.6], [0.001, 0.6]], 0.08), { color: '#202226', seg: 32 }),
+    { t: 'tube', r: 0.14, color: '#202226', segs: [{ t: 'line', a: [W / 2 - 1.4, -0.6, back + 1.6], b: [W / 2 - 1.2, -6, back + 0.6] }] }
+  )
+  // ---- подключения снизу: шестигранник, ниппель, цветное кольцо ----
   const ports: PortDef[] = []
   for (const c of t.conns) {
     const x = -W / 2 + c.x
     const z = back + c.z
     const o = sp(c.size).od / 2
+    const color = c.water ? (c.name.startsWith('Hot') ? '#c8352e' : c.name.startsWith('Cold') ? '#2563eb' : '#e0a21c') : c.name === 'Gas' ? '#e8c51a' : '#9aa0a6'
     shapes.push(
-      { t: 'nut', at: [x, -0.05, z], dir: [0, -1, 0], sides: 6, r: o + 0.22, h: 0.45, color: BRASS, metal: true },
-      lathe([x, -0.5, z], [0, -1, 0], [[o - 0.05, 0], [o + 0.12, 0], [o + 0.12, 0.25], [o - 0.05, 0.25]], { color: c.water ? (c.name.startsWith('Hot') ? '#c8352e' : c.name.startsWith('Cold') ? '#2563eb' : '#e0a21c') : c.name === 'Gas' ? '#e8c51a' : '#9aa0a6', seg: 32 })
+      lathe([x, 0, z], [0, -1, 0], rounded([[o + 0.05, 0], [o + 0.55, 0], [o + 0.55, 0.12], [o + 0.05, 0.12]], 0.03), { color: '#303438', seg: 48 }),
+      { t: 'nut', at: [x, -0.12, z], dir: [0, -1, 0], sides: 6, r: o + 0.24, h: 0.42, ch: 0.06, color: BRASS, metal: true },
+      lathe([x, -0.55, z], [0, -1, 0], rounded([[o - 0.04, 0], [o + 0.11, 0], [o + 0.11, 0.22], [o - 0.04, 0.22]], 0.03), { color, seg: 48 })
     )
-    ports.push(mpt([x, -1.6, z], [0, -1, 0], c.size, 'p', 0.85, c.water ? { preferCu: true } : {}))
+    ports.push(mpt([x, -1.6, z], [0, -1, 0], c.size, 'p', 0.8, c.water ? { preferCu: true } : {}))
   }
-  // вентиляция сверху: патрубки 2" PVC с фланцами
+  // ---- вентиляция: фланец с прокладкой, стопорное кольцо, патрубок PVC ----
   for (const v of t.vents) {
     const x = -W / 2 + v.x
     const z = back + v.z
     const vo = sp(v.size).od / 2
     shapes.push(
-      lathe([x, H - 0.05, z], Y, rounded([[vo + 0.6, 0], [vo + 1.4, 0], [vo + 1.4, 0.25], [vo + 0.6, 0.3]], 0.08), { color: '#3a3e44', seg: 64 }),
-      lathe([x, H + 0.2, z], Y, [[vo + 0.02, 0], [vo + 0.28, 0], [vo + 0.28, 1.5], [vo + 0.02, 1.5]], { color: '#e9e9e4', seg: 64 })
+      lathe([x, H - 0.1, z], Y, rounded([[vo + 0.3, 0], [vo + 1.45, 0], [vo + 1.45, 0.22], [vo + 0.3, 0.3]], 0.08), { color: '#33373c', seg: 96 }),
+      lathe([x, H + 0.12, z], Y, [[vo + 0.3, 0], [vo + 0.4, 0], [vo + 0.4, 0.1], [vo + 0.3, 0.1]], { color: '#111214', seg: 96 }),
+      lathe([x, H + 0.2, z], Y, rounded([[vo + 0.03, 0], [vo + 0.36, 0], [vo + 0.36, 1.1], [vo + 0.45, 1.2], [vo + 0.45, 1.55], [vo + 0.03, 1.55]], 0.05), { color: '#ecece6', seg: 96 }),
+      { t: 'knurl', at: [x, H + 0.25, z], dir: Y, r: vo + 0.62, h: 0.45, ribs: 16, color: '#3b3f44' }
     )
     for (const a of [45, 135, 225, 315]) {
-      const r = ((a * Math.PI) / 180)
-      shapes.push({ t: 'nut', at: [x + Math.cos(r) * (vo + 1.05), H + 0.2, z + Math.sin(r) * (vo + 1.05)], dir: Y, sides: 6, r: 0.14, h: 0.12, color: '#c9ced3', metal: true })
+      const r = (a * Math.PI) / 180
+      shapes.push({ t: 'nut', at: [x + Math.cos(r) * (vo + 1.08), H + 0.2, z + Math.sin(r) * (vo + 1.08)], dir: Y, sides: 6, r: 0.14, h: 0.12, color: STEEL, metal: true })
     }
-    ports.push(hub([x, H + 1.7 - sp(v.size).socket, z], Y, v.size, 'p', { bare: true, R: vo + 0.28 }))
+    ports.push(hub([x, H + 1.75 - sp(v.size).socket, z], Y, v.size, 'p', { bare: true, R: vo + 0.36 }))
   }
   const built = finalize({ ports, shapes })
   built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: BRASS, metal: true } : s))

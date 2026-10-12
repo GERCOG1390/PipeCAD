@@ -262,7 +262,7 @@ function shapeGeo(s: Shape): Geo | null {
       const dir = new Vector3(...s.dir).normalize()
       const q0 = quatTo(dir)
       if (s.yaw) q0.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), (s.yaw * Math.PI) / 180))
-      return { geom: new RoundedBoxGeometry(s.size[0], s.size[1], s.size[2], 4, Math.min(s.r, Math.min(...s.size) / 2 - 1e-3)), pos: new Vector3(...s.at), quat: q0, color: s.color ?? PVC, metal: s.metal }
+      return { geom: new RoundedBoxGeometry(s.size[0], s.size[1], s.size[2], 8, Math.min(s.r, Math.min(...s.size) / 2 - 1e-3)), pos: new Vector3(...s.at), quat: q0, color: s.color ?? PVC, metal: s.metal }
     }
     case 'sweep':
       return { geom: sweepGeometry(s.path, s.w, s.th, s.rad ?? Math.min(s.w, s.th) * 0.45, s.side), pos: new Vector3(), quat: new Quaternion(), color: s.color ?? PVC, metal: s.metal }
