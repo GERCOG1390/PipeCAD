@@ -601,7 +601,11 @@ export const useStore = create<State>((set, get) => ({
       filePath: path,
       dirty: false,
       stick: f.stick ?? get().stick,
-      message: null
+      message: (() => {
+        // детали, которых нет в каталоге (файл из другой версии), рисуются как труба — предупреждаем
+        const unknown = [...new Set(f.parts.filter((p) => !FITTINGS[p.kind]).map((p) => p.kind))]
+        return unknown.length ? `Unknown parts in this file (${unknown.join(', ')}) — shown as pipe. Check them before ordering.` : null
+      })()
     })
     get().setView(null)
   },

@@ -3038,6 +3038,11 @@ for (const b of BASINS) {
     bom: () => []
   }
 }
+// Габариты приямка для выреза в плите/грунте
+export const basinDims = (kind: string): { r: number; H: number } | undefined => {
+  const b = BASINS.find((x) => 'pit_' + x.key === kind)
+  return b ? { r: b.D / 2, H: b.H } : undefined
+}
 export const basinRadius = (kind: string): number | undefined => {
   const b = BASINS.find((x) => 'pit_' + x.key === kind)
   return b ? b.D / 2 : undefined

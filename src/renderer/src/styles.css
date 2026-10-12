@@ -167,3 +167,7 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .fixtures-btn { display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 8px 10px; text-align: left; flex-wrap: wrap; }
 .fixtures-btn small { flex-basis: 100%; padding-left: 30px; margin-top: -4px; color: var(--muted, #8b949e); font-size: 11px; }
 .fixtures-badge { display: grid; place-items: center; }
+.size-head-text { min-width: 0; }
+.size-head-text > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.size-head .link { flex: none; }
+.size-badge { flex: none; }

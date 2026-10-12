@@ -1,10 +1,10 @@
 import { TransformControls } from '@react-three/drei'
 import { ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo, useState } from 'react'
-import { BoxGeometry, BufferGeometry, Group, Material, Mesh, Object3D, Quaternion, Vector3 } from 'three'
+import { BoxGeometry, BufferGeometry, ExtrudeGeometry, Group, Material, Matrix4, Mesh, Object3D, Path, Quaternion, Shape, Vector3 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { Part, V3, sizeSpec } from './catalog'
-import { Board, EnvItem, Mat, Penetration, boardsOf, findPenetrations } from './environment'
+import { Part, V3, basinDims, sizeSpec } from './catalog'
+import { Board, EnvItem, Mat, Penetration, boardsOf, findPenetrations, itemMatrix } from './environment'
 import { Model } from './geometry'
 import { busyPlacing } from './Scene'
 import { useStore } from './store'
@@ -29,22 +29,72 @@ function boxGeo(b: Board, grain: boolean): BufferGeometry {
   return g
 }
 
-interface ItemGeo {
-  merged: { mat: Mat; geom: BufferGeometry }[]
-  ground: { geom: BufferGeometry; side: Mat; top: Mat }[]
+// Отверстие под приямок в локальных осях объекта: центр x/z, радиус, диапазон высот
+interface Hole {
+  x: number
+  z: number
+  r: number
+  y0: number
+  y1: number
 }
 
-function buildItemGeo(it: EnvItem): ItemGeo {
+// UV по мировым координатам для произвольной геометрии (проекция по главной оси нормали)
+function worldUV(g: BufferGeometry, tile: number): void {
+  const pos = g.attributes.position
+  const nor = g.attributes.normal
+  const uv = g.attributes.uv
+  for (let i = 0; i < pos.count; i++) {
+    const n = [Math.abs(nor.getX(i)), Math.abs(nor.getY(i)), Math.abs(nor.getZ(i))]
+    const k = n.indexOf(Math.max(...n))
+    const [ua, va] = [0, 1, 2].filter((x) => x !== k)
+    const p = [pos.getX(i), pos.getY(i), pos.getZ(i)]
+    uv.setXY(i, p[ua] / tile, p[va] / tile)
+  }
+}
+
+// Плита/грунт с круглыми вырезами: прямоугольник в плане, выдавленный по высоте
+function holedGeo(b: Board, holes: Hole[]): BufferGeometry | null {
+  const [cx, cy, cz] = b.c
+  const [sx, sy, sz] = b.s
+  const inside = holes.filter((h) => h.y0 < cy + sy / 2 && h.y1 > cy - sy / 2 && h.x - h.r > cx - sx / 2 && h.x + h.r < cx + sx / 2 && h.z - h.r > cz - sz / 2 && h.z + h.r < cz + sz / 2)
+  if (!inside.length) return null
+  // контур в плоскости XY формы: y формы = −z объекта (после поворота выдавливание идёт по +Y)
+  const sh = new Shape()
+  sh.moveTo(cx - sx / 2, -(cz + sz / 2))
+  sh.lineTo(cx + sx / 2, -(cz + sz / 2))
+  sh.lineTo(cx + sx / 2, -(cz - sz / 2))
+  sh.lineTo(cx - sx / 2, -(cz - sz / 2))
+  sh.closePath()
+  for (const h of inside) {
+    const p = new Path()
+    p.absarc(h.x, -h.z, h.r, 0, Math.PI * 2, true)
+    sh.holes.push(p)
+  }
+  const g = new ExtrudeGeometry(sh, { depth: sy, bevelEnabled: false, curveSegments: 64 })
+  g.rotateX(-Math.PI / 2)
+  g.translate(0, cy - sy / 2, 0)
+  worldUV(g, TILE[b.mat])
+  return g
+}
+
+interface ItemGeo {
+  merged: { mat: Mat; geom: BufferGeometry }[]
+  ground: { geom: BufferGeometry; side: Mat; top: Mat; cut: boolean }[]
+}
+
+function buildItemGeo(it: EnvItem, holes: Hole[]): ItemGeo {
   const boards = boardsOf(it)
   const byMat = new Map<Mat, BufferGeometry[]>()
   const ground: ItemGeo['ground'] = []
   for (const b of boards) {
+    const cut = b.role === 'concrete' || b.role === 'ground' ? holedGeo(b, holes) : null
     if (b.top) {
-      ground.push({ geom: boxGeo(b, false), side: b.mat, top: b.top })
+      // у выдавленной геометрии группы: 0 — верх/низ, 1 — стенки
+      ground.push({ geom: cut ?? boxGeo(b, false), side: b.mat, top: b.top, cut: !!cut })
       continue
     }
     const arr = byMat.get(b.mat) ?? []
-    arr.push(boxGeo(b, b.mat === 'wood' || b.mat === 'plywood'))
+    arr.push(cut ?? boxGeo(b, b.mat === 'wood' || b.mat === 'plywood'))
     byMat.set(b.mat, arr)
   }
   const merged = [...byMat.entries()].map(([mat, gs]) => {
@@ -55,8 +105,9 @@ function buildItemGeo(it: EnvItem): ItemGeo {
   return { merged, ground }
 }
 
-function EnvMesh({ it, look, selected, onPick }: { it: EnvItem; look: EnvLook; selected: boolean; onPick?: (e: ThreeEvent<MouseEvent>) => void }) {
-  const geo = useMemo(() => buildItemGeo(it), [it.type, it.L, it.W, it.H, JSON.stringify(it.o)])
+function EnvMesh({ it, holes, look, selected, onPick }: { it: EnvItem; holes: Hole[]; look: EnvLook; selected: boolean; onPick?: (e: ThreeEvent<MouseEvent>) => void }) {
+  const holeKey = JSON.stringify(holes)
+  const geo = useMemo(() => buildItemGeo(it, holes), [it.type, it.L, it.W, it.H, JSON.stringify(it.o), holeKey])
   useEffect(() => () => [...geo.merged, ...geo.ground].forEach((g) => g.geom.dispose()), [geo])
   const noRaycast = look === 'ghost' ? () => null : undefined
   return (
@@ -68,14 +119,14 @@ function EnvMesh({ it, look, selected, onPick }: { it: EnvItem; look: EnvLook; s
         const side = envMaterial(g.side, look, selected)
         const top = envMaterial(g.top, look, selected)
         // порядок граней BoxGeometry: +X, -X, +Y, -Y, +Z, -Z
-        const mats: Material[] = [side, side, top, side, side, side]
+        const mats: Material[] = g.cut ? [top, side] : [side, side, top, side, side, side]
         return <mesh key={i} geometry={g.geom} material={mats} onClick={onPick} raycast={noRaycast} />
       })}
     </>
   )
 }
 
-function EnvObject({ it }: { it: EnvItem }) {
+function EnvObject({ it, holes }: { it: EnvItem; holes: WorldHole[] }) {
   const look = useStore((s) => (s.envMode === 'ghost' ? 'ghost' : 'solid')) as EnvLook
   const selected = useStore((s) => s.selectedEnv === it.id)
   const selectEnv = useStore((s) => s.selectEnv)
@@ -89,7 +140,7 @@ function EnvObject({ it }: { it: EnvItem }) {
   return (
     <>
       <group ref={setObj} position={it.pos} rotation={[0, (it.rotY * Math.PI) / 180, 0]}>
-        <EnvMesh it={it} look={look} selected={selected} onPick={look === 'ghost' ? undefined : onPick} />
+        <EnvMesh it={it} holes={holesFor(it, holes)} look={look} selected={selected} onPick={look === 'ghost' ? undefined : onPick} />
       </group>
       {selected && obj && <Mover object={obj} snap={snap} onMove={(p) => moveEnv(it.id, p)} />}
     </>
@@ -172,6 +223,22 @@ function PenetrationMarks({ list }: { list: Penetration[] }) {
   )
 }
 
+// Приямки в мировых координатах: центр, радиус выреза (по фланцу), высоты
+interface WorldHole {
+  p: Vector3
+  r: number
+  y0: number
+  y1: number
+}
+function holesFor(it: EnvItem, list: WorldHole[]): Hole[] {
+  if (!list.length || !(it.type === 'slab' || it.type === 'ground' || it.type === 'footing')) return []
+  const inv = new Matrix4().copy(itemMatrix(it)).invert()
+  return list.map((h) => {
+    const l = h.p.clone().applyMatrix4(inv)
+    return { x: Math.round(l.x * 100) / 100, z: Math.round(l.z * 100) / 100, r: h.r, y0: h.y0 - it.pos[1], y1: h.y1 - it.pos[1] }
+  })
+}
+
 export function EnvLayer({ model }: { model: Model }) {
   const env = useStore((s) => s.env)
   const mode = useStore((s) => s.envMode)
@@ -180,12 +247,21 @@ export function EnvLayer({ model }: { model: Model }) {
   const pens = usePenetrations(model)
   const moveSystem = useStore((s) => s.moveSystem)
   const sel = parts.find((p) => p.id === selectedId)
+  const holes = useMemo(() => {
+    const out: WorldHole[] = []
+    for (const p of parts) {
+      const d = basinDims(p.kind)
+      const xf = model.xfs.get(p.id)
+      if (d && xf) out.push({ p: xf.pos.clone(), r: d.r + 1.9, y0: xf.pos.y, y1: xf.pos.y + d.H + 0.1 })
+    }
+    return out
+  }, [parts, model])
   const byId = new Map(parts.map((p) => [p.id, p]))
   let root = moveSystem ? sel : undefined
   while (root?.parent && byId.get(root.parent.id)) root = byId.get(root.parent.id)
   return (
     <>
-      <group name="env">{mode !== 'hidden' && env.map((it) => <EnvObject key={it.id} it={it} />)}</group>
+      <group name="env">{mode !== 'hidden' && env.map((it) => <EnvObject key={it.id} it={it} holes={holes} />)}</group>
       {mode !== 'hidden' && <PenetrationMarks list={pens} />}
       {root && <SystemMover root={root} />}
     </>
