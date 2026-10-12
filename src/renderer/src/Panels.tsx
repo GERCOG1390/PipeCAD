@@ -559,6 +559,41 @@ export function Inspector({ model }: { model: Model }) {
         </>
       )}
 
+      {(() => {
+        // замена без разборки: подключённые концы новой детали должны совпасть по виду и размеру
+        if (part.kind === 'pipe' || def.place?.always) return null
+        const used = ports.map((_, i) => model.links.has(portKey(part.id, i)) || (!!part.parent && i === part.attach))
+        const opts = Object.keys(FITTINGS).filter((k) => {
+          const d = FITTINGS[k]
+          if (k === part.kind || k === 'pipe' || d.place?.always || !d.sizes.includes(part.size)) return false
+          const np = portsOf({ ...part, kind: k, size2: defaultSize2(k, part.size, part.size2) })
+          return used.every((u, i) => !u || (np[i] && np[i].kind === ports[i].kind && np[i].size === ports[i].size))
+        })
+        // сначала детали той же группы (DWV к DWV), остальные ниже
+        opts.sort((x, y) => Number(FITTINGS[y].group === def.group) - Number(FITTINGS[x].group === def.group))
+        if (!opts.length) return null
+        return (
+          <>
+            <label>Replace with (keeps connections)</label>
+            <select
+              value=""
+              onChange={(e) => {
+                const k = e.target.value
+                if (k) updatePart(part.id, { kind: k, size2: defaultSize2(k, part.size, part.size2) })
+              }}
+            >
+              <option value="">Choose a part…</option>
+              {opts.map((k) => (
+                <option key={k} value={k}>
+                  {FITTINGS[k].ru}
+                  {FITTINGS[k].pn ? ` #${FITTINGS[k].pn}` : ''}
+                </option>
+              ))}
+            </select>
+          </>
+        )
+      })()}
+
       <SystemPosition part={part} parts={parts} />
 
       <RotationControl part={part} />
