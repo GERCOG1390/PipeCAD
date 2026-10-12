@@ -1187,76 +1187,117 @@ function tankless(t: TanklessSpec): Built {
 // Начало — центр дна, +Y вверх. У приямка на дне «посадочное место» (порт seat), у насоса — такой же порт снизу:
 // насос, выбранный при активном seat, встаёт в приямок.
 const SEAT = (y: number, dir: V3): PortDef => ({ pos: [0, y, 0], dir, size: '4', kind: 'seat', depth: 0, fam: 'd', bare: true })
-const ZOE_IRON = '#4b545c'
 const ZOE_PLASTIC = '#18191b'
 
 interface PumpSpec {
   model: string
   name: string
   hp: string
-  H: number // общая высота
+  H: number // высота до верха корпуса выключателя (без ручки)
   baseR: number // радиус улитки
-  baseH: number
-  motorR: number
-  dx: number // смещение оси напорного патрубка по X
-  out: SizeId // напорный патрубок FNPT
+  baseTop: number // верх улитки
+  motorR0: number // радиус корпуса двигателя внизу
+  motorR1: number // ... и вверху
+  caseH: number // высота корпуса выключателя
+  dx: number // ось напорного патрубка по X (патрубок у основания, смотрит вверх)
+  outTop: number // верх напорного патрубка
+  out: SizeId
   floatX: number
+  floatR: number
+  floatH: number
 }
-// Zoeller FM2958 (M53): 10-1/16" высота, 1-1/2" FNPT вертикально, поплавок вкл/выкл 7-1/4"/3".
-// Zoeller M267 Waste-Mate: 14-5/8" × 13-1/16" × 11-1/4", 2" FNPT вертикально, пропускает твёрдые частицы 2".
+// Zoeller FM2958 (M53): 10-1/16" высота, 1-1/2" FNPT вертикально у основания, поплавок вкл/выкл 7-1/4"/3".
+// Zoeller M267 Waste-Mate: 14-5/8" × 13-1/16" × 11-1/4", 2" FNPT вертикально у основания.
 const PUMPS: PumpSpec[] = [
-  { model: 'M53', name: 'Mighty-Mate Sump Pump, 3/10 HP, 1-1/2" FNPT', hp: '3/10 HP', H: 10.06, baseR: 3.95, baseH: 2.4, motorR: 2.95, dx: 3.35, out: '1-1/2', floatX: -4.1 },
-  { model: 'M267', name: 'Waste-Mate Sewage Ejector Pump, 1/2 HP, 2" FNPT', hp: '1/2 HP', H: 14.625, baseR: 4.7, baseH: 3.4, motorR: 3.6, dx: 4.35, out: '2', floatX: -5.0 }
+  { model: 'M53', name: 'Mighty-Mate Sump Pump, 3/10 HP, 1-1/2" FNPT', hp: '3/10 HP', H: 10.06, baseR: 3.7, baseTop: 2.7, motorR0: 3.0, motorR1: 2.55, caseH: 2.5, dx: 3.7, outTop: 3.6, out: '1-1/2', floatX: -4.4, floatR: 1.15, floatH: 4.2 },
+  { model: 'M267', name: 'Waste-Mate Sewage Ejector Pump, 1/2 HP, 2" FNPT', hp: '1/2 HP', H: 14.625, baseR: 4.6, baseTop: 3.9, motorR0: 3.55, motorR1: 2.95, caseH: 2.9, dx: 4.6, outTop: 4.9, out: '2', floatX: -5.3, floatR: 1.3, floatH: 4.8 }
 ]
+const ZOE_GREEN = '#1d5a3d'
+const SS = '#c9ced3'
+
+const poly = (pts: V3[]): PathSeg[] => pts.slice(1).map((b, i) => ({ t: 'line' as const, a: pts[i], b }))
 
 function zoellerPump(p: PumpSpec): Built {
-  const { H, baseR, baseH, motorR, dx } = p
+  const { H, baseR, baseTop, motorR0, motorR1, caseH, dx } = p
   const seg = 128
-  const legH = 0.9
-  const motorTop = H - 1.1
-  const bossR = sp(p.out).od / 2 + 0.42
-  const shapes: Shape[] = [
-    // три ножки и решётка всасывания снизу
-    lathe([0, 0, 0], Y, rounded([[baseR * 0.55, 0], [baseR * 0.85, 0], [baseR * 0.85, legH + 0.05], [baseR * 0.55, legH + 0.05]], 0.12), { color: ZOE_IRON, metal: true, seg }),
-    lathe([0, legH, 0], Y, [[0.001, 0], [baseR * 0.55, 0], [baseR * 0.55, 0.06], [0.001, 0.06]], { color: '#0d0e10', seg: 64 }),
-    // улитка (volute)
-    lathe([0, legH, 0], Y, rounded([[0.001, 0], [baseR, 0], [baseR, baseH * 0.7], [motorR + 0.5, baseH], [0.001, baseH]], 0.35), { color: ZOE_IRON, metal: true, seg }),
-    // фланец разъёма улитки и корпуса двигателя
-    lathe([0, legH + baseH - 0.05, 0], Y, rounded([[motorR, 0], [motorR + 0.35, 0], [motorR + 0.35, 0.4], [motorR, 0.4]], 0.08), { color: ZOE_IRON, metal: true, seg }),
-    // корпус двигателя с куполом
-    lathe([0, legH + baseH + 0.3, 0], Y, rounded([[0.001, 0], [motorR, 0], [motorR, motorTop - legH - baseH - 1.2], [motorR * 0.55, motorTop - legH - baseH - 0.3], [0.001, motorTop - legH - baseH - 0.3]], 0.6), { color: ZOE_IRON, metal: true, seg }),
-    // рёбра охлаждения
-    { t: 'knurl', at: [0, legH + baseH + 0.6, 0], dir: Y, r: motorR + 0.02, h: (motorTop - legH - baseH) * 0.55, ribs: 18, color: ZOE_IRON },
-    // напорный канал: от улитки вверх вдоль корпуса
-    lathe([dx, legH + baseH * 0.4, 0], Y, rounded([[0.001, 0], [bossR - 0.1, 0], [bossR - 0.1, H - legH - baseH * 0.4 - 0.9], [bossR + 0.05, H - legH - baseH * 0.4 - 0.75], [0.001, H - legH - baseH * 0.4 - 0.75]], 0.15), { color: ZOE_IRON, metal: true, seg: 64 }),
-    { t: 'rbox', at: [(dx + motorR) / 2 - 0.2, legH + baseH, 0], dir: Y, size: [dx - motorR + bossR, (H - legH - baseH) * 0.8, bossR * 1.1], r: 0.4, color: ZOE_IRON, metal: true },
-    // ввод кабеля сверху и сам кабель
-    lathe([-motorR * 0.25, motorTop - 0.4, 0], Y, rounded([[0.001, 0], [0.45, 0], [0.45, 0.9], [0.3, 1.1], [0.001, 1.1]], 0.08), { color: '#3c4248', metal: true, seg: 32 }),
-    { t: 'tube', r: 0.17, color: '#121314', segs: [{ t: 'line', a: [-motorR * 0.25, motorTop + 0.6, 0], b: [-motorR * 0.25, motorTop + 3.5, 0] }, { t: 'arc', a: [-motorR * 0.25, motorTop + 3.5, 0], t0: Y, n: [0, 0, 1], r: 1.5, ang: Math.PI / 2 }] },
-    // табличка
-    { t: 'rbox', at: [0, legH + baseH + (motorTop - legH - baseH) * 0.45, motorR + 0.02], dir: Y, size: [motorR * 0.9, 1.3, 0.06], r: 0.08, color: '#d8d9d4' },
-    { t: 'box', at: [0, legH + baseH + (motorTop - legH - baseH) * 0.45 + 0.35, motorR + 0.06], dir: Y, size: [motorR * 0.8, 0.35, 0.02], color: '#c8202a' }
-  ]
-  // болты фланца
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + 0.3
-    shapes.push({ t: 'nut', at: [Math.cos(a) * (motorR + 0.2), legH + baseH + 0.35, Math.sin(a) * (motorR + 0.2)], dir: Y, sides: 6, r: 0.18, h: 0.18, color: '#9aa0a6', metal: true })
-  }
-  // выключатель: корпус, направляющая штанга, поплавок и стопоры
-  const fx = p.floatX
-  const fTop = motorTop - 0.4
-  shapes.push(
-    { t: 'rbox', at: [fx + 0.9, fTop - 0.9, 0], dir: Y, size: [2.2, 2.4, 2.0], r: 0.35, color: ZOE_PLASTIC },
-    { t: 'rbox', at: [-motorR + 0.1, fTop - 0.9, 0], dir: Y, size: [Math.abs(fx) - motorR + 1.4, 0.9, 1.0], r: 0.2, color: ZOE_IRON, metal: true },
-    { t: 'tube', r: 0.12, color: '#c9ced3', metal: true, segs: [{ t: 'line', a: [fx, fTop - 2.1, 0], b: [fx, legH + 0.6, 0] }] },
-    lathe([fx, legH + 2.0, 0], Y, rounded([[0.15, 0], [1.0, 0], [1.1, 0.2], [1.1, 2.1], [1.0, 2.3], [0.15, 2.3]], 0.25), { color: '#d9d6cc', seg: 48 }),
-    lathe([fx, legH + 4.9, 0], Y, [[0.12, 0], [0.4, 0], [0.4, 0.3], [0.12, 0.3]], { color: ZOE_PLASTIC, seg: 24 }),
-    lathe([fx, legH + 1.4, 0], Y, [[0.12, 0], [0.4, 0], [0.4, 0.3], [0.12, 0.3]], { color: ZOE_PLASTIC, seg: 24 })
-  )
+  const legH = 0.75
+  const motorBot = baseTop + 0.4
+  const motorTop = H - caseH
+  const bossR = sp(p.out).od / 2 + 0.45
   const T = NPT[p.out]
-  const ports: PortDef[] = [SEAT(0, [0, -1, 0]), fpt([dx, H - T, 0], Y, p.out, 'p', T, { face: T, R: bossR })]
+  const G = { color: ZOE_GREEN }
+  const shapes: Shape[] = []
+  // ножки и рёбра основания
+  const nLeg = p.model === 'M267' ? 3 : 4
+  for (let i = 0; i < nLeg; i++) {
+    const a = (i / nLeg) * Math.PI * 2 + Math.PI / nLeg + Math.PI / 2
+    const yaw = (-a * 180) / Math.PI
+    shapes.push({ t: 'rbox', at: [Math.cos(a) * baseR * 0.72, 0, Math.sin(a) * baseR * 0.72].map((v, k) => (k === 1 ? (legH + 0.3) / 2 : v)) as V3, dir: Y, size: [p.model === 'M267' ? 2.6 : 1.4, legH + 0.3, 0.7], r: 0.18, yaw, ...G })
+  }
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2
+    shapes.push({ t: 'rbox', at: [Math.cos(a) * (baseR - 0.15), (legH + baseTop) / 2, Math.sin(a) * (baseR - 0.15)], dir: Y, size: [0.35, baseTop - legH - 0.2, 0.35], r: 0.1, ...G })
+  }
+  // всасывающая решётка снизу
+  shapes.push(lathe([0, legH - 0.05, 0], Y, [[0.001, 0], [baseR * 0.62, 0], [baseR * 0.62, 0.08], [0.001, 0.08]], { color: '#0c120e', seg: 64 }))
+  // улитка с фланцем
+  shapes.push(
+    lathe([0, legH, 0], Y, rounded([[0.001, 0], [baseR * 0.7, 0], [baseR, 0.5], [baseR, baseTop - legH - 0.35], [baseR + 0.25, baseTop - legH - 0.3], [baseR + 0.25, baseTop - legH], [0.001, baseTop - legH]], 0.15), { ...G, seg }),
+    // переходная шейка к двигателю
+    lathe([0, baseTop - 0.05, 0], Y, rounded([[0.001, 0], [motorR0 + 0.45, 0], [motorR0 + 0.45, 0.45], [0.001, 0.45]], 0.1), { ...G, seg })
+  )
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.5
+    shapes.push({ t: 'nut', at: [Math.cos(a) * (baseR - 0.1), baseTop, Math.sin(a) * (baseR - 0.1)], dir: Y, sides: 6, r: 0.2, h: 0.2, color: '#a9aeb3', metal: true })
+  }
+  // напорный патрубок у основания + перемычка к улитке
+  shapes.push(
+    lathe([dx, legH, 0], Y, rounded([[0.001, 0], [bossR * 0.85, 0], [bossR, 0.6], [bossR, p.outTop - T - legH + 0.02], [0.001, p.outTop - T - legH + 0.02]], 0.12), { ...G, seg: 64 }),
+    { t: 'rbox', at: [(dx + baseR * 0.55) / 2, legH + (p.outTop - legH - 1.0) / 2, 0], dir: Y, size: [dx - baseR * 0.55, p.outTop - legH - 1.0, bossR * 1.5], r: 0.35, ...G }
+  )
+  // корпус двигателя — усечённый конус с литыми рёбрами
+  shapes.push(lathe([0, motorBot, 0], Y, rounded([[0.001, 0], [motorR0, 0], [motorR1, motorTop - motorBot - 0.3], [motorR1 - 0.25, motorTop - motorBot + 0.05], [0.001, motorTop - motorBot + 0.05]], 0.25), { ...G, seg }))
+  for (const a of [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4]) {
+    const rr = (motorR0 + motorR1) / 2
+    shapes.push({ t: 'rbox', at: [Math.cos(a) * rr, motorBot + 0.2, Math.sin(a) * rr], dir: Y, size: [0.45, motorTop - motorBot - 0.6, 0.45], r: 0.15, yaw: (-a * 180) / Math.PI, ...G })
+  }
+  // корпус выключателя сверху: литая коробка с крышкой и болтом
+  const cw = motorR1 * 1.45
+  const cd = motorR1 * 1.3
+  const cx = -motorR1 * 0.12
+  shapes.push(
+    { t: 'rbox', at: [cx, motorTop + caseH * 0.38, 0], dir: Y, size: [cw, caseH * 0.82, cd], r: 0.3, ...G },
+    { t: 'rbox', at: [cx, motorTop + caseH * 0.88, 0], dir: Y, size: [cw + 0.25, caseH * 0.24, cd + 0.25], r: 0.12, ...G },
+    { t: 'nut', at: [cx, motorTop + caseH * 0.5, cd / 2], dir: Z, sides: 6, r: 0.3, h: 0.2, color: '#b5bac0', metal: true },
+    { t: 'nut', at: [cx + cw * 0.3, H - 0.02, cd * 0.25], dir: Y, sides: 6, r: 0.22, h: 0.15, color: '#b5bac0', metal: true },
+    { t: 'nut', at: [cx - cw * 0.3, H - 0.02, -cd * 0.25], dir: Y, sides: 6, r: 0.22, h: 0.15, color: '#b5bac0', metal: true }
+  )
+  // ручка из нержавейки
+  const hw = cw * 0.38
+  const hh = p.model === 'M267' ? 3.0 : 2.4
+  shapes.push({ t: 'tube', r: 0.13, color: SS, metal: true, segs: poly([[cx - hw, H - 0.1, -0.5], [cx - hw, H + hh - 0.3, -0.5], [cx - hw + 0.3, H + hh, -0.5], [cx + hw - 0.3, H + hh, -0.5], [cx + hw, H + hh - 0.3, -0.5], [cx + hw, H - 0.1, -0.5]]) })
+  // кабельный ввод сбоку и шнур
+  const cgx = cx + cw / 2
+  shapes.push(
+    lathe([cgx, motorTop + caseH * 0.35, -0.4], X, rounded([[0.001, 0], [0.42, 0], [0.42, 0.55], [0.28, 0.75], [0.001, 0.75]], 0.08), { color: '#121314', seg: 32 }),
+    { t: 'tube', r: 0.17, color: '#111214', segs: poly([[cgx + 0.7, motorTop + caseH * 0.35, -0.4], [cgx + 1.3, motorTop + caseH * 0.1, -0.6], [cgx + 1.5, motorTop - 1.5, -1.0], [cgx + 1.4, baseTop + 0.6, -1.6], [cgx + 2.4, legH, -3.5]]) }
+  )
+  // поплавковый выключатель: рычаг, штанга, поплавок и защитная проволока
+  const fx = p.floatX
+  const yLev = motorTop + caseH * 0.45
+  const fBot = legH + 1.3
+  shapes.push(
+    { t: 'tube', r: 0.1, color: SS, metal: true, segs: poly([[cx - cw / 2, yLev, 0.4], [fx + 0.6, yLev + 0.15, 0.4], [fx, yLev - 0.35, 0.4], [fx, fBot + p.floatH + 0.2, 0.4]]) },
+    lathe([fx, fBot, 0.4], Y, rounded([[0.001, 0], [p.floatR * 0.55, 0], [p.floatR, p.floatR * 0.6], [p.floatR, p.floatH - p.floatR * 0.8], [p.floatR * 0.35, p.floatH], [0.001, p.floatH]], 0.3), { color: '#f2f2ee', seg: 64 }),
+    // защита поплавка (проволочная петля)
+    { t: 'tube', r: 0.1, color: SS, metal: true, segs: poly([[cx - cw / 2, motorTop + caseH * 0.15, -0.9], [fx - p.floatR - 0.35, motorTop + caseH * 0.15, -0.9], [fx - p.floatR - 0.35, motorTop + caseH * 0.15, 1.6], [cx - cw / 2, motorTop + caseH * 0.15, 1.6]]) },
+    { t: 'tube', r: 0.1, color: SS, metal: true, segs: poly([[cx - cw / 2, motorTop + caseH * 0.15 + 0.3, -0.9], [cx - cw / 2 - 0.5, motorTop + caseH * 0.15 + 1.6, -0.9]]) },
+    // табличка
+    { t: 'rbox', at: [0, motorBot + (motorTop - motorBot) * 0.62, (motorR0 + motorR1) / 2 - 0.02], dir: Y, size: [motorR1 * 0.8, 0.6, 0.06], r: 0.05, color: '#d7dadc' }
+  )
+  const ports: PortDef[] = [SEAT(0, [0, -1, 0]), fpt([dx, p.outTop - T, 0], Y, p.out, 'p', T, { face: T, R: bossR })]
   const built = finalize({ ports, shapes })
-  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: ZOE_IRON, metal: true } : s))
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: ZOE_GREEN } : s))
   return built
 }
 
@@ -1306,7 +1347,7 @@ function basin(b: BasinSpec): Built {
   const grom = (x: number, z: number, r: number): void => {
     shapes.push(lathe([x, H + 0.45, z], Y, rounded([[r, 0], [r + 0.45, 0], [r + 0.45, 0.25], [r, 0.25]], 0.08), { color: '#0b0b0c', seg: 48 }))
   }
-  grom(b.sealed ? 4.35 : 3.35, 0, 1.2)
+  grom(b.sealed ? 4.6 : 3.7, 0, 1.2)
   grom(-0.9, 0, 0.3)
   grom(-0.9, -2.2, 0.3)
   if (b.sealed) {
