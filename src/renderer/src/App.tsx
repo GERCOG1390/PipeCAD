@@ -9,6 +9,7 @@ import { usePenetrations } from './EnvScene'
 import { RecButton, ReplayBar } from './Replay'
 import { QuickMenu } from './QuickMenu'
 import { LengthEditor } from './LengthEditor'
+import { ModeBanner } from './ModeBanner'
 import { ProjectFile, serialize, useStore } from './store'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -206,6 +207,7 @@ export function App() {
           <ReplayBar />
           <QuickMenu />
           <LengthEditor />
+          <ModeBanner />
           {parts.length === 0 && env.length === 0 && (
             <div className="welcome">
               <h2>Start with the first part</h2>
@@ -233,7 +235,6 @@ export function App() {
         {bom.mech > 0 && <span>No-hub: {bom.mech}</span>}
         {pens.length > 0 && <span className={badPens ? 'err' : ''}>Penetrations: {pens.length}{badPens ? ` (too large: ${badPens})` : ''}</span>}
         {model.bad.length > 0 && <span className="err">Bad joints: {model.bad.length}</span>}
-        {message && <span className="msg">{message}</span>}
       </footer>
     </div>
   )
