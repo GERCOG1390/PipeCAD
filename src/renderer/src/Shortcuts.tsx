@@ -14,6 +14,7 @@ const GENERAL: [string, string][] = [
   ['Ctrl+Z / Ctrl+Y', 'Undo / redo'],
   ['Ctrl+S / Ctrl+Shift+S', 'Save / save as'],
   ['Ctrl+O', 'Open project'],
+  ['Ctrl + / Ctrl − / Ctrl 0', 'Interface size (also in ⚙)'],
   ['?', 'This help']
 ]
 const MOUSE: [string, string][] = [
