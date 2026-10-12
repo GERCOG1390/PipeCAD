@@ -37,6 +37,7 @@ import { computeGuides, mouthOf } from './axes'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { LengthEditAnchor } from './LengthEditor'
+import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength } from './units'
 
 const UP = new Vector3(0, 1, 0)
@@ -926,13 +927,15 @@ function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
     const div = layer.current
     if (!div) return
     div.textContent = ''
+    const slopes = new Map(dwvSlopes(parts, model).map((s) => [s.id, s]))
     items.current = parts
       .filter((p) => p.kind === 'pipe')
       .map((p) => {
         const xf = model.xfs.get(p.id)!
         const el = document.createElement('div')
-        el.className = 'dim'
-        el.textContent = formatLength(p.length ?? 0)
+        const sl = slopes.get(p.id)
+        el.className = 'dim' + (sl && !sl.ok ? ' flat' : '')
+        el.textContent = formatLength(p.length ?? 0) + (sl ? (sl.rise < 0.01 ? ' · level!' : ` · ${slopeLabel(sl.rise)}/ft`) : '')
         div.appendChild(el)
         return { el, pos: new Vector3(0, 0, (p.length ?? 0) / 2).applyQuaternion(xf.quat).add(xf.pos) }
       })

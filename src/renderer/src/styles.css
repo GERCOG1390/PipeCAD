@@ -223,3 +223,4 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .shortcuts td { padding: 3px 6px; vertical-align: top; }
 .shortcuts td:first-child { white-space: nowrap; width: 1%; }
 .shortcuts kbd { font: 12px ui-monospace, Consolas, monospace; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+.dim-layer .dim.flat { border-color: #f59e0b; color: #fbbf24; }

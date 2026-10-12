@@ -11,6 +11,7 @@ import { QuickMenu } from './QuickMenu'
 import { LengthEditor } from './LengthEditor'
 import { ModeBanner } from './ModeBanner'
 import { Shortcuts } from './Shortcuts'
+import { dwvSlopes } from './slope'
 import { ProjectFile, serialize, useStore } from './store'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -63,6 +64,7 @@ export function App() {
   const model = useMemo(() => buildModel(parts), [parts])
   const bom = useMemo(() => computeBom(parts, model, stick), [parts, model, stick])
   const openEnds = model.open.length
+  const flat = useMemo(() => dwvSlopes(parts, model).filter((s) => !s.ok).length, [parts, model])
   ;(window as unknown as { pipecadModel: typeof model }).pipecadModel = model // для автотестов
   const pens = usePenetrations(model)
   const badPens = pens.filter((p) => !p.ok).length
@@ -244,6 +246,7 @@ export function App() {
         {bom.mech > 0 && <span>No-hub: {bom.mech}</span>}
         {pens.length > 0 && <span className={badPens ? 'err' : ''}>Penetrations: {pens.length}{badPens ? ` (too large: ${badPens})` : ''}</span>}
         {model.bad.length > 0 && <span className="err">Bad joints: {model.bad.length}</span>}
+        {flat > 0 && <span className="warn" title="Horizontal drain pipes flatter than the minimum slope (IPC 704.1)">Flat drains: {flat}</span>}
       </footer>
     </div>
   )

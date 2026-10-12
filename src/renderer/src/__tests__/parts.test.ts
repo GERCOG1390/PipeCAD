@@ -4,6 +4,7 @@ import { FITTINGS, Part, SizeId, buildPart, defaultSize2, fittingDef, portsOf } 
 import { buildModel } from '../geometry'
 import { useStore } from '../store'
 import { KITS } from '../kits'
+import { dwvSlopes } from '../slope'
 
 const finite = (v: number[]): boolean => v.every((x) => Number.isFinite(x))
 
@@ -101,5 +102,26 @@ describe('assemblies', () => {
     expect(buildModel(st.parts).bad.length).toBe(0)
     st.undo()
     expect(useStore.getState().parts.length).toBe(0)
+  })
+})
+
+describe('drain slope', () => {
+  it('flags a level DWV pipe and accepts 1/4" per foot', () => {
+    // отвод 1/4 DWV стоит так, что выход горизонтальный
+    const el: Part = { id: 'e', kind: 'dwv90', size: '2', attach: 0, roll: 0, pos: [0, 12, 0], rot: [0, 0, 0] }
+    const open = buildModel([el]).open
+    const horiz = open.find((w) => Math.abs(w.dir.y) < 0.1)!
+    const pipe: Part = { id: 'p', kind: 'pipe', size: '2', attach: 0, roll: 0, length: 24, parent: { id: 'e', port: horiz.index } }
+    let parts = [el, pipe]
+    let s = dwvSlopes(parts, buildModel(parts))
+    expect(s.length).toBe(1)
+    expect(s[0].ok).toBe(false)
+    parts = [el, { ...pipe, slope: -0.25 }]
+    const m = buildModel(parts)
+    s = dwvSlopes(parts, m)
+    expect(s[0].ok).toBe(true)
+    expect(s[0].rise).toBeCloseTo(0.25, 3)
+    const ends = m.open.filter((w) => w.partId === 'p')
+    expect(ends[0].pos.y).toBeCloseTo(horiz.pos.y - 0.5, 2)
   })
 })

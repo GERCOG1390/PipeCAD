@@ -30,7 +30,13 @@ export function computeTransforms(parts: Part[]): Map<string, Xf> {
       const wdir = new Vector3(...pp.dir).applyQuaternion(px.quat).normalize()
       const cp = portsOf(p)[p.attach]
       const q1 = new Quaternion().setFromUnitVectors(new Vector3(...cp.dir), wdir.clone().negate())
-      const quat = new Quaternion().setFromAxisAngle(wdir, p.roll * DEG).multiply(q1)
+      let quat = new Quaternion().setFromAxisAngle(wdir, p.roll * DEG).multiply(q1)
+      // уклон трубы: наклон вокруг горизонтальной оси, перпендикулярной трубе, с центром в точке подключения
+      if (p.kind === 'pipe' && p.slope) {
+        const away = new Vector3(0, 0, p.attach === 0 ? 1 : -1).applyQuaternion(quat)
+        const axis = away.clone().cross(new Vector3(0, 1, 0))
+        if (axis.lengthSq() > 0.5) quat = new Quaternion().setFromAxisAngle(axis.normalize(), Math.atan(p.slope / 12)).multiply(quat)
+      }
       const pos = wpos.sub(new Vector3(...cp.pos).applyQuaternion(quat))
       xf = { pos, quat }
       visiting.delete(p.id)

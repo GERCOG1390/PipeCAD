@@ -6,6 +6,7 @@ import { Penetration, envBom } from './environment'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
 import { KITS } from './kits'
+import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength, parseLength } from './units'
 
 // Иконки — линия по оси детали
@@ -542,6 +543,36 @@ export function Inspector({ model }: { model: Model }) {
           <label>Center to center {g0 + g1 === 0 && <span className="muted">(no fittings on ends)</span>}</label>
           <LengthInput value={len + g0 + g1} onCommit={(v) => updatePart(part.id, { length: Math.max(0.25, v - g0 - g1) })} />
           {g0 + g1 > 0 && <div className="muted small">Fitting take-offs: {formatLength(g0)} + {formatLength(g1)}</div>}
+          {part.parent && (() => {
+            const sl = dwvSlopes(parts, model).find((x) => x.id === part.id)
+            const cur = part.slope ?? 0
+            const opts: [number, string][] = [
+              [0, 'Level (no slope)'],
+              [-0.125, 'Down 1/8" per ft'],
+              [-0.25, 'Down 1/4" per ft'],
+              [-0.5, 'Down 1/2" per ft'],
+              [0.125, 'Up 1/8" per ft'],
+              [0.25, 'Up 1/4" per ft']
+            ]
+            return (
+              <>
+                <label>Slope (from the joint it starts at)</label>
+                <select value={String(cur)} onChange={(e) => updatePart(part.id, { slope: Number(e.target.value) || undefined })}>
+                  {!opts.some(([v]) => v === cur) && <option value={String(cur)}>{slopeLabel(cur)} per ft</option>}
+                  {opts.map(([v, l]) => (
+                    <option key={v} value={String(v)}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+                {sl && (
+                  <div className={'small ' + (sl.ok ? 'muted' : 'warn-box')}>
+                    {sl.ok ? `Drain slope ${slopeLabel(sl.rise)}/ft — OK (min ${slopeLabel(sl.min)}/ft)` : `Drain slope ${slopeLabel(sl.rise)}/ft — needs at least ${slopeLabel(sl.min)}/ft (IPC 704.1; check Illinois code)`}
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </>
       )}
 

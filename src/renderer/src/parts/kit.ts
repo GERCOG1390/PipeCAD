@@ -58,6 +58,7 @@ export interface Part {
   rot?: V3
   pos?: V3 // положение корневой детали (вся система труб)
   tie?: { port: number; to: { id: string; port: number } } // соединение этого конца с концом другой ветки
+  slope?: number // уклон трубы, дюймов на фут: + вверх, − вниз от начала трубы (конца подключения)
 }
 
 export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub' | 'heater' | 'pump'
