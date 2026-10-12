@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen, session, shell } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, screen, session, shell } from 'electron'
 import { spawn } from 'child_process'
 import { readFile, unlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -139,7 +139,25 @@ ipcMain.handle('pdf:export', async (_e, args: { html: string; defaultName: strin
   return path
 })
 
+// Меню Mac: без пунктов Reload (⌘R — поворот детали) и Zoom (⌘+/− — размер интерфейса программы).
+// Undo/Redo в меню нет: ⌘Z/⌘⇧Z обрабатывает сама программа (её история), а меню не должно их перехватывать.
+// Копирование и вставка нужны для полей ввода.
+function macMenu(): void {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { role: 'appMenu' },
+      {
+        label: 'Edit',
+        submenu: [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }]
+      },
+      { label: 'View', submenu: [{ role: 'togglefullscreen' }] },
+      { role: 'windowMenu' }
+    ])
+  )
+}
+
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') macMenu()
   // getDisplayMedia в окне программы записывает само это окно, без диалога выбора
   session.defaultSession.setDisplayMediaRequestHandler(async (_req, callback) => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]

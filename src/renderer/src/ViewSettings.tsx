@@ -2,6 +2,7 @@
 import { QUALITY } from './Effects'
 import { Quality, ZOOMS, useViewPrefs } from './viewPrefs'
 import { useBackend } from './gpu'
+import { MOD, isMac } from './platform'
 
 export function ViewSettings({ onClose }: { onClose: () => void }) {
   const { theme, zoom, quality, graphics, setTheme, setZoom, setQuality, setGraphics } = useViewPrefs()
@@ -41,15 +42,15 @@ export function ViewSettings({ onClose }: { onClose: () => void }) {
         <div className="muted small">{QUALITY[quality].hint}</div>
         <label>Graphics API (experimental)</label>
         <div className="seg">
-          <button className={graphics === 'webgl' ? 'on' : ''} onClick={() => setGraphics('webgl')} title="Proven: WebGL through ANGLE on DirectX 11">
-            WebGL · DirectX 11
+          <button className={graphics === 'webgl' ? 'on' : ''} onClick={() => setGraphics('webgl')} title={isMac ? 'Proven: WebGL through ANGLE on Metal' : 'Proven: WebGL through ANGLE on DirectX 11'}>
+            {isMac ? 'WebGL · Metal' : 'WebGL · DirectX 11'}
           </button>
-          <button className={graphics === 'webgpu' ? 'on' : ''} onClick={() => setGraphics('webgpu')} title="Experimental: WebGPU on DirectX 12">
-            WebGPU · DirectX 12
+          <button className={graphics === 'webgpu' ? 'on' : ''} onClick={() => setGraphics('webgpu')} title={isMac ? 'Experimental: WebGPU on Metal' : 'Experimental: WebGPU on DirectX 12'}>
+            {isMac ? 'WebGPU · Metal' : 'WebGPU · DirectX 12'}
           </button>
         </div>
         <div className="muted small">Now running: {backend || '…'}. Switching restarts the 3D view; the project stays as is.</div>
-        <div className="muted small">Ctrl + / Ctrl − / Ctrl 0 also change the size. Light theme is easier to read in bright rooms and on a laptop on site.</div>
+        <div className="muted small">{MOD}+ / {MOD}− / {MOD}0 also change the size. Light theme is easier to read in bright rooms and on a laptop on site.</div>
       </div>
     </div>
   )

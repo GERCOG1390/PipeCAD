@@ -2,6 +2,7 @@
 import { Part, SizeId, V3 } from './catalog'
 import { buildModel } from './geometry'
 import { PortRef, Snapshot, useStore } from './store'
+import { MOD } from './platform'
 
 export interface KitDef {
   id: string
@@ -146,7 +147,7 @@ export function runKit(id: string, baseId: string, before: { parts: Part[]; past
   try {
     kit.build(baseId)
     // весь узел — один шаг отмены
-    useStore.setState({ past: [...before.past, { parts: before.parts, env }].slice(-200), future: [], lengthEdit: null, recent, activePort: null, selectedId: baseId, message: `${kit.title} added — Ctrl+Z removes it in one step` })
+    useStore.setState({ past: [...before.past, { parts: before.parts, env }].slice(-200), future: [], lengthEdit: null, recent, activePort: null, selectedId: baseId, message: `${kit.title} added — ${MOD}Z removes it in one step` })
   } catch (e) {
     useStore.setState({ parts: before.parts, recent, lengthEdit: null, message: `Couldn't build "${kit.title}": ${(e as Error).message}` })
   }

@@ -17,6 +17,7 @@ import { ViewSettings } from './ViewSettings'
 import { useViewPrefs } from './viewPrefs'
 import { dwvSlopes } from './slope'
 import { ProjectFile, serialize, useStore } from './store'
+import { MOD, isMac } from './platform'
 
 const DRAFT_KEY = 'pipecad.draft'
 
@@ -181,12 +182,12 @@ export function App() {
         <button onClick={() => confirmDiscard() && st.newProject()}>New</button>
         <button onClick={() => void open()}>Open</button>
         <button onClick={() => void save()}>Save</button>
-        <button onClick={() => void save(true)} title="Save as… (Ctrl+Shift+S)">…</button>
+        <button onClick={() => void save(true)} title={`Save as… (${isMac ? "⌘⇧S" : "Ctrl+Shift+S"})`}>…</button>
         <span className="sep" />
-        <button disabled={!canUndo} onClick={st.undo} title="Ctrl+Z">
+        <button disabled={!canUndo} onClick={st.undo} title={`${MOD}Z`}>
           ↶
         </button>
-        <button disabled={!canRedo} onClick={st.redo} title="Ctrl+Y">
+        <button disabled={!canRedo} onClick={st.redo} title={isMac ? '⌘⇧Z' : 'Ctrl+Y'}>
           ↷
         </button>
         <span className="sep" />

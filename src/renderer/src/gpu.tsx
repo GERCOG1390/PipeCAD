@@ -7,6 +7,7 @@ import { BufferGeometry, Color, Float32BufferAttribute, LineBasicMaterial, LineD
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { create } from 'zustand'
 import { useViewPrefs } from './viewPrefs'
+import { isMac } from './platform'
 
 // Какой бэкенд реально заработал (WebGPU может откатиться на WebGL2, если драйвер не даёт)
 export const useBackend = create<{ label: string; set: (label: string) => void }>((set) => ({ label: '', set: (label) => set({ label }) }))
@@ -39,12 +40,12 @@ export function rendererFactory(graphics: 'webgl' | 'webgpu') {
       const rr = r as unknown as { capabilities?: unknown; getMaxAnisotropy?: () => number }
       if (!rr.capabilities) rr.capabilities = { getMaxAnisotropy: () => rr.getMaxAnisotropy?.() ?? 16, isWebGL2: true, logarithmicDepthBuffer: false }
       const be = (r as unknown as { backend: { isWebGPUBackend?: boolean } }).backend
-      useBackend.getState().set(be?.isWebGPUBackend ? 'WebGPU (DirectX 12)' : 'WebGPU unavailable — fell back to WebGL 2')
+      useBackend.getState().set(be?.isWebGPUBackend ? `WebGPU (${isMac ? 'Metal' : 'DirectX 12'})` : 'WebGPU unavailable — fell back to WebGL 2')
       return r
     }
     const r = new WebGLRenderer({ canvas: props.canvas as HTMLCanvasElement, antialias: true, powerPreference: 'high-performance' })
     r.toneMappingExposure = 0.95
-    useBackend.getState().set('WebGL (DirectX 11)')
+    useBackend.getState().set(`WebGL (${isMac ? 'Metal' : 'DirectX 11'})`)
     return r
   }
 }

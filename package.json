@@ -84,7 +84,8 @@
       ],
       "icon": "build/icon.png",
       "category": "public.app-category.productivity",
-      "artifactName": "PipeCAD-${version}-mac-${arch}.${ext}"
+      "artifactName": "PipeCAD-${version}-mac-${arch}.${ext}",
+      "hardenedRuntime": true
     },
     "dmg": {
       "title": "PipeCAD ${version}"

@@ -6,6 +6,7 @@ import { subtreeSize, useStore } from './store'
 import { KITS } from './kits'
 import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength, parseLength } from './units'
+import { DEL, MOD, isMac } from './platform'
 
 // Иконки — линия по оси детали
 const ICONS: Record<string, string> = {
@@ -202,7 +203,7 @@ export function Palette({ model }: { model: Model }) {
         <div className="help">
           <b>How to build</b>
           <p>Pick a size to open the fittings catalog for it. A part snaps to the selected (orange) end, and the next end is selected automatically.</p>
-          <p>LMB — orbit, RMB — pan, wheel — zoom. R — rotate 90°, Del — delete, Ctrl+Z — undo.</p>
+          <p>LMB — orbit, RMB{isMac ? ' or ⇧+drag' : ''} — pan, {isMac ? 'scroll' : 'wheel'} — zoom. R — rotate 90°, {DEL} — delete, {MOD}Z — undo.</p>
         </div>
       </aside>
     )

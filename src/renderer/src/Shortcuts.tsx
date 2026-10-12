@@ -1,26 +1,27 @@
 // Шпаргалка горячих клавиш: «?» или кнопка в панели
 import { KIND_KEYS, fittingDef } from './catalog'
+import { DEL, MOD, isMac } from './platform'
 
 const GENERAL: [string, string][] = [
   ['Right-click an open end', 'Quick menu: common parts for that end'],
   ['0–9 on a selected pipe', 'Type the length right away (3\'6, 42, 3-1/2)'],
   ['J', 'Join the selected end to another end'],
   ['R / Shift+R', 'Rotate selected part (or the part being placed) 90°'],
-  ['Del / Shift+Del', 'Delete this part only / with everything after it'],
+  [`${DEL} / Shift+${DEL}`, 'Delete this part only / with everything after it'],
   ['Esc', 'Cancel placing, joining or selection'],
   ['L', 'Show / hide pipe lengths'],
   ['A', 'Centerlines and intersections of open ends'],
-  ['Home', 'Fit everything in view'],
-  ['Ctrl+Z / Ctrl+Y', 'Undo / redo'],
-  ['Ctrl+S / Ctrl+Shift+S', 'Save / save as'],
-  ['Ctrl+O', 'Open project'],
-  ['Ctrl + / Ctrl − / Ctrl 0', 'Interface size (also in ⚙)'],
+  [isMac ? 'Fn+← (Home)' : 'Home', 'Fit everything in view'],
+  [isMac ? '⌘Z / ⌘⇧Z' : 'Ctrl+Z / Ctrl+Y', 'Undo / redo'],
+  [isMac ? "⌘S / ⌘⇧S" : "Ctrl+S / Ctrl+Shift+S", 'Save / save as'],
+  [`${MOD}O`, 'Open project'],
+  [`${MOD}+ / ${MOD}− / ${MOD}0`, 'Interface size (also in ⚙)'],
   ['?', 'This help']
 ]
 const MOUSE: [string, string][] = [
   ['Left drag', 'Orbit'],
-  ['Right drag', 'Pan'],
-  ['Wheel', 'Zoom'],
+  [isMac ? 'Right drag, or ⇧ / ⌘ + drag' : 'Right drag', 'Pan'],
+  [isMac ? 'Scroll / pinch' : 'Wheel', 'Zoom'],
   ['Drag a pipe end arrow', 'Change pipe length'],
   ['Drag the ring around a part', 'Rotate (Shift — 15° steps)']
 ]
