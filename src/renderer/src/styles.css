@@ -208,3 +208,6 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.7) } 70% { box-shadow: 0 0 0 10px rgba(245,158,11,0) } 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0) } }
 .mode-banner button { flex: none; }
 .toast { pointer-events: auto; cursor: pointer; background: var(--panel); border: 1px solid var(--line); color: var(--text, #e6edf3); padding: 7px 12px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.35); max-width: 640px; }
+.kind-row.needs-adapter .kind { opacity: .55; }
+.kind-row.needs-adapter .kind:hover { opacity: .9; }
+.adapter-tag { font-style: normal; font-size: 10px; color: #f59e0b; border: 1px solid rgba(245,158,11,.5); border-radius: 4px; padding: 0 4px; flex: none; }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FITTINGS, FittingDef, Group, Material, matOf, sizeMatLabel, Part, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
+import { FITTINGS, FittingDef, Group, Material, defaultSize2, mates, matOf, sizeMatLabel, Part, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
 import { Bom, bomCsv } from './bom'
 import { EnvBomSection, EnvInspector, SystemPosition } from './EnvPanel'
 import { Penetration, envBom } from './environment'
@@ -208,18 +208,35 @@ export function Palette({ model }: { model: Model }) {
   const q = query.trim().toLowerCase()
   const match = (d: FittingDef): boolean => !q || d.ru.toLowerCase().includes(q) || d.en.toLowerCase().includes(q) || (d.pn ?? '').toLowerCase().includes(q)
   const inSize = (d: FittingDef): boolean => d.sizes.includes(size)
+  // встанет ли деталь на выбранный конец напрямую (без переходника)
+  const selPort = activePort ? model.ports.find((w) => portKey(w.partId, w.index) === portKey(activePort.id, activePort.port))?.def : undefined
+  const direct = (kind: string): boolean => {
+    const d = FITTINGS[kind]
+    if (!selPort || d.place?.always) return true
+    for (const s of [selPort.size, ('cu' + selPort.size) as SizeId]) {
+      if (!d.sizes.includes(s)) continue
+      const s2s = d.size2 ? [defaultSize2(kind, s, s), ...d.size2.options(s)] : [undefined]
+      for (const size2 of s2s) {
+        const part: Part = { id: 't', kind, size: s, size2, attach: 0, roll: 0, length: 12 }
+        if (portsOf(part).some((pt) => mates(selPort.kind, pt.kind) && pt.size === selPort.size)) return true
+      }
+    }
+    return false
+  }
 
   const item = (kind: string) => {
     const d = FITTINGS[kind]
     const extra = d.size2 ? d.size2.options(size).filter((x) => x !== size) : []
+    const fit = direct(kind)
     return (
-      <div key={kind} className="kind-row">
-        <button className="kind" onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · #${d.pn}` : ''}${d.key ? ` · key ${d.key}` : ''}`}>
+      <div key={kind} className={'kind-row' + (fit ? '' : ' needs-adapter')}>
+        <button className="kind" onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · #${d.pn}` : ''}${d.key ? ` · key ${d.key}` : ''}${fit ? '' : ' · an adapter will be added for the selected end'}`}>
           <KindIcon kind={kind} />
           <span>
             {d.ru}
             {d.pn && <small> #{d.pn}</small>}
           </span>
+          {!fit && <em className="adapter-tag">+ adapter</em>}
           {d.key && <kbd>{d.key}</kbd>}
         </button>
         {extra.length > 0 && (
