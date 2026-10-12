@@ -8,6 +8,7 @@ import { EnvModeSwitch, EnvPalette } from './EnvPanel'
 import { usePenetrations } from './EnvScene'
 import { RecButton, ReplayBar } from './Replay'
 import { QuickMenu } from './QuickMenu'
+import { LengthEditor } from './LengthEditor'
 import { ProjectFile, serialize, useStore } from './store'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -126,8 +127,14 @@ export function App() {
       if (k === 'escape') return (s.select(null), s.selectEnv(null))
       if (e.code === 'KeyR' && s.selectedId) return s.rollPart(s.selectedId, e.shiftKey ? -90 : 90)
       if (k === 'home') return s.setView(null)
+      // цифры при выбранной трубе — сразу ввод длины
+      if (/^[0-9]$/.test(e.key) && s.selectedId && s.parts.find((p) => p.id === s.selectedId)?.kind === 'pipe') {
+        e.preventDefault()
+        return useStore.setState({ lengthEdit: { id: s.selectedId, text: e.key, n: Date.now() } })
+      }
       const hit = KIND_KEYS.find((x) => e.code === `Key${x.key}`)
-      if (hit) s.addPart(hit.kind)
+      // гасим символ клавиши, чтобы он не попал в поле длины, которое откроется после добавления трубы
+      if (hit) return (e.preventDefault(), s.addPart(hit.kind))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -198,6 +205,7 @@ export function App() {
           <Scene model={model} />
           <ReplayBar />
           <QuickMenu />
+          <LengthEditor />
           {parts.length === 0 && env.length === 0 && (
             <div className="welcome">
               <h2>Start with the first part</h2>

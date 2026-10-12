@@ -187,3 +187,11 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .qm-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .qm-seg { display: flex; gap: 2px; }
 .qm-seg button { padding: 2px 7px; font-size: 11px; }
+.group-head.static { cursor: default; pointer-events: none; }
+.group.recent { margin-bottom: 4px; }
+
+/* поле длины у трубы */
+.length-editor { position: absolute; left: 0; top: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: auto; }
+.length-editor input { width: 120px; font: 600 15px ui-monospace, Consolas, monospace; text-align: center; padding: 5px 8px; border-radius: 8px; border: 2px solid var(--accent); background: var(--panel); color: var(--text, #e6edf3); box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+.length-editor input.bad { border-color: #ef4444; }
+.length-editor .hint { font-size: 11px; color: var(--muted, #8b949e); background: rgba(13,17,23,.75); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }

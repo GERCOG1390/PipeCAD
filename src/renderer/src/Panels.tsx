@@ -121,6 +121,7 @@ export function Palette({ model }: { model: Model }) {
   const newBranch = useStore((s) => s.newBranch)
   const cancelPlacing = useStore((s) => s.cancelPlacing)
   const joining = useStore((s) => s.joining)
+  const recent = useStore((s) => s.recent)
   const startJoin = useStore((s) => s.startJoin)
   const [step, setStep] = useState<'size' | 'catalog' | 'fixtures'>(parts.length ? 'catalog' : 'size')
   const [mat, setMat] = useState<Material>(sizeSpec(paletteSize).mat)
@@ -321,6 +322,17 @@ export function Palette({ model }: { model: Model }) {
         </div>
       )}
       <input className="search" placeholder={fixtures ? "Search: 50 gal, Navien, M267…" : "Search: tee, wye, 2300…"} value={query} onChange={(e) => setQuery(e.target.value)} />
+      {!q && (() => {
+        // недавние детали, которые есть в этом размере (в разделе оборудования — всё оборудование)
+        const fixtureGroup = (k: string): boolean => FIXTURE_GROUPS.some((g) => g.id === FITTINGS[k].group)
+        const rec = recent.filter((k) => FITTINGS[k] && (fixtures ? fixtureGroup(k) : !fixtureGroup(k) && inSize(FITTINGS[k]))).slice(0, 6)
+        return rec.length ? (
+          <div className="group recent">
+            <div className="group-head static">Recent</div>
+            <div className="kinds">{rec.map(item)}</div>
+          </div>
+        ) : null
+      })()}
       <div className="kinds">{!fixtures && match(FITTINGS.pipe) && item('pipe')}</div>
       {renderGroups(fixtures ? FIXTURE_GROUPS : GROUPS)}
       {!fixtures && sizeSpec(size).dwv === 0 && sizeSpec(size).mat === 'pvc' && !q && <div className="muted small">No DWV fittings are made in {sizeLabel(size)}.</div>}

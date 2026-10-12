@@ -169,6 +169,7 @@ interface State {
   view: { tick: number; dir: V3 | null } // dir null — "показать всё" с текущего ракурса
   quickMenu: { x: number; y: number; port: PortRef } | null // меню по правому клику на свободном конце
   recent: string[] // недавно использованные детали (новые — первыми)
+  lengthEdit: { id: string; text?: string; n: number } | null // поле длины у трубы
 
   commit: (parts: Part[]) => void
   commitEnv: (env: EnvItem[]) => void
@@ -311,6 +312,7 @@ export const useStore = create<State>((set, get) => ({
   message: null,
   view: { tick: 0, dir: null },
   quickMenu: null,
+  lengthEdit: null,
   recent: readRecent(),
 
   commit: (parts) => set((s) => (s.replay ? {} : { parts, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true, timeline: [...s.timeline.slice(-1999), { parts, env: s.env }] })),
@@ -368,6 +370,7 @@ export const useStore = create<State>((set, get) => ({
     if (placing.kind.startsWith('pit_') && FITTINGS['lid_' + placing.kind.slice(4)]) next.push({ id: newId(), kind: 'lid_' + placing.kind.slice(4), size: part.size, attach: 0, roll: 0, parent: { id: part.id, port: 1 } })
     get().commit(next)
     get().pushRecent(placing.kind)
+    if (placing.kind === 'pipe') set({ lengthEdit: { id: part.id, n: Date.now() } })
     set({ placing: null, placedAt: Date.now(), selectedId: part.id, activePort: firstOpen(next, part.id), message: null })
   },
   startJoin: () => {
@@ -520,6 +523,7 @@ export const useStore = create<State>((set, get) => ({
     const next = [...parts, ...added, part]
     get().commit(next)
     get().pushRecent(kind)
+    if (kind === 'pipe') set({ lengthEdit: { id, n: Date.now() } })
     set({ selectedId: id, activePort: firstOpen(next, id, part.attach), message: notes.length ? notes.join('; ') : null })
   },
 

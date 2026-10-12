@@ -36,6 +36,7 @@ import { angleOf, withAngle } from './Panels'
 import { computeGuides, mouthOf } from './axes'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
+import { LengthEditAnchor } from './LengthEditor'
 import { formatLength } from './units'
 
 const UP = new Vector3(0, 1, 0)
@@ -1037,6 +1038,7 @@ export function Scene({ model }: { model: Model }) {
       <PlacementLayer />
       <AxisGuides model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
+      <LengthEditAnchor model={model} />
       <OrbitControls makeDefault enableDamping={false} autoRotate={autoRotate} autoRotateSpeed={0.7} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
