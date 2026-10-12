@@ -10,6 +10,7 @@ import { RecButton, ReplayBar } from './Replay'
 import { QuickMenu } from './QuickMenu'
 import { LengthEditor } from './LengthEditor'
 import { ModeBanner } from './ModeBanner'
+import { Shortcuts } from './Shortcuts'
 import { ProjectFile, serialize, useStore } from './store'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -55,6 +56,7 @@ export function App() {
   const st = useStore.getState()
   const [tab, setTab] = useState<'props' | 'bom'>('props')
   const [left, setLeft] = useState<'pipes' | 'env'>('pipes')
+  const [help, setHelp] = useState(false)
   const env = useStore((s) => s.env)
   const selectedEnv = useStore((s) => s.selectedEnv)
 
@@ -110,6 +112,8 @@ export function App() {
         else if (k === 'arrowleft') s.setReplayIndex(s.replay.i - 1)
         return
       }
+      if (e.key === '?') return (e.preventDefault(), setHelp((h) => !h))
+      if (k === 'escape') setHelp(false)
       if (e.ctrlKey && (e.code === 'KeyZ') && !e.shiftKey) return (e.preventDefault(), s.undo())
       if (e.ctrlKey && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) return (e.preventDefault(), s.redo())
       if (e.ctrlKey && e.code === 'KeyS') return (e.preventDefault(), void save(e.shiftKey))
@@ -189,7 +193,12 @@ export function App() {
         <span className="sep" />
         <span className="muted small">Site:</span>
         <EnvModeSwitch />
+        <span className="grow" />
+        <button onClick={() => setHelp(true)} title="Keyboard & mouse (?)">
+          ? Help
+        </button>
       </header>
+      {help && <Shortcuts onClose={() => setHelp(false)} />}
       <div className={replaying ? "main replaying" : "main"}>
         <div className="left">
           <div className="tabs">

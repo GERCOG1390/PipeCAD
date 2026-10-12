@@ -211,3 +211,15 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .kind-row.needs-adapter .kind { opacity: .55; }
 .kind-row.needs-adapter .kind:hover { opacity: .9; }
 .adapter-tag { font-style: normal; font-size: 10px; color: #f59e0b; border: 1px solid rgba(245,158,11,.5); border-radius: 4px; padding: 0 4px; flex: none; }
+
+/* шпаргалка */
+.toolbar .grow { flex: 1; }
+.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 100; display: grid; place-items: center; }
+.modal { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); max-width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 14px 18px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 16px; }
+.sc-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.shortcuts h4 { margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.shortcuts table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.shortcuts td { padding: 3px 6px; vertical-align: top; }
+.shortcuts td:first-child { white-space: nowrap; width: 1%; }
+.shortcuts kbd { font: 12px ui-monospace, Consolas, monospace; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
