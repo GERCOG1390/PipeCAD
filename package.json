@@ -10,7 +10,8 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "dist": "npm run build && electron-builder --win portable"
+    "dist": "npm run build && electron-builder --win portable",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@react-three/drei": "^10.7.9",
@@ -28,6 +29,7 @@
     "three": "^0.186.1",
     "typescript": "^7.0.2",
     "vite": "^7.3.7",
+    "vitest": "^3.2.7",
     "zustand": "^5.0.15"
   },
   "dependencies": {

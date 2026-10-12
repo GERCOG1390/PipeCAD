@@ -631,5 +631,7 @@ export function serialize(): string {
 }
 
 // Для автотестов через DevTools
-;(window as unknown as { pipecad: typeof useStore; pipecadFittings: typeof FITTINGS }).pipecad = useStore
-;(window as unknown as { pipecadFittings: typeof FITTINGS }).pipecadFittings = FITTINGS
+if (typeof window !== 'undefined') {
+  ;(window as unknown as { pipecad: typeof useStore }).pipecad = useStore
+  ;(window as unknown as { pipecadFittings: typeof FITTINGS }).pipecadFittings = FITTINGS
+}
