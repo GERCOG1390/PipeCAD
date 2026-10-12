@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FITTINGS, FittingDef, Group, Material, defaultSize2, mates, matOf, sizeMatLabel, Part, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
-import { Bom, bomCsv } from './bom'
-import { EnvBomSection, EnvInspector, SystemPosition } from './EnvPanel'
-import { Penetration, envBom } from './environment'
+import { EnvInspector, SystemPosition } from './EnvPanel'
 import { Model, portKey } from './geometry'
 import { subtreeSize, useStore } from './store'
 import { KITS } from './kits'
@@ -648,81 +646,6 @@ export function Inspector({ model }: { model: Model }) {
         <button className="wide danger" onClick={() => deleteBranch(part.id)} title="Shift+Del">
           Delete with everything downstream ({sub} parts)
         </button>
-      )}
-    </div>
-  )
-}
-
-export function BomPanel({ bom, pens }: { bom: Bom; pens: Penetration[] }) {
-  const envItems = useStore((s) => s.env)
-  const stick = useStore((s) => s.stick)
-  const setStick = useStore((s) => s.setStick)
-  const setMessage = useStore((s) => s.setMessage)
-  const exportCsv = async (): Promise<void> => {
-    const path = await window.api.exportFile({ defaultName: 'pvc-materials.csv', content: bomCsv(bom, stick, envBom(envItems), pens), ext: 'csv', label: 'CSV (Excel)' })
-    if (path) setMessage(`List saved: ${path}`)
-  }
-  const empty = !bom.pipes.length && !bom.fittings.length && !envItems.length
-  const fitTotal = useMemo(() => bom.fittings.reduce((a, f) => a + f.qty, 0), [bom])
-  return (
-    <div className="bom">
-      <div className="row between">
-        <span className="muted">Pipe stick:</span>
-        <div className="seg">
-          {[120, 240].map((n) => (
-            <button key={n} className={stick === n ? 'on' : ''} onClick={() => setStick(n)}>
-              {n / 12}'
-            </button>
-          ))}
-        </div>
-      </div>
-      {empty && <div className="empty">Empty — add some parts.</div>}
-      {bom.pipes.map((p) => (
-        <div key={p.size} className="bom-pipe">
-          <div className="row between">
-            <b>{p.name}</b>
-            <span className="qty">{p.sticks} pcs</span>
-          </div>
-          <div className="muted small">
-            Total {formatLength(p.total)} · cuts: {p.cuts.length}
-          </div>
-          <div className="cuts">
-            {p.cuts.map((c, i) => (
-              <span key={i}>{formatLength(c)}</span>
-            ))}
-          </div>
-        </div>
-      ))}
-      {bom.fittings.length > 0 && (
-        <table>
-          <tbody>
-            {[...bom.fittings]
-              .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }))
-              .map((f) => (
-                <tr key={f.key}>
-                  <td>
-                    {f.name}
-                    <div className="muted small">
-                      {f.ru}
-                      {f.pn ? ` · #${f.pn}` : ''}
-                    </div>
-                  </td>
-                  <td className="qty">{f.qty}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      )}
-      {!empty && (
-        <>
-          <div className="muted small">
-            Fittings: {fitTotal} · solvent welds: {bom.joints} (primer + cement){bom.solder ? ` · solder joints: ${bom.solder} (solder + flux)` : ''}{bom.mech ? ` · no-hub joints: ${bom.mech} (torque 60 in-lbs)` : ''}{bom.threads ? ` · threaded: ${bom.threads} (tape/dope)` : ''}
-          </div>
-          <EnvBomSection pens={pens} />
-          <button className="wide" onClick={exportCsv}>
-            Export to Excel (CSV)
-          </button>
-        </>
       )}
     </div>
   )

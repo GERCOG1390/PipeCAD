@@ -7,6 +7,7 @@ interface Window {
     recPrepare: () => Promise<number>
     recRestore: () => Promise<void>
     transcodeTest: (args: { data: Uint8Array; ext: string; out: string }) => Promise<boolean>
+    exportPdf: (args: { html: string; defaultName: string; out?: string }) => Promise<string | null>
   }
 }
 declare module '*.css'

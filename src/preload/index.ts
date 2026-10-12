@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('api', {
   saveVideo: (args: { data: Uint8Array; ext: string }) => ipcRenderer.invoke('video:save', args),
   recPrepare: () => ipcRenderer.invoke('rec:prepare'),
   recRestore: () => ipcRenderer.invoke('rec:restore'),
+  exportPdf: (args: { html: string; defaultName: string; out?: string }) => ipcRenderer.invoke('pdf:export', args),
   transcodeTest: (args: { data: Uint8Array; ext: string; out: string }) => ipcRenderer.invoke('video:transcodeTest', args)
 })

@@ -37,6 +37,7 @@ import { computeGuides, mouthOf } from './axes'
 import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { LengthEditAnchor } from './LengthEditor'
+import { SnapshotHook } from './Snapshot'
 import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength } from './units'
 
@@ -1018,6 +1019,7 @@ export function Scene({ model }: { model: Model }) {
       <directionalLight position={[-90, 30, -40]} intensity={0.35} color="#cfe3ff" />
       <directionalLight position={[0, -60, 20]} intensity={0.15} />
       <Grid
+        name="floor-grid"
         position={[0, -0.02, 0]}
         infiniteGrid
         cellSize={12}
@@ -1042,6 +1044,7 @@ export function Scene({ model }: { model: Model }) {
       <AxisGuides model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
       <LengthEditAnchor model={model} />
+      <SnapshotHook />
       <OrbitControls makeDefault enableDamping={false} autoRotate={autoRotate} autoRotateSpeed={0.7} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>

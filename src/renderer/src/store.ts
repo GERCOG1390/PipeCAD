@@ -129,7 +129,16 @@ export interface ProjectFile {
   env?: EnvItem[]
   timeline?: PackedTimeline
   stick?: number
+  info?: JobInfo
 }
+
+// Сведения о заказе для листа PDF
+export interface JobInfo {
+  customer: string
+  address: string
+  notes: string
+}
+const NO_INFO: JobInfo = { customer: '', address: '', notes: '' }
 
 export interface Snapshot {
   parts: Part[]
@@ -171,6 +180,8 @@ interface State {
   quickMenu: { x: number; y: number; port: PortRef } | null // меню по правому клику на свободном конце
   recent: string[] // недавно использованные детали (новые — первыми)
   lengthEdit: { id: string; text?: string; n: number } | null // поле длины у трубы
+  info: JobInfo
+  setInfo: (patch: Partial<JobInfo>) => void
 
   commit: (parts: Part[]) => void
   commitEnv: (env: EnvItem[]) => void
@@ -314,6 +325,8 @@ export const useStore = create<State>((set, get) => ({
   view: { tick: 0, dir: null },
   quickMenu: null,
   lengthEdit: null,
+  info: NO_INFO,
+  setInfo: (patch) => set((st) => ({ info: { ...st.info, ...patch }, dirty: true })),
   recent: readRecent(),
 
   commit: (parts) => set((s) => (s.replay ? {} : { parts, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true, timeline: [...s.timeline.slice(-1999), { parts, env: s.env }] })),
@@ -639,7 +652,7 @@ export const useStore = create<State>((set, get) => ({
   setMessage: (message) => set({ message }),
 
   newProject: () =>
-    set({ parts: [], env: [], past: [], future: [], timeline: [], replay: null, selectedEnv: null, selectedId: null, activePort: null, filePath: null, dirty: false, message: null }),
+    set({ parts: [], env: [], past: [], future: [], timeline: [], replay: null, selectedEnv: null, selectedId: null, activePort: null, filePath: null, dirty: false, message: null, info: NO_INFO }),
 
   loadProject: (f, path) => {
     set({
@@ -658,6 +671,7 @@ export const useStore = create<State>((set, get) => ({
       filePath: path,
       dirty: false,
       stick: f.stick ?? get().stick,
+      info: { ...NO_INFO, ...(f.info ?? {}) },
       message: (() => {
         // детали, которых нет в каталоге (файл из другой версии), рисуются как труба — предупреждаем
         const unknown = [...new Set(f.parts.filter((p) => !FITTINGS[p.kind]).map((p) => p.kind))]
@@ -692,10 +706,10 @@ function fixSelection(): void {
 }
 
 export function serialize(): string {
-  const { parts, env, stick, timeline, replay } = useStore.getState()
+  const { parts, env, stick, timeline, replay, info } = useStore.getState()
   // во время повтора на экране старый шаг — сохраняем настоящий проект
   const real = replay ? replay.saved : { parts, env }
-  const f: ProjectFile = { app: 'pipecad', version: 1, parts: real.parts, env: real.env, stick, timeline: packTimeline(timeline) }
+  const f: ProjectFile = { app: 'pipecad', version: 1, parts: real.parts, env: real.env, stick, timeline: packTimeline(timeline), ...(info.customer || info.address || info.notes ? { info } : {}) }
   return JSON.stringify(f, null, 1)
 }
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen, session } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen, session, shell } from 'electron'
 import { spawn } from 'child_process'
 import { readFile, unlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -109,6 +109,29 @@ ipcMain.handle('file:export', async (_e, args: { defaultName: string; content: s
   if (r.canceled || !r.filePath) return null
   await writeFile(r.filePath, args.content, 'utf8')
   return r.filePath
+})
+
+// PDF-лист: HTML из окна программы печатается скрытым окном Chromium (Letter), затем открывается
+ipcMain.handle('pdf:export', async (_e, args: { html: string; defaultName: string; out?: string }) => {
+  let path = args.out ?? null
+  if (!path) {
+    const r = await dialog.showSaveDialog({ defaultPath: join(app.getPath('documents'), args.defaultName), filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+    if (r.canceled || !r.filePath) return null
+    path = r.filePath
+  }
+  const tmp = join(tmpdir(), `pipecad-sheet-${Date.now()}.html`)
+  await writeFile(tmp, args.html, 'utf8')
+  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } })
+  try {
+    await win.loadFile(tmp)
+    const pdf = await win.webContents.printToPDF({ pageSize: 'Letter', printBackground: true, margins: { top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } })
+    await writeFile(path, pdf)
+  } finally {
+    win.destroy()
+    await unlink(tmp).catch(() => undefined)
+  }
+  if (!args.out) void shell.openPath(path)
+  return path
 })
 
 app.whenReady().then(() => {

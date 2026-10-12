@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { KIND_KEYS } from './catalog'
 import { computeBom } from './bom'
 import { buildModel } from './geometry'
-import { BomPanel, Inspector, Palette } from './Panels'
+import { Inspector, Palette } from './Panels'
+import { BomPanel } from './BomPanel'
 import { Scene } from './Scene'
 import { EnvModeSwitch, EnvPalette } from './EnvPanel'
 import { usePenetrations } from './EnvScene'
@@ -235,7 +236,7 @@ export function App() {
               Materials
             </button>
           </div>
-          <div className="side-body">{tab === 'props' ? <Inspector model={model} /> : <BomPanel bom={bom} pens={pens} />}</div>
+          <div className="side-body">{tab === 'props' ? <Inspector model={model} /> : <BomPanel bom={bom} pens={pens} model={model} />}</div>
         </aside>
       </div>
       <footer className="status">
