@@ -38,6 +38,7 @@ import { EnvLayer } from './EnvScene'
 import { useStore } from './store'
 import { LengthEditAnchor } from './LengthEditor'
 import { SnapshotHook } from './Snapshot'
+import { SCENE_COLORS, useViewPrefs } from './viewPrefs'
 import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength } from './units'
 
@@ -835,6 +836,12 @@ function AxisGuides({ model }: { model: Model }) {
 
 // ---------- Установка новой ветки ----------
 const floorPlane = new Plane(new Vector3(0, 1, 0), 0)
+// Фон сцены под тему
+function SceneBackground() {
+  const theme = useViewPrefs((s) => s.theme)
+  return <color key={theme} attach="background" args={[SCENE_COLORS[theme].bg]} />
+}
+
 function PlacementLayer() {
   const placing = useStore((s) => s.placing)
   const turn = useStore((s) => s.placeTurn)
@@ -1001,6 +1008,7 @@ function CameraRig({ model }: { model: Model }) {
 }
 
 export function Scene({ model }: { model: Model }) {
+  const sceneColors = SCENE_COLORS[useViewPrefs((s) => s.theme)]
   const parts = useStore((s) => s.parts)
   const showDims = useStore((s) => s.showDims)
   const select = useStore((s) => s.select)
@@ -1012,7 +1020,7 @@ export function Scene({ model }: { model: Model }) {
       gl={{ antialias: true, toneMappingExposure: 0.95 }}
       onPointerMissed={(e) => e.button === 0 && !busyPlacing() && select(null)}
     >
-      <color attach="background" args={['#1a1e23']} />
+      <SceneBackground />
       <EnvSetup />
       <hemisphereLight args={['#ffffff', '#2a3038', 0.25]} />
       <directionalLight position={[50, 110, 70]} intensity={1.7} />
@@ -1026,8 +1034,8 @@ export function Scene({ model }: { model: Model }) {
         sectionSize={60}
         cellThickness={0.6}
         sectionThickness={1}
-        cellColor="#2b3238"
-        sectionColor="#2f6f6c"
+        cellColor={sceneColors.cell}
+        sectionColor={sceneColors.section}
         fadeDistance={900}
         fadeStrength={1.5}
       />

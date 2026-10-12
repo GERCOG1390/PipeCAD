@@ -237,3 +237,42 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .bom .totals { border-top: 1px solid var(--line); padding-top: 6px; margin: 6px 0; display: flex; flex-direction: column; gap: 4px; }
 .bom .totals .grand { font-size: 14px; color: var(--accent); }
 button.primary { background: var(--accent); color: #0b1514; font-weight: 700; border-color: var(--accent); }
+
+/* настройки вида */
+.modal.settings { width: 420px; display: flex; flex-direction: column; gap: 6px; }
+.modal.settings .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.modal.settings .seg button { flex: 1; }
+
+/* светлая тема */
+:root[data-theme="light"] {
+  --bg: #e9edf1;
+  --panel: #ffffff;
+  --panel2: #f2f5f8;
+  --line: #d3dae1;
+  --text: #1b2228;
+  --muted: #5d6974;
+  --accent: #0e8f88;
+  --accent-dim: #cdeeeb;
+}
+:root[data-theme="light"] button:hover:not(:disabled) { background: #e7edf2; }
+:root[data-theme="light"] select, :root[data-theme="light"] input, :root[data-theme="light"] textarea { background: #ffffff; }
+:root[data-theme="light"] .kind svg { color: #34414c; }
+:root[data-theme="light"] .cuts span { background: #eef2f5; }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c4ccd3; }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #aab4bd; }
+:root[data-theme="light"] .tag { background: #e4e9ee; color: #34414c; }
+:root[data-theme="light"] .tag.dwv { background: #fbefd2; color: #8a5a00; }
+:root[data-theme="light"] .tag.cu { background: #f8e2d4; color: #8a4316; }
+:root[data-theme="light"] .mat-tabs button.cu.on { background: #f3cdb2; border-color: #c9733e; }
+:root[data-theme="light"] .warn-box { background: #fff6e3; border-color: #efc76f; color: #7a4f00; }
+:root[data-theme="light"] .mode-banner { background: #fff3d6; color: #6b4300; }
+:root[data-theme="light"] .mode-banner b { color: #b45309; }
+:root[data-theme="light"] .adapter-tag { color: #b45309; }
+:root[data-theme="light"] .modal-back { background: rgba(30,40,50,.35); }
+:root[data-theme="light"] .quick-menu, :root[data-theme="light"] .toast, :root[data-theme="light"] .modal { box-shadow: 0 12px 32px rgba(20,30,40,.18); }
+:root[data-theme="light"] .length-editor .hint { background: rgba(255,255,255,.9); }
+:root[data-theme="light"] button.primary { color: #fff; }
+:root[data-theme="light"] .step-num { color: #fff; }
+.toolbar { overflow-x: auto; overflow-y: hidden; }
+.toolbar > * { flex: none; }
+.toolbar .grow { flex: 1 1 0; min-width: 0; }

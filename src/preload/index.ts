@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 
 contextBridge.exposeInMainWorld('api', {
   openProject: () => ipcRenderer.invoke('project:open'),
@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   saveVideo: (args: { data: Uint8Array; ext: string }) => ipcRenderer.invoke('video:save', args),
   recPrepare: () => ipcRenderer.invoke('rec:prepare'),
   recRestore: () => ipcRenderer.invoke('rec:restore'),
+  setZoom: (f: number) => webFrame.setZoomFactor(f),
   exportPdf: (args: { html: string; defaultName: string; out?: string }) => ipcRenderer.invoke('pdf:export', args),
   transcodeTest: (args: { data: Uint8Array; ext: string; out: string }) => ipcRenderer.invoke('video:transcodeTest', args)
 })
