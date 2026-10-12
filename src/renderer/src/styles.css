@@ -171,3 +171,19 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .size-head-text > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .size-head .link { flex: none; }
 .size-badge { flex: none; }
+
+/* быстрое меню на свободном конце */
+.quick-menu { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.45); padding: 6px; max-height: 80vh; overflow: auto; }
+.qm-head { font-size: 12px; font-weight: 600; color: var(--accent); padding: 4px 6px 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.qm-sub { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted, #8b949e); padding: 6px 6px 2px; }
+.qm-list { display: flex; flex-direction: column; }
+.qm-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border: none; background: transparent; text-align: left; border-radius: 6px; }
+.qm-item:hover { background: var(--panel2); }
+.qm-item span { flex: 1; }
+.qm-item svg { flex: none; }
+.qm-actions { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+.qm-actions button { border: none; background: transparent; text-align: left; padding: 5px 6px; border-radius: 6px; }
+.qm-actions button:hover { background: var(--panel2); }
+.qm-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.qm-seg { display: flex; gap: 2px; }
+.qm-seg button { padding: 2px 7px; font-size: 11px; }

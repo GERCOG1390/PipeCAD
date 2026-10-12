@@ -369,6 +369,13 @@ const setCursor = (c: string): void => {
 }
 
 // Метка свободного конца: видимое кольцо + невидимая крупная зона клика (не меньше ~20 px на экране)
+// Где была нажата правая кнопка: если мышь потом сдвинулась — это панорама, меню не открываем
+let rightDown: [number, number] | null = null
+if (typeof window !== 'undefined')
+  window.addEventListener('pointerdown', (e) => {
+    if (e.button === 2) rightDown = [e.clientX, e.clientY]
+  }, true)
+
 function PortMarker({ w, active, onPick, disabled }: { w: WorldPort; active: boolean; onPick: () => void; disabled?: boolean }) {
   const [hover, setHover] = useState(false)
   const hit = useRef<Mesh>(null)
@@ -405,6 +412,13 @@ function PortMarker({ w, active, onPick, disabled }: { w: WorldPort; active: boo
           if (e.delta > 4) return
           e.stopPropagation()
           onPick()
+        }}
+        onContextMenu={(e) => {
+          const ne = e.nativeEvent
+          if (rightDown && Math.hypot(ne.clientX - rightDown[0], ne.clientY - rightDown[1]) > 5) return
+          e.stopPropagation()
+          ne.preventDefault()
+          useStore.getState().openQuickMenu(ne.clientX, ne.clientY, { id: w.partId, port: w.index })
         }}
         onPointerOver={(e) => {
           e.stopPropagation()

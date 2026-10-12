@@ -7,6 +7,7 @@ import { Scene } from './Scene'
 import { EnvModeSwitch, EnvPalette } from './EnvPanel'
 import { usePenetrations } from './EnvScene'
 import { RecButton, ReplayBar } from './Replay'
+import { QuickMenu } from './QuickMenu'
 import { ProjectFile, serialize, useStore } from './store'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -196,6 +197,7 @@ export function App() {
         <div className="viewport">
           <Scene model={model} />
           <ReplayBar />
+          <QuickMenu />
           {parts.length === 0 && env.length === 0 && (
             <div className="welcome">
               <h2>Start with the first part</h2>

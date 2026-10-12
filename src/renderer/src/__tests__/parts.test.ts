@@ -33,8 +33,8 @@ describe('catalog', () => {
         expect(pt.depth, `${kind} ${p.size} depth`).toBeGreaterThanOrEqual(0)
       }
       for (const s of b.shapes) {
-        const nums = JSON.stringify(s).match(/-?\d+(\.\d+)?(e-?\d+)?|null|NaN/g) ?? []
-        expect(nums.includes('NaN') || nums.includes('null'), `${kind} ${p.size} shape ${s.t}`).toBe(false)
+        // NaN и Infinity в JSON превращаются в null
+        expect(JSON.stringify(s).includes('null'), `${kind} ${p.size} shape ${s.t}`).toBe(false)
       }
     }
   })

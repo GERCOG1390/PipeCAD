@@ -31,6 +31,34 @@ function sizeCandidates(kind: string, portSize: SizeId, wanted: SizeId): { size:
 }
 
 // Семейство (напорное/DWV) ближайшего фитинга по цепочке — чтобы между трубами DWV ставить муфту DWV
+// Семейство системы у детали: по ней самой, вверх по родителям, потом по присоединённым; null — не понять
+export function systemFam(parts: Part[], id: string): 'p' | 'd' | null {
+  const byId = new Map(parts.map((p) => [p.id, p]))
+  const famOf = (k: string): 'p' | 'd' | null => {
+    const g = fittingDef(k).group
+    return g === 'dwv' ? 'd' : g === 'pressure' || g === 'copper' ? 'p' : null
+  }
+  for (let p = byId.get(id); p; p = p.parent ? byId.get(p.parent.id) : undefined) {
+    const f = famOf(p.kind)
+    if (f) return f
+  }
+  const seen = new Set([id])
+  let layer = [id]
+  while (layer.length) {
+    const next: string[] = []
+    for (const p of parts) {
+      if (p.parent && layer.includes(p.parent.id) && !seen.has(p.id)) {
+        const f = famOf(p.kind)
+        if (f) return f
+        seen.add(p.id)
+        next.push(p.id)
+      }
+    }
+    layer = next
+  }
+  return null
+}
+
 function famNear(parts: Part[], id: string, kind: string): 'p' | 'd' {
   if (fittingDef(kind).group !== 'common') return fittingDef(kind).group === 'dwv' ? 'd' : 'p'
   const byId = new Map(parts.map((p) => [p.id, p]))
@@ -139,6 +167,8 @@ interface State {
   dirty: boolean
   message: string | null
   view: { tick: number; dir: V3 | null } // dir null — "показать всё" с текущего ракурса
+  quickMenu: { x: number; y: number; port: PortRef } | null // меню по правому клику на свободном конце
+  recent: string[] // недавно использованные детали (новые — первыми)
 
   commit: (parts: Part[]) => void
   commitEnv: (env: EnvItem[]) => void
@@ -188,6 +218,19 @@ interface State {
   newProject: () => void
   loadProject: (f: ProjectFile, path: string | null) => void
   markSaved: (path: string) => void
+  openQuickMenu: (x: number, y: number, port: PortRef) => void
+  closeQuickMenu: () => void
+  pushRecent: (kind: string) => void
+}
+
+const RECENT_KEY = 'pipecad.recent'
+function readRecent(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]')
+    return Array.isArray(v) ? v.filter((k) => typeof k === 'string' && FITTINGS[k]) : []
+  } catch {
+    return []
+  }
 }
 
 // Настройки вида, которые помним между запусками
@@ -267,6 +310,8 @@ export const useStore = create<State>((set, get) => ({
   dirty: false,
   message: null,
   view: { tick: 0, dir: null },
+  quickMenu: null,
+  recent: readRecent(),
 
   commit: (parts) => set((s) => (s.replay ? {} : { parts, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true, timeline: [...s.timeline.slice(-1999), { parts, env: s.env }] })),
   commitEnv: (env) => set((s) => (s.replay ? {} : { env, past: [...s.past.slice(-199), { parts: s.parts, env: s.env }], future: [], dirty: true, timeline: [...s.timeline.slice(-1999), { parts: s.parts, env }] })),
@@ -322,6 +367,7 @@ export const useStore = create<State>((set, get) => ({
     // приямок ставится сразу с крышкой (порт 1 — фланец)
     if (placing.kind.startsWith('pit_') && FITTINGS['lid_' + placing.kind.slice(4)]) next.push({ id: newId(), kind: 'lid_' + placing.kind.slice(4), size: part.size, attach: 0, roll: 0, parent: { id: part.id, port: 1 } })
     get().commit(next)
+    get().pushRecent(placing.kind)
     set({ placing: null, placedAt: Date.now(), selectedId: part.id, activePort: firstOpen(next, part.id), message: null })
   },
   startJoin: () => {
@@ -473,6 +519,7 @@ export const useStore = create<State>((set, get) => ({
 
     const next = [...parts, ...added, part]
     get().commit(next)
+    get().pushRecent(kind)
     set({ selectedId: id, activePort: firstOpen(next, id, part.attach), message: notes.length ? notes.join('; ') : null })
   },
 
@@ -610,7 +657,19 @@ export const useStore = create<State>((set, get) => ({
     get().setView(null)
   },
 
-  markSaved: (path) => set({ filePath: path, dirty: false })
+  markSaved: (path) => set({ filePath: path, dirty: false }),
+  openQuickMenu: (x, y, port) => set({ quickMenu: { x, y, port }, activePort: port, selectedId: port.id, selectedEnv: null, placing: null, joining: false }),
+  closeQuickMenu: () => set({ quickMenu: null }),
+  pushRecent: (kind) => {
+    if (kind === 'pipe' || !FITTINGS[kind]) return
+    const recent = [kind, ...get().recent.filter((k) => k !== kind)].slice(0, 8)
+    set({ recent })
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recent))
+    } catch {
+      /* ignore */
+    }
+  }
 }))
 
 function fixSelection(): void {
