@@ -29,7 +29,8 @@ export function SnapshotHook() {
     grab = (model) => {
       // для печати — светлый фон
       const bg = scene.background
-      scene.background = new Color('#ffffff')
+      // с тональной коррекцией (ACES) белый темнеет до серого — даём фон ярче белого
+      scene.background = new Color(1, 1, 1).multiplyScalar(composer ? 8 : 1)
       const grid = scene.getObjectByName('floor-grid')
       if (grid) grid.visible = false
       if (composer) composer.render(0)
