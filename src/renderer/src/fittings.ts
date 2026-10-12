@@ -1388,6 +1388,91 @@ function basinLid(b: BasinSpec): Built {
   return built
 }
 
+// ---------- Обратные клапаны для насосов ----------
+// Ось Z — поток: вход по −Z (порт 0), выход по +Z (порт 1). Стрелка на корпусе показывает направление.
+const flowArrow = (x: number, y: number, z0: number, z1: number, color: string, side = false): Shape[] => [
+  { t: 'rbox', at: [x, y, (z0 + z1) / 2 - 0.2], dir: Y, size: side ? [0.06, 0.16, z1 - z0 - 0.4] : [0.16, 0.06, z1 - z0 - 0.4], r: 0.025, color },
+  lathe([x, y, z1 - 0.45], Z, [[0.001, 0], [0.26, 0], [0.001, 0.45]], { color, seg: 24 })
+]
+
+// Самп: подпружиненный клапан в линии, концы — резиновые муфты с двумя хомутами (садятся прямо на трубу)
+function sumpCheck(size: SizeId): Built {
+  const o = sp(size).od / 2
+  const seg = 128
+  const B = 4.2 // корпус
+  const CL = 3.0 // длина муфты
+  const ins = 1.5 // на сколько труба заходит в муфту
+  const bodyR = o + 0.55
+  const shapes: Shape[] = [
+    // корпус: две половины с фланцем по центру
+    lathe(O, Z, rounded([[o - 0.12, -B / 2], [o, -B / 2], [o, -B / 2 + 0.2], [bodyR - 0.15, -B / 2 + 0.8], [bodyR, -0.55], [bodyR + 0.3, -0.45], [bodyR + 0.3, 0.45], [bodyR, 0.55], [bodyR - 0.15, B / 2 - 0.8], [o, B / 2 - 0.2], [o, B / 2], [o - 0.12, B / 2]], 0.1), { color: '#e6e8ea', seg })
+  ]
+  // винты фланца
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6
+    shapes.push({ t: 'nut', at: [Math.cos(a) * (bodyR + 0.12), Math.sin(a) * (bodyR + 0.12), -0.47], dir: NZ, sides: 6, r: 0.12, h: 0.1, color: STEEL, metal: true })
+  }
+  shapes.push(...flowArrow(0, bodyR - 0.02, -B / 2 + 0.9, B / 2 - 0.9, '#2a6fd1'))
+  // шейки корпуса (входят в муфты) и муфты с хомутами
+  for (const s of [-1, 1]) {
+    const z0 = s * (B / 2)
+    const neckEnd = s * (B / 2 + CL - ins)
+    shapes.push(lathe([0, 0, z0], [0, 0, s], [[o - 0.12, 0], [o, 0], [o, Math.abs(neckEnd - z0)], [o - 0.12, Math.abs(neckEnd - z0)]], { color: '#e6e8ea', seg: 64 }))
+    const Rc = o + 0.22
+    shapes.push(lathe([0, 0, z0 - s * 0.1], [0, 0, s], rounded([[o, 0], [Rc - 0.04, 0], [Rc, 0.06], [Rc, CL + 0.1], [o, CL + 0.1]], 0.05), { color: RUBBER, seg }))
+    for (const k of [0.75, CL - 0.6]) {
+      const z = z0 + s * k
+      const Rb = Rc + 0.03
+      shapes.push(
+        lathe([0, 0, z - 0.25], Z, rounded([[Rc, 0], [Rb, 0], [Rb, 0.5], [Rc, 0.5]], 0.012), { color: STEEL, metal: true, seg }),
+        { t: 'box', at: [0, Rb + 0.11, z], dir: Y, size: [0.62, 0.22, 0.47], color: STEEL, metal: true },
+        { t: 'nut', at: [-0.5, Rb + 0.13, z], dir: X, sides: 6, r: 0.156, h: 0.17, color: STEEL, metal: true }
+      )
+    }
+  }
+  const pz = B / 2 + CL - ins
+  return {
+    ports: [
+      hub([0, 0, -pz], NZ, size, 'p', { bare: true, depth: ins, face: ins + 0.1, R: o + 0.25, mech: true }),
+      hub([0, 0, pz], Z, size, 'p', { bare: true, depth: ins, face: ins + 0.1, R: o + 0.25, mech: true })
+    ],
+    shapes
+  }
+}
+
+// Эжектор: PVC клапан обратного хода (swing) с крышкой сверху и накидными гайками; концы — раструбы под клей
+function ejectorCheck(size: SizeId): Built {
+  const o = sp(size).od / 2
+  const seg = 128
+  const GRAY = '#8e959b'
+  const R = o + 0.7
+  const shapes: Shape[] = [
+    // корпус
+    lathe(O, Z, rounded([[0.001, -2.0], [o + 0.35, -2.0], [R, -1.2], [R, 1.2], [o + 0.35, 2.0], [0.001, 2.0]], 0.35), { color: GRAY, seg }),
+    // горловина и крышка (доступ к заслонке)
+    lathe([0, 0, 0.15], Y, rounded([[0.001, 0], [R * 0.75, 0], [R * 0.75, R + 0.55], [0.001, R + 0.55]], 0.15), { color: GRAY, seg: 96 }),
+    { t: 'knurl', at: [0, R + 0.1, 0.15], dir: Y, r: R * 0.85, h: 0.7, ribs: 24, color: GRAY },
+    lathe([0, R + 0.8, 0.15], Y, rounded([[0.001, 0], [R * 0.85, 0], [R * 0.85, 0.15], [0.001, 0.25]], 0.06), { color: GRAY, seg: 96 }),
+    { t: 'nut', at: [0, R + 0.95, 0.15], dir: Y, sides: 6, r: 0.45, h: 0.3, ch: 0.05, color: GRAY }
+  ]
+  shapes.push(...flowArrow(R, 0, -1.0, 1.2, '#1c1e21', true))
+  // накидные гайки и концевые муфты
+  for (const s of [-1, 1]) {
+    shapes.push(
+      lathe([0, 0, s * 1.8], [0, 0, s], rounded([[o + 0.2, 0], [o + 0.6, 0], [o + 0.6, 0.6], [o + 0.2, 0.6]], 0.05), { color: GRAY, seg }),
+      { t: 'knurl', at: [0, 0, s * 2.0], dir: [0, 0, s], r: R + 0.15, h: 1.0, ribs: 20, color: GRAY },
+      lathe([0, 0, s * 2.0], [0, 0, s], rounded([[o + 0.2, 0], [R + 0.1, 0], [R + 0.1, 1.0], [o + 0.4, 1.15], [o + 0.2, 1.15]], 0.08), { color: GRAY, seg })
+    )
+  }
+  const pz = 3.1
+  const built = finalize({
+    ports: [hub([0, 0, -pz], NZ, size, 'p', { R: o + 0.35 }), hub([0, 0, pz], Z, size, 'p', { R: o + 0.35 })],
+    shapes
+  })
+  built.shapes = built.shapes.map((s) => (s.t === 'lathe' && !s.color ? { ...s, color: GRAY } : s))
+  return built
+}
+
 const PRESSURE_SIZES: SizeId[] = ['1/2', '3/4', '1', '1-1/4', '1-1/2', '2', '2-1/2', '3', '4', '6']
 
 // =====================================================================
@@ -2956,6 +3041,29 @@ for (const b of BASINS) {
 export const basinRadius = (kind: string): number | undefined => {
   const b = BASINS.find((x) => 'pit_' + x.key === kind)
   return b ? b.D / 2 : undefined
+}
+
+for (const s of ['1-1/4', '1-1/2'] as SizeId[]) {
+  FITTINGS['cv_sump_' + s] = {
+    ru: sizeLabel(s) + '" Sump Check Valve · rubber couplings',
+    en: sizeLabel(s) + '" In-Line Sump Pump Check Valve with Rubber Couplings & SS Clamps',
+    group: 'pump',
+    cat: 'Check Valves',
+    icon: 'check',
+    sizes: [s],
+    build: () => sumpCheck(s),
+    bom: () => [{ name: sizeLabel(s) + '" Sump Pump Check Valve, In-Line Spring, Rubber Couplings w/ SS Clamps' }]
+  }
+}
+FITTINGS['cv_ej_2'] = {
+  ru: '2" Ejector Check Valve · PVC swing, union',
+  en: '2" PVC Swing Check Valve, Union x Solvent Socket (Sewage Ejector)',
+  group: 'pump',
+  cat: 'Check Valves',
+  icon: 'check',
+  sizes: ['2'],
+  build: () => ejectorCheck('2'),
+  bom: () => [{ name: '2" PVC Swing Check Valve, True Union, Socket Ends (Sewage)' }]
 }
 
 export const FITTING_ORDER = Object.keys(FITTINGS)

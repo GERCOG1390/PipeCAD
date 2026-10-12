@@ -15,6 +15,7 @@ const ICONS: Record<string, string> = {
   ell45: 'M2 16h9l9-9',
   tee: 'M3 9h18M12 9v12',
   heater: 'M7 4h10v17H7zM9 2v2M15 2v2M10 16h4',
+  check: 'M2 12h4M18 12h4M6 7h12v10H6zM9 12h6M13 10l2 2-2 2',
   pump: 'M8 21h8M7 18h10v3H7zM9 8h6v10H9zM15 10h3V3M10 8V5',
   basin: 'M4 4h16M5 4l2 17h10l2-17M9 14h6v7H9z',
   tankless: 'M5 3h14v15H5zM9 18v3M12 18v3M15 18v3M9 1v2M15 1v2M9 13h6',
@@ -99,7 +100,7 @@ const GROUPS: { id: Group; title: string }[] = [
 // Сантехническое оборудование — отдельный раздел, не зависит от размера трубы
 const FIXTURE_GROUPS: { id: Group; title: string }[] = [
   { id: 'heater', title: 'Water Heaters & Expansion Tanks' },
-  { id: 'pump', title: 'Sump & Sewage Pumps, Basins' }
+  { id: 'pump', title: 'Sump & Sewage Pumps, Basins, Check Valves' }
 ]
 
 function readOpen(): Record<string, boolean> {
