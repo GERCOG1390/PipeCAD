@@ -276,3 +276,4 @@ button.primary { background: var(--accent); color: #0b1514; font-weight: 700; bo
 .toolbar { overflow-x: auto; overflow-y: hidden; }
 .toolbar > * { flex: none; }
 .toolbar .grow { flex: 1 1 0; min-width: 0; }
+.logo-img { width: 22px; height: 22px; display: block; }

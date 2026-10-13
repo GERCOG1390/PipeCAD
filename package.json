@@ -63,10 +63,18 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "portable": {
       "artifactName": "PipeCAD-${version}-portable.exe"
-    }
+    },
+    "icon": "build/icon.png",
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      }
+    ]
   }
 }

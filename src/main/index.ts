@@ -18,6 +18,8 @@ function createWindow(): void {
     backgroundColor: '#15181c',
     autoHideMenuBar: true,
     title: 'PipeCAD',
+    // значок окна: в сборке — рядом с ресурсами, в разработке — из build/
+    icon: app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(__dirname, '../../build/icon.png'),
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: false }
   })
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)

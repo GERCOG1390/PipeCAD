@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a343d"/>
+      <stop offset="1" stop-color="#12171c"/>
+    </linearGradient>
+    <linearGradient id="hub" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cfd6db"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#tile)"/>
+  <rect x="9.5" y="9.5" width="237" height="237" rx="52.5" fill="none" stroke="#3fd0c9" stroke-opacity="0.45" stroke-width="3"/>
+  <!-- тень трубы -->
+  <path d="M40 182 H118 A60 60 0 0 0 178 122 V44" fill="none" stroke="#0a0d10" stroke-opacity="0.55" stroke-width="50" transform="translate(5 6)"/>
+  <!-- труба: основной цвет, тень снизу, блик сверху -->
+  <path d="M40 178 H118 A60 60 0 0 0 178 118 V44" fill="none" stroke="#8f9aa2" stroke-width="46"/>
+  <path d="M40 178 H118 A60 60 0 0 0 178 118 V44" fill="none" stroke="#eef1f3" stroke-width="34" transform="translate(-3 -3)"/>
+  <path d="M56 178 H118 A60 60 0 0 0 178 118 V60" fill="none" stroke="#ffffff" stroke-opacity="0.9" stroke-width="7" stroke-linecap="round" transform="translate(-12 -12)"/>
+  <!-- раструбы отвода -->
+  <rect x="58" y="146" width="30" height="64" rx="7" fill="url(#hub)" stroke="#7d8890" stroke-width="3"/>
+  <rect x="146" y="70" width="64" height="30" rx="7" fill="url(#hub)" stroke="#7d8890" stroke-width="3"/>
+  <!-- открытый конец: бирюзовое кольцо, как в программе -->
+  <ellipse cx="178" cy="44" rx="33" ry="9" fill="#0f1418" stroke="#3fd0c9" stroke-width="6"/>
+  <!-- торец слева -->
+  <ellipse cx="40" cy="178" rx="9" ry="23" fill="#c4ccd2" stroke="#7d8890" stroke-width="3"/>
+</svg>

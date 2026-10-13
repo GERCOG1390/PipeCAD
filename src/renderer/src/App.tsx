@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import logo from './assets/logo.png'
 import { KIND_KEYS } from './catalog'
 import { computeBom } from './bom'
 import { buildModel } from './geometry'
@@ -172,7 +173,7 @@ export function App() {
     <div className="app">
       <header className="toolbar">
         <div className="brand">
-          <span className="logo" />
+          <img className="logo-img" src={logo} alt="" />
           PipeCAD
         </div>
         <button onClick={() => confirmDiscard() && st.newProject()}>New</button>
