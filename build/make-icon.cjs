@@ -68,5 +68,6 @@ pngs.forEach(({ s, png }, i) => {
   offset += png.length
 })
 fs.writeFileSync(path.join(out, 'icon.ico'), Buffer.concat([head, dir, ...pngs.map((p) => p.png)]))
-fs.copyFileSync(path.join(out, 'icon-256.png'), path.join(out, 'icon.png'))
+// большой PNG: значок окна и macOS (.icns собирается из него, нужно не меньше 512 px)
+fs.writeFileSync(path.join(out, 'icon.png'), render(full, 1024))
 console.log('ok', out)

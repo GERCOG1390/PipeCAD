@@ -119,6 +119,8 @@ export function App() {
       if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA') return
       const s = useStore.getState()
       const k = e.key.toLowerCase()
+      // Ctrl на Windows, ⌘ на Mac
+      const mod = e.ctrlKey || e.metaKey
       if (s.replay) {
         e.preventDefault()
         if (k === 'escape') s.stopReplay()
@@ -129,14 +131,14 @@ export function App() {
       }
       if (e.key === '?') return (e.preventDefault(), setHelp((h) => !h))
       if (k === 'escape') setHelp(false)
-      if (e.ctrlKey && (e.code === 'Equal' || e.code === 'NumpadAdd')) return (e.preventDefault(), useViewPrefs.getState().stepZoom(1))
-      if (e.ctrlKey && (e.code === 'Minus' || e.code === 'NumpadSubtract')) return (e.preventDefault(), useViewPrefs.getState().stepZoom(-1))
-      if (e.ctrlKey && (e.code === 'Digit0' || e.code === 'Numpad0')) return (e.preventDefault(), useViewPrefs.getState().stepZoom(0))
-      if (e.ctrlKey && (e.code === 'KeyZ') && !e.shiftKey) return (e.preventDefault(), s.undo())
-      if (e.ctrlKey && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) return (e.preventDefault(), s.redo())
-      if (e.ctrlKey && e.code === 'KeyS') return (e.preventDefault(), void save(e.shiftKey))
-      if (e.ctrlKey && e.code === 'KeyO') return (e.preventDefault(), void open())
-      if (e.ctrlKey) return
+      if (mod && (e.code === 'Equal' || e.code === 'NumpadAdd')) return (e.preventDefault(), useViewPrefs.getState().stepZoom(1))
+      if (mod && (e.code === 'Minus' || e.code === 'NumpadSubtract')) return (e.preventDefault(), useViewPrefs.getState().stepZoom(-1))
+      if (mod && (e.code === 'Digit0' || e.code === 'Numpad0')) return (e.preventDefault(), useViewPrefs.getState().stepZoom(0))
+      if (mod && (e.code === 'KeyZ') && !e.shiftKey) return (e.preventDefault(), s.undo())
+      if (mod && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) return (e.preventDefault(), s.redo())
+      if (mod && e.code === 'KeyS') return (e.preventDefault(), void save(e.shiftKey))
+      if (mod && e.code === 'KeyO') return (e.preventDefault(), void open())
+      if (mod) return
       if (s.joining && k === 'escape') return useStore.setState({ joining: false, message: null })
       if (e.code === 'KeyJ') return s.startJoin()
       if (e.code === 'KeyA') return s.toggleAxes()

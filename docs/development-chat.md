@@ -4255,3 +4255,538 @@ PDF в порядке. Собираю портабельную версию и �
 > 🔧 Bash: Check Python and session files
 > 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\dump.cjs
 > 🔧 Bash: Export chat dump and check redaction
+
+**🤖 Claude · 2026-10-12 22:34**
+
+Дамп получился на 300 КБ: 55 твоих сообщений, токенов и email в нём нет. Ещё раз проверю на имена и упоминания фото.
+
+> 🔧 Bash: Scan dump for names and photo mentions
+> 🔧 Write: D:\PipeCAD\README.md
+> 🔧 Bash: Commit README and chat dump
+
+**🤖 Claude · 2026-10-12 22:35**
+
+Создаю публичный репозиторий `GERCOG1390/PipeCAD` и отправляю код.
+
+> 🔧 Bash: Create public repo and push
+> 🔧 Bash: Create release with portable exe
+> 🔧 Bash: Verify public repo contents
+> 🔧 Bash: Update PipeCAD memory
+> 🔧 Bash: Fix path in memory index
+
+**🤖 Claude · 2026-10-12 22:37**
+
+PipeCAD опубликован в новом публичном репозитории **https://github.com/GERCOG1390/PipeCAD**, рядом лежат сборка и дамп нашей беседы. Проверил на GitHub: репозиторий открыт для всех, дамп на месте.
+
+**Фото с твоим лицом.** Перед публикацией нашёл в истории git вырезанное фото для фигуры сантехника (`plumber.png`). Файл тогда удалили откатом, но в старых коммитах он оставался, и в открытом репозитории его мог бы скачать кто угодно. Я вычистил его из всех 58 коммитов и проверил: ни локально, ни на GitHub его больше нет. Код и остальная история не изменились. Резервную копию со старой историей удалил, потому что в ней тоже было это фото.
+
+**Что опубликовано:**
+- **Сборка:** релиз [PipeCAD 0.1.0](https://github.com/GERCOG1390/PipeCAD/releases/tag/v0.1.0) с портабельным `PipeCAD-0.1.0-portable.exe` (121 МБ). Exe не подписан, поэтому при первом запуске Windows может предупредить: «Подробнее» → «Выполнить в любом случае».
+- **Код:** вся история проекта. Авторство в коммитах указано через адрес noreply от GitHub, так что твой gmail не светится.
+- **README** на английском: что умеет программа, где скачать, как собрать.
+- **Дамп беседы:** [docs/development-chat.md](https://github.com/GERCOG1390/PipeCAD/blob/master/docs/development-chat.md). Это весь чат с самого начала (55 твоих сообщений), мои ответы и по строке на каждое действие. Вывод команд в дамп не входит.
+
+**Что вычищено из дампа:**
+- скриншоты и фото — вместо них пометка `[screenshot]`, сами картинки в дамп не попали;
+- email, токены и пароли;
+- имя пользователя Windows в путях;
+- служебные параметры ссылки на поиск Google.
+
+Сама фраза «с моим лицом» и мой ответ о том, что фото удалено, в тексте остались.
+
+У репозитория нет лицензии. Код можно смотреть, но по умолчанию все права остаются за тобой. Если хочешь разрешить другим использовать код (например, лицензией MIT), скажи, и я добавлю файл лицензии.
+
+Дальнейшие отправки и релизы, как и раньше, — только по твоей команде.
+
+
+## 🧑 User · 2026-10-13 01:09
+
+так я понял что тени нам не нужны, это программа для работы. Так что убираем всякие тени, затенения и подобные
+
+
+**🤖 Claude · 2026-10-13 01:10**
+
+Убираю тени и затенение: мягкие тени в стыках (ambient occlusion) и тень на полу. Сглаживание краёв оставляю, это не тень, а чёткость картинки. Обычное освещение деталей тоже остаётся, без него не будет видно объёма.
+
+Постобработка была нужна только для этих эффектов, поэтому убираю её целиком вместе с библиотекой. Сглаживание будет за счёт рендера в повышенном разрешении и встроенного MSAA — так проще и быстрее.
+
+> 🔧 Write: D:\PipeCAD\src\renderer\src\Effects.tsx
+> 🔧 Bash: Remove composer from snapshot; uninstall postprocessing; build
+
+**🤖 Claude · 2026-10-13 01:10**
+
+Запись Effects.tsx не прошла: файл изменился после последнего чтения. Перечитываю и записываю заново.
+
+> 🔧 Read: D:\PipeCAD\src\renderer\src\Effects.tsx
+> 🔧 Write: D:\PipeCAD\src\renderer\src\Effects.tsx
+> 🔧 Bash: Find leftovers; typecheck; build
+
+**🤖 Claude · 2026-10-13 01:10**
+
+Собирается. Поправлю упоминание теней в README и проверю картинку и PDF.
+
+> 🔧 Bash: README fix; screenshot and PDF check
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\noshadow.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\pg1.png
+
+**🤖 Claude · 2026-10-13 01:11**
+
+Теней нет, края чистые, PDF в порядке. Прогоняю тесты, коммичу и обновляю портабельную версию на рабочем столе.
+
+> 🔧 Bash: Test, commit, build portable
+> 🔧 PowerShell: Stop test instance; replace Desktop exe
+
+**🤖 Claude · 2026-10-13 01:13**
+
+Убрал тени и затенение: тень на полу и мягкое затенение в стыках. Проверил на тестовой сцене и в PDF, 250 тестов проходят, коммит `21b5516`. Портабельная версия на рабочем столе обновлена.
+
+**Что осталось:**
+- **Сглаживание краёв.** Это не тень, а чёткость: без него трубы и надписи идут «лесенкой».
+- **Обычное освещение деталей.** Без него не видно объёма: труба выглядела бы плоской полосой.
+
+**Что изменилось:**
+- **Режимы качества** в ⚙ теперь отличаются только чёткостью краёв: Fast — разрешение экрана, Balanced, High и Ultra — рендер в 1,5, 2 и 3 раза крупнее.
+- **Постобработка удалена целиком** вместе с её библиотекой. Программа стала проще, и видеокарте меньше работы.
+- **PDF** выглядит так же: белый фон, чёткие края.
+
+На GitHub это изменение не отправлял, там пока предыдущая версия. Если нужно, скажи — отправлю и обновлю exe в релизе.
+
+
+## 🧑 User · 2026-10-13 01:19
+
+ты так же упомянал где то выше что можно внедрить какой WebGP или что то такое для директ 12
+
+
+**🤖 Claude · 2026-10-13 01:19**
+
+Да, речь шла о **WebGPU**. Это современный способ рисовать 3D, и на Windows он работает поверх **DirectX 12**. Сейчас программа рисует через WebGL, который Chromium переводит в DirectX 11. WebGPU у тебя доступен: видеокарта его поддерживает, я проверил это при замере.
+
+**Что он даёт**
+- **Меньше нагрузки на процессор.** Каждый вызов отрисовки обходится дешевле, поэтому выигрыш заметен, когда программа упирается в процессор: тысячи и десятки тысяч объектов в кадре.
+- **Вычисления на видеокарте.** Например, быстрый поиск пересечений труб с балками или стенами прямо на GPU.
+
+**Почему сейчас это почти ничего не даст**
+После оптимизации большой проект отправляет на видеокарту около 600 вызовов за кадр. Это 1–2 мс работы процессора, а в простое кадры не рисуются вовсе. Вращение и так идёт на 176 кадрах в секунду в High — это потолок твоего монитора. WebGPU ускорил бы ту часть, которая уже не тормозит, и на твоём компьютере разницы ты не увидишь.
+
+**Чего стоит переход**
+- three.js умеет рисовать через WebGPU, а если он недоступен, сам откатывается на WebGL. Обычные материалы деталей переносятся без изменений.
+- Придётся переписать шейдеры двух вещей: сетки пола и линий (оси, направляющие). Они написаны под WebGL.
+- Надо переделать снимок для PDF и проверить запись видео: с WebGPU картинка из окна забирается по-другому.
+- WebGPU в Electron моложе WebGL, и на старых драйверах или видеокартах встречаются сбои. Поэтому WebGL нужно оставить запасным вариантом.
+
+По объёму это примерно день работы плюс проверка всех режимов.
+
+**Что советую**
+Сейчас не переходить. Вернуться к этому стоит в одном из двух случаев:
+- проекты дорастут до тысяч деталей (целое здание или несколько этажей);
+- понадобятся тяжёлые расчёты на видеокарте, например автоматическая проверка, что трубы не проходят сквозь балки и стены.
+
+Если хочешь проверить сам, могу добавить в ⚙ экспериментальный переключатель «Graphics: WebGL (DirectX 11) / WebGPU (DirectX 12)». Сделаю замер на той же большой сцене, и ты увидишь разницу на своём компьютере. Делать?
+
+
+## 🧑 User · 2026-10-13 01:21
+
+давай
+
+
+**🤖 Claude · 2026-10-13 01:21**
+
+Делаю экспериментальный переключатель. Сначала проверю, как устроена сборка three.js: модули для WebGL и WebGPU должны делить одно ядро, иначе объекты из разных сборок несовместимы.
+
+> 🔧 Bash: Check three builds and WebGL-only usages
+> 🔧 Bash: Read Line usage, EnvSetup, Canvas
+> 🔧 Write: D:\PipeCAD\src\renderer\src\gpu.tsx
+
+**🤖 Claude · 2026-10-13 01:22**
+
+Подключаю модуль к сцене, настройкам и снимку для PDF.
+
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpuwire.cjs
+> 🔧 Bash: Wire WebGPU toggle; typecheck and build
+> 🔧 Bash: Restore CameraRig from HEAD; build
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpubench.mjs
+> 🔧 Bash: Run WebGL vs WebGPU benchmark
+> 🔧 Bash: Shim capabilities; rebuild; rerun benchmark
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpu_webgl_high.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpu_webgpu_high.png
+> 🔧 Bash: Sample background pixel
+
+**🤖 Claude · 2026-10-13 01:25**
+
+Сравниваю цвет фона на двух скриншотах.
+
+> 🔧 PowerShell: Sample background pixel colors
+> 🔧 Bash: Locate background code
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bg.cjs
+> 🔧 Bash: Fix WebGPU background; rerun benchmark
+> 🔧 PowerShell: Recheck background pixel
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpu_webgpu_high.png
+
+**🤖 Claude · 2026-10-13 01:26**
+
+Цвет очистки экрана тоже уходит в WebGPU без перевода в sRGB. Передам его заранее пересчитанным.
+
+> 🔧 Bash: Pre-convert clear color; rerun
+> 🔧 PowerShell: Recheck background pixel
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpu_webgpu_high.png
+> 🔧 Bash: Transparent canvas + CSS background for WebGPU; rerun
+> 🔧 Bash: Keep CSS background during snapshot
+> 🔧 PowerShell: Recheck background pixel
+
+**🤖 Claude · 2026-10-13 01:29**
+
+Фон в WebGPU теперь точно совпадает с WebGL (26, 30, 35). Смотрю картинку целиком.
+
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpu_webgpu_high.png
+
+**🤖 Claude · 2026-10-13 01:29**
+
+Картинка в WebGPU совпадает с WebGL. Проверяю в режиме WebGPU остальное: выгрузку PDF, оси и вращение камеры.
+
+> 🔧 Bash: WebGPU: PDF, backend label, axes guides
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\pg1.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gpu_axes.png
+> 🔧 Bash: Read backend label in settings
+> 🔧 Bash: Live switching test
+> 🔧 Bash: Test, commit, build portable
+> 🔧 PowerShell: Replace Desktop exe
+
+**🤖 Claude · 2026-10-13 01:31**
+
+Добавил переключатель: **⚙ → Graphics API (experimental)**, варианты «WebGL · DirectX 11» и «WebGPU · DirectX 12». Переключается на лету, проект не теряется, а под кнопками написано, какой режим реально работает. Если WebGPU на каком-то компьютере недоступен, программа сама перейдёт на WebGL и покажет это. По умолчанию стоит WebGL. Коммит `2995068`, портабельная версия на рабочем столе обновлена.
+
+**Замер на твоём компьютере.** Большая сцена (16 узлов, 146 деталей). Мерил полную стоимость кадра: от отправки команд до готовности на видеокарте.
+
+| | Fast | High |
+|---|---|---|
+| WebGL · DirectX 11 | 2,8–3,0 мс | 2,8 мс |
+| WebGPU · DirectX 12 | 2,0–2,2 мс | 2,0–2,2 мс |
+
+WebGPU быстрее примерно на 30%. Но на практике разницы ты не увидишь: экран 180 Гц даёт на кадр 5,6 мс, и оба режима укладываются в это с большим запасом. К тому же в простое кадры вообще не рисуются. Выигрыш станет заметен на очень больших проектах или на слабом ноутбуке.
+
+**Что проверил в режиме WebGPU:**
+- картинка совпадает с WebGL, цвет фона одинаковый до пикселя;
+- выгрузка PDF работает;
+- оси и пересечения рисуются;
+- настройки показывают «WebGPU (DirectX 12)»;
+- переключение туда и обратно четыре раза подряд прошло без ошибок.
+
+**Отличия WebGPU:**
+- **Пунктир осей тоньше:** 1 пиксель вместо 2, это ограничение простых линий в WebGPU.
+- **Сетка пола немного другая:** в WebGL она плавно тает вдали, в WebGPU обрывается на расстоянии 60 футов.
+
+Запись видео в режиме WebGPU я не проверял. Если будешь записывать, лучше переключись на WebGL.
+
+На GitHub не отправлял. Там по-прежнему версия до удаления теней.
+
+
+## 🧑 User · 2026-10-13 01:37
+
+сделай билд на рабочий стол и придумай наконец то ярлык для программы
+
+
+**🤖 Claude · 2026-10-13 01:37**
+
+«Ярлык» понимаю как значок программы: сейчас у exe стоит стандартный значок Electron. Нарисую свой, вшью его в exe и соберу на рабочий стол.
+
+Задумка значка: графитовая плитка в цветах программы, на ней белый PVC-отвод 90° с раструбами и бирюзовая метка — она отвечает за «открытый конец», как в программе. Значок должен читаться даже в размере 16×16 в панели задач. Сначала ставлю инструмент, который переведёт рисунок в PNG.
+
+> 🔧 Bash: Install SVG rasterizer; read build config
+> 🔧 Bash: Read electron-builder config
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\icon\make.cjs
+> 🔧 Bash: Render icon PNGs and ICO
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\icon\icon-256.png
+> 🔧 Bash: Fix highlight; build small-size preview
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\icon\preview.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\icon\icon-256.png
+> 🔧 Bash: Install icon into project, window and toolbar
+> 🔧 Bash: Build portable with icon
+> 🔧 PowerShell: Extract icon from built exe
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\icon\extracted-PipeCAD-0.1.0-portable.png
+> 🔧 Bash: Screenshot toolbar logo
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\logo_toolbar.png
+
+**🤖 Claude · 2026-10-13 01:41**
+
+Логотип на месте. Коммичу, кладу сборку на рабочий стол и запускаю.
+
+> 🔧 Bash: Test and commit icon
+> 🔧 PowerShell: Replace Desktop exe, refresh icon cache, launch
+
+**🤖 Claude · 2026-10-13 01:41**
+
+Придумал значок и вшил его в программу. Новая сборка лежит на рабочем столе (`PipeCAD-0.1.0-portable.exe`) и сейчас запущена.
+
+![Значок PipeCAD](C:/Users/<user>/AppData/Local/Temp/claude/C--Users-<user>/00932ba9-2e7d-4e81-8d53-00750ad5ed0d/scratchpad/icon/icon-256.png)
+
+**Как он выглядит.** Графитовая плитка в цветах программы, на ней белый PVC-отвод 90° с двумя раструбами. Над верхним концом бирюзовое кольцо — так в программе отмечен открытый конец, к которому подключаешь следующую деталь.
+
+**Мелкие размеры.** Для 16 и 24 px (панель задач, заголовок окна) сделан упрощённый вариант: толстый белый отвод и бирюзовая метка. Иначе детали слились бы в пятно. Начиная с 32 px видны раструбы и кольцо. Проверил все размеры, значок читается.
+
+**Где стоит:**
+- на exe — проверил, вытащив значок из собранного файла;
+- в панели задач и заголовке окна;
+- в панели инструментов программы, вместо прежнего бирюзового кружка.
+
+Если на рабочем столе ещё виден старый значок, Windows не успела обновить кэш значков. Нажми F5 на рабочем столе — я уже запускал обновление кэша.
+
+Коммит `840a4cf`. Исходник значка и скрипт, который делает из него `.ico`, лежат в `build/`, так что значок можно перерисовать. На GitHub не отправлял: там пока версия без значка и без последних изменений.
+
+
+## 🧑 User · 2026-10-13 01:43
+
+[screenshot]
+
+Смотри почему когда я отдалил немного текстуры на вотер хитере рибят, раслаиваются на нитки
+
+
+**🤖 Claude · 2026-10-13 01:44**
+
+На снимке наклейки на бойлере вдали превращаются в полоски. Почти наверняка это **z-fighting**: наклейка лежит поверх корпуса на расстоянии 0,02–0,05 дюйма. При отдалении у видеокарты не хватает точности глубины, чтобы понять, что ближе, и в полоску попеременно рисуется то наклейка, то корпус.
+
+Посчитал: ближняя граница камеры сейчас 0,05 дюйма, и на расстоянии 50 футов точность глубины падает примерно до 0,4 дюйма. Это в 10 раз больше зазора между наклейкой и корпусом. Сначала воспроизведу.
+
+> 🔧 Bash: Reproduce label stripes at distance
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\zf_near.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\zf_far.png
+> 🔧 Bash: Distance-based camera near plane; retest
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\zf_far.png
+> 🔧 Bash: Test, commit, build portable
+> 🔧 PowerShell: Replace Desktop exe without closing user's app
+
+**🤖 Claude · 2026-10-13 01:47**
+
+Исправил полоски на наклейках бойлера. Проверил на том же бойлере с расстояния около 58 футов, где полоски воспроизводились: теперь наклейки ровные, как вблизи. Тесты проходят, коммит `c6e8794`, новая сборка на рабочем столе. PipeCAD в этот момент был закрыт, так что файл заменился без проблем.
+
+**В чём было дело.** Наклейки — это тонкие слои всего в 0,02–0,05 дюйма над корпусом. Видеокарта определяет, что ближе, с точностью, которая падает с расстоянием. Ближняя граница камеры стояла на 0,05 дюйма, поэтому на расстоянии около 50 футов точность падала примерно до 0,4 дюйма — это в 10 раз грубее зазора. Видеокарта не могла решить, что сверху, и рисовала то наклейку, то корпус полосками.
+
+**Что сделал.** Ближняя граница теперь подстраивается под расстояние до модели: вблизи остаётся маленькой, вдали отодвигается. Точности хватает на любом расстоянии.
+
+Это касается не только бойлера. Так же могли рябить:
+- панели на тэнклесах;
+- таблички на насосах;
+- кольца на трубах.
+
+Теперь это исправлено везде.
+
+На GitHub не отправлял.
+
+
+## 🧑 User · 2026-10-13 01:48
+
+так давай добавим блэк айрон пайп и фитинги для газа. Нас интересуют трубы и фитинги от 1\2 до 1-1\2
+
+
+**🤖 Claude · 2026-10-13 01:49**
+
+Black iron для газа: стальная труба Sch 40 с резьбой на обоих концах и фитинги из ковкого чугуна Class 150, размеры от 1/2" до 1-1/2". Посмотрю, как сделана оцинковка: она тоже резьбовая и наверняка подойдёт за основу.
+
+> 🔧 Bash: Inspect galvanized implementation
+> 🔧 Bash: Read pipe def and adapterFor
+> 🔧 Bash: Inspect ball valve builder and NPT table
+> 🔧 Bash: Read PipeBody and pipe naming
+> 🔧 Bash: Inspect kit helper signatures
+> 🔧 Bash: Read hubProfile and threadSize
+> 🔧 Bash: Read hubWall/bodyR and size types
+
+**🤖 Claude · 2026-10-13 01:50**
+
+Всё считается от общих размеров трубы, значит NaN не будет. Добавляю размеры black iron.
+
+> 🔧 Bash: Add black iron sizes; see type errors
+> 🔧 Write: D:\PipeCAD\src\renderer\src\parts\blackIron.ts
+> 🔧 Bash: Check size2 def shape and Group type
+> 🔧 Bash: Read pipe material and BOM stick code
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\biwire.cjs
+> 🔧 Bash: Wire black iron everywhere; typecheck
+> 🔧 Bash: Fix type errors
+> 🔧 Bash: Inspect regex result
+
+**🤖 Claude · 2026-10-13 01:52**
+
+Регулярное выражение съело аргументы у шести вызовов (вложенные скобки). Восстанавливаю эти строки вручную.
+
+> 🔧 Bash: Restore tube calls; typecheck and build
+> 🔧 Bash: Run tests
+> 🔧 Bash: Close-ups of black iron fittings
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_bi90.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_biTee.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_biUnion.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_biGasValve.png
+> 🔧 Bash: Hollow hex rings; paint sockets
+> 🔧 Bash: Inspect finalize lines
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bifix.cjs
+> 🔧 Bash: Restore args; build; test; re-render
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_bi90.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_biUnion.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_biGasValve.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_biBushing.png
+> 🔧 Bash: Flat shading for hex rings; re-render union
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_biUnion.png
+> 🔧 Bash: Build gas line and check
+
+**🤖 Claude · 2026-10-13 01:55**
+
+Линия собралась без плохих стыков. Смотрю картинку и спецификацию.
+
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gasline.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\gasbom.png
+> 🔧 Bash: Fix stick label for black pipe
+
+**🤖 Claude · 2026-10-13 01:56**
+
+Проверю вкладку Black Iron в каталоге.
+
+> 🔧 Bash: Screenshot Black Iron tab and catalog
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_tab.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_cat.png
+
+**🤖 Claude · 2026-10-13 01:56**
+
+Вкладка и каталог работают. Коммичу, собираю и кладу на рабочий стол.
+
+> 🔧 Bash: Test, commit, build portable
+> 🔧 PowerShell: Replace Desktop exe
+
+**🤖 Claude · 2026-10-13 01:58**
+
+Добавил black iron для газа, размеры от 1/2" до 1-1/2". Проверил тестовой газовой линией 1": стыки сходятся, спецификация считается. Все 274 теста проходят, из них 24 новых. Новая сборка на рабочем столе, коммит `c1a3340`.
+
+**Где найти.** В каталоге появилась вкладка **Black Iron** рядом с PVC, Copper, Cast Iron и Galv. Выбираешь размер — открывается раздел «Black Iron — Gas (Malleable Class 150)».
+
+**Труба.** Чёрная сталь Sch 40 (ASTM A53) с резьбой на обоих концах; резьба видна как светлые полоски у торцов. В спецификации считается палками по 21 футу, как продаётся black pipe (TBE).
+
+**Фитинги** из чёрного ковкого чугуна Class 150. Размеры (расстояние от центра до торца, длины, буртики) взяты по стандарту ASME B16.3.
+
+| Группа | Детали |
+|---|---|
+| Отводы | 90°, 45°, street 90° (MPT × FPT) |
+| Тройники | тройник, крестовина |
+| Соединения | муфта, переходная муфта, американка (union), футорка (hex bushing) |
+| Заглушки | колпак (cap), пробка с квадратной головкой (plug) |
+| Краны | газовый шаровой кран: латунь, жёлтая ручка, FPT × FPT |
+
+**Автоматика.** Если соединяются две внутренние резьбы, программа сама вставит короткий ниппель. Если две наружные — муфту. По правому клику на конце black iron открывается меню газовых фитингов.
+
+Кое-что ещё:
+- **Газовый кран — обобщённая модель,** не конкретный производитель. Поэтому в спецификации он без номера детали.
+- **Отстойника (drip leg) одной кнопкой нет.** Пока собирается вручную: тройник, ниппель 3" вниз, колпак. Могу сделать готовым узлом, как sump kit.
+- **Плоские гайки.** Попутно сделал чёткие грани у шестигранников: у американки, крана и футорки.
+
+На GitHub не отправлял.
+
+
+## 🧑 User · 2026-10-13 01:59
+
+Фитинги вообще не похожи на реальные. Изучи [google image search link]  Так же краны для газа [google image search link]
+
+
+**🤖 Claude · 2026-10-13 01:59**
+
+Посмотрю, как выглядят настоящие фитинги и газовые краны: открою твои ссылки Google Images через Edge и сниму в высоком разрешении.
+
+> 🔧 PowerShell: Screenshot Google Images results
+> 🔧 PowerShell: Crop image result areas
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\img\gbi_a.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\img\gbi2_a.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\img\gbi2_b.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\img\gval_a.png
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\img\gval_b.png
+> 🔧 Read: D:\PipeCAD\src\renderer\src\parts\blackIron.ts
+> 🔧 Read: D:\PipeCAD\src\renderer\src\parts\blackIron.ts
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_builders.ts
+> 🔧 Bash: Replace builders; build; test
+
+**🤖 Claude · 2026-10-13 02:02**
+
+Собирается, тесты проходят. Рендерю новые модели и сравниваю с фото.
+
+> 🔧 Bash: Render redesigned fittings
+
+**🤖 Claude · 2026-10-13 02:02**
+
+Склею снимки в одну таблицу, чтобы сравнить все детали разом.
+
+> 🔧 PowerShell: Compose contact sheet
+> 🔧 Read: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\bi_sheet.png
+> 🔧 Bash: Commit and build portable
+> 🔧 PowerShell: Replace Desktop exe
+
+**🤖 Claude · 2026-10-13 02:04**
+
+Переделал black iron фитинги и газовый кран по фото из твоих ссылок. Все 274 теста проходят, коммит `01ffe7d`, новая сборка на рабочем столе.
+
+![Фитинги и краны](C:/Users/<user>/AppData/Local/Temp/claude/C--Users-<user>/00932ba9-2e7d-4e81-8d53-00750ad5ed0d/scratchpad/bi_sheet.png)
+
+**Почему раньше было непохоже.** Корпус был тонкой трубкой, а у отверстий стояли широкие кольца на всю глубину резьбы — получались «кольца на палочке», да ещё почти чёрного цвета. Настоящий фитинг из ковкого чугуна выглядит иначе.
+
+**Фитинги (что поменял):**
+- **Цвет** графитово-серый, как у литого чугуна.
+- **Корпус** толстый, почти в диаметр бурта.
+- **Бурт** у каждого отверстия узкий и выступающий, внутри видна резьба.
+- **Отвод** со скруглённым «коленом»; у тройника и крестовины центр — округлый узел.
+- **Street-отвод:** один конец с внутренней резьбой и буртом, другой — с наружной резьбой.
+- **Американка:** шестигранник с одной стороны, восьмигранная гайка посередине, бурт с другой.
+- **Колпак** — купол с буртом. **Пробка** — с буртиком и квадратной головкой.
+
+Размеры по ASME B16.3 не менял, поэтому длины труб и стыки остались прежними.
+
+**Газовый кран:**
+- латунный корпус с восьмигранными концами, шток с гайкой;
+- 1/2" и 3/4" — жёлтая Т-ручка «бабочкой», как у ProLine;
+- 1", 1-1/4" и 1-1/2" — жёлтый рычаг.
+
+Ручка и рычаг теперь стоят вдоль трубы, как у открытого крана; в прошлой версии рычаг стоял поперёк, как у закрытого.
+
+Чего пока нет: литых надписей (размер, логотип) на боках фитингов, как на фото. Если нужно, добавлю.
+
+На GitHub не отправлял.
+
+
+## 🧑 User · 2026-10-13 02:05
+
+ты обновил сборку?
+
+
+**🤖 Claude · 2026-10-13 02:05**
+
+Да. Сверю файл на рабочем столе со свежей сборкой.
+
+> 🔧 PowerShell: Verify Desktop exe matches latest build
+
+**🤖 Claude · 2026-10-13 02:05**
+
+Да, сборка обновлена. Файл `PipeCAD-0.1.0-portable.exe` на рабочем столе побайтно совпадает со свежей сборкой (21:04). В нём последний коммит `01ffe7d` с новыми фитингами black iron и газовыми кранами.
+
+Если программа была открыта до 21:04, закрой её и запусти заново с рабочего стола, тогда откроется новая версия. Если открыл после 21:04 и фитинги всё равно выглядят по-старому, напиши.
+
+
+## 🧑 User · 2026-10-13 04:07
+
+отправь билд на гитхаб что бы я мог переделать сборк под макбук
+
+
+**🤖 Claude · 2026-10-13 04:07**
+
+Чтобы на Mac можно было собрать без доработок, кроме отправки кода подготовлю сборку под macOS:
+- **Настройки сборки Mac:** `.dmg` и `.zip`, Apple Silicon и Intel.
+- **Значок в 1024×1024:** для macOS нужен минимум 512 px, а сейчас у меня 256.
+- **Команда `npm run dist:mac`.**
+- **Инструкция в README.**
+
+Подниму версию до 0.2.0 и выложу релиз с Windows-exe. Сначала значок.
+
+> 🔧 Bash: Generate 1024px icon for macOS
+
+**🤖 Claude · 2026-10-13 04:08**
+
+Значок 1024×1024 готов. Прописываю настройки сборки под macOS и поднимаю версию.
+
+> 🔧 Bash: Add mac build config, bump version
+> 🔧 Bash: Find platform-specific code and Ctrl handling
+> 🔧 Bash: Support Cmd on Mac for shortcuts
+> 🔧 Bash: README mac section; refresh chat dump
+> 🔧 Bash: Inspect accidental clone and main repo status
+> 🔧 Bash: Remove accidental clone
+> 🔧 Write: C:\Users\<user>\AppData\Local\Temp\claude\C--Users-<user>\00932ba9-2e7d-4e81-8d53-00750ad5ed0d\scratchpad\readme_mac.cjs
+> 🔧 Bash: Apply README mac section; refresh dump

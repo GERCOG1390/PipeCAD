@@ -76,7 +76,7 @@ export function LengthEditor() {
           if (e.key === 'Enter') return (e.preventDefault(), void commit())
           if (e.key === 'Escape') return (e.preventDefault(), close())
           // буква — это горячая клавиша: закрываем поле и передаём клавишу приложению
-          if (e.key.length === 1 && !LENGTH_CHARS.test(e.key) && !e.ctrlKey) {
+          if (e.key.length === 1 && !LENGTH_CHARS.test(e.key) && !e.ctrlKey && !e.metaKey) {
             e.preventDefault()
             if (!commit()) close()
             window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, shiftKey: e.shiftKey }))

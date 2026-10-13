@@ -1,7 +1,7 @@
 {
   "name": "pipecad",
   "productName": "PipeCAD",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "PipeCAD - 3D PVC and copper piping editor",
   "main": "./out/main/index.js",
   "private": true,
@@ -11,7 +11,8 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "dist": "npm run build && electron-builder --win portable",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dist:mac": "npm run build && electron-builder --mac"
   },
   "devDependencies": {
     "@react-three/drei": "^10.7.9",
@@ -75,6 +76,18 @@
         "from": "build/icon.png",
         "to": "icon.png"
       }
-    ]
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "artifactName": "PipeCAD-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "PipeCAD ${version}"
+    }
   }
 }

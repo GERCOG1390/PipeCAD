@@ -34,6 +34,23 @@ npm test         # catalog and assembly tests (vitest)
 npm run dist     # portable Windows build → release/PipeCAD-<version>-portable.exe
 ```
 
+### macOS
+
+On a Mac (Apple Silicon or Intel), with Node.js 22+ and git:
+
+```
+git clone https://github.com/GERCOG1390/PipeCAD.git
+cd PipeCAD
+npm install
+npm run dist:mac   # → release/PipeCAD-<version>-mac-<arch>.dmg and .zip
+```
+
+The build targets the Mac's own architecture. It isn't code-signed, so on first launch macOS may say the app is damaged or from an unidentified developer: right-click the app → Open, or run `xattr -cr /Applications/PipeCAD.app` once.
+
+Shortcuts accept ⌘ as well as Ctrl.
+
+Video recording needs Screen Recording permission (System Settings → Privacy & Security).
+
 Stack: Electron, React, three.js with React Three Fiber, zustand, TypeScript.
 
 ## Development chat
