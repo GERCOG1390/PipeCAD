@@ -277,3 +277,5 @@ button.primary { background: var(--accent); color: #0b1514; font-weight: 700; bo
 .toolbar > * { flex: none; }
 .toolbar .grow { flex: 1 1 0; min-width: 0; }
 .logo-img { width: 22px; height: 22px; display: block; }
+.tag.gas { background: #3a3417; color: #f2c21b; }
+:root[data-theme="light"] .tag.gas { background: #fbf0c6; color: #7a5a00; }

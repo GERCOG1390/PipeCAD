@@ -29,7 +29,7 @@ export interface PortDef {
 export type PathSeg = { t: 'line'; a: V3; b: V3 } | { t: 'arc'; a: V3; t0: V3; n: V3; r: number; ang: number }
 export type Shape =
   | { t: 'tube'; segs: PathSeg[]; r: number; color?: string; metal?: boolean }
-  | { t: 'lathe'; at: V3; dir: V3; prof: [number, number][]; color?: string; metal?: boolean; seg?: number; phi?: [number, number] }
+  | { t: 'lathe'; at: V3; dir: V3; prof: [number, number][]; color?: string; metal?: boolean; seg?: number; phi?: [number, number]; flat?: boolean }
   // коробка со скруглёнными рёбрами; yaw — поворот вокруг оси dir, градусы
   | { t: 'rbox'; at: V3; dir: V3; size: V3; r: number; yaw?: number; color?: string; metal?: boolean }
   // гайка с фасками: r — до грани (под ключ/2), h — высота, ch — фаска
@@ -61,7 +61,7 @@ export interface Part {
   slope?: number // уклон трубы, дюймов на фут: + вверх, − вниз от начала трубы (конца подключения)
 }
 
-export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub' | 'heater' | 'pump'
+export type Group = 'common' | 'pressure' | 'dwv' | 'copper' | 'nohub' | 'gas' | 'heater' | 'pump'
 export interface FittingDef {
   ru: string
   en: string
@@ -226,7 +226,7 @@ export function trapPath(A: number, B: number, Cc: number, bodyTo = 0): PathSeg[
 }
 
 export const tube = (r: number, ...segs: PathSeg[]): Shape => ({ t: 'tube', r, segs })
-export const lathe = (at: V3, dir: V3, prof: [number, number][], o: { color?: string; metal?: boolean; seg?: number; phi?: [number, number] } = {}): Shape => ({ t: 'lathe', at, dir, prof, ...o })
+export const lathe = (at: V3, dir: V3, prof: [number, number][], o: { color?: string; metal?: boolean; seg?: number; phi?: [number, number]; flat?: boolean } = {}): Shape => ({ t: 'lathe', at, dir, prof, ...o })
 
 // Скругляет углы профиля (r, z): каждый внутренний угол заменяется дугой радиуса rad
 export function rounded(prof: [number, number][], rad: number, k = 6): [number, number][] {

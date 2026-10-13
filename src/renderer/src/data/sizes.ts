@@ -8,8 +8,10 @@ export type CuSizeId = 'cu1/2' | 'cu3/4' | 'cu1' | 'cu1-1/4' | 'cu1-1/2' | 'cu2'
 // Чугун no-hub (CISPI 301) и оцинкованная сталь Sch 40 (OD как у PVC Sch 40, IPS)
 export type CiSizeId = 'ci1-1/2' | 'ci2' | 'ci3' | 'ci4' | 'ci6'
 export type GsSizeId = 'gs1/2' | 'gs3/4' | 'gs1' | 'gs1-1/4' | 'gs1-1/2' | 'gs2' | 'gs3' | 'gs4'
-export type SizeId = PvcSizeId | CuSizeId | CiSizeId | GsSizeId
-export type Material = 'pvc' | 'cu' | 'ci' | 'gs'
+// Чёрная сталь Sch 40 (black iron) под газ: резьба NPT, фитинги ковкий чугун Class 150 (ASME B16.3)
+export type BiSizeId = 'bi1/2' | 'bi3/4' | 'bi1' | 'bi1-1/4' | 'bi1-1/2'
+export type SizeId = PvcSizeId | CuSizeId | CiSizeId | GsSizeId | BiSizeId
+export type Material = 'pvc' | 'cu' | 'ci' | 'gs' | 'bi'
 
 export interface SizeSpec {
   id: SizeId
@@ -57,18 +59,25 @@ export const SIZES: SizeSpec[] = [
   { id: 'gs1-1/2', od: 1.9, wall: 0.145, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'gs' },
   { id: 'gs2', od: 2.375, wall: 0.154, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'gs' },
   { id: 'gs3', od: 3.5, wall: 0.216, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'gs' },
-  { id: 'gs4', od: 4.5, wall: 0.237, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'gs' }
+  { id: 'gs4', od: 4.5, wall: 0.237, socket: 0, dwv: 0, dwvWall: 0, tpi: 8, mat: 'gs' },
+
+  { id: 'bi1/2', od: 0.84, wall: 0.109, socket: 0, dwv: 0, dwvWall: 0, tpi: 14, mat: 'bi' },
+  { id: 'bi3/4', od: 1.05, wall: 0.113, socket: 0, dwv: 0, dwvWall: 0, tpi: 14, mat: 'bi' },
+  { id: 'bi1', od: 1.315, wall: 0.133, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'bi' },
+  { id: 'bi1-1/4', od: 1.66, wall: 0.14, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'bi' },
+  { id: 'bi1-1/2', od: 1.9, wall: 0.145, socket: 0, dwv: 0, dwvWall: 0, tpi: 11.5, mat: 'bi' }
 ]
 
 const BY_ID = new Map(SIZES.map((s) => [s.id, s]))
 export const sizeSpec = (id: SizeId): SizeSpec => BY_ID.get(id)!
 export const sizeIndex = (id: SizeId): number => SIZES.findIndex((s) => s.id === id)
-export const nominal = (id: SizeId): string => id.replace(/^(cu|ci|gs)/, '')
+export const nominal = (id: SizeId): string => id.replace(/^(cu|ci|gs|bi)/, '')
 export const MAT_NAME: Record<Material, { ru: string; short: string }> = {
   pvc: { ru: 'PVC', short: 'PVC' },
   cu: { ru: 'Copper', short: 'Cu' },
   ci: { ru: 'Cast iron no-hub', short: 'CI' },
-  gs: { ru: 'Galvanized', short: 'galv.' }
+  gs: { ru: 'Galvanized', short: 'galv.' },
+  bi: { ru: 'Black iron (gas)', short: 'BI' }
 }
 export const matOf = (id: SizeId): Material => BY_ID.get(id)!.mat
 // «3" чугун» — когда рядом размеры разных материалов

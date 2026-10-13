@@ -1,4 +1,4 @@
-import { Part, SIZES, SizeId, bomLines, fittingDef } from './catalog'
+import { Part, SIZES, SizeId, bomLines, fittingDef, sizeSpec } from './catalog'
 import { EnvBomLine, Penetration } from './environment'
 import { Model, portKey } from './geometry'
 import { formatLength } from './units'
@@ -76,7 +76,8 @@ export function computeBom(parts: Part[], model: Model, stick: number): Bom {
       name: bomLines({ id: '', kind: 'pipe', size, attach: 0, roll: 0 })[0].name,
       cuts: [...cuts].sort((a, b) => b - a),
       total: cuts.reduce((a, b) => a + b, 0),
-      sticks: sticksNeeded(cuts, stick)
+      // чёрная сталь продаётся палками 21' с резьбой на обоих концах
+      sticks: sticksNeeded(cuts, sizeSpec(size).mat === 'bi' ? 252 : stick)
     }))
   const fittings = [...fitMap.values()].sort((a, b) => a.name.localeCompare(b.name))
   const byKey = new Map(model.ports.map((w) => [portKey(w.partId, w.index), w]))
@@ -99,7 +100,7 @@ export function bomCsv(bom: Bom, stick: number, env: EnvBomLine[] = [], pens: Pe
   const q = (s: string): string => `"${s.replace(/"/g, '""')}"`
   const rows: string[] = ['Item,Part No.,Qty,Unit,Notes']
   for (const p of bom.pipes) {
-    rows.push([q(`${p.name} (${stick / 12}' stick)`), '', p.sticks, 'stick', q(`total ${formatLength(p.total)}; cuts: ${p.cuts.map(formatLength).join(', ')}`)].join(','))
+    rows.push([q(`${p.name} (${sizeSpec(p.size).mat === 'bi' ? 21 : stick / 12}' stick)`), '', p.sticks, 'stick', q(`total ${formatLength(p.total)}; cuts: ${p.cuts.map(formatLength).join(', ')}`)].join(','))
   }
   for (const f of bom.fittings) rows.push([q(f.name), q(f.pn ?? ''), f.qty, 'ea', ''].join(','))
   rows.push([q('Solvent welds (joints)'), '', bom.joints, 'ea', q('primer + cement')].join(','))

@@ -1,5 +1,6 @@
 // Лист для заказчика или инспекции: изометрия с длинами, материалы с ценами, раскрой и замечания (HTML → PDF)
 import { Bom } from './bom'
+import { sizeSpec } from './catalog'
 import { EnvBomLine } from './environment'
 import { money, pipeKey } from './prices'
 import { Shot } from './Snapshot'
@@ -32,7 +33,7 @@ export interface PricedLine {
 // Строки материалов в общем виде (для панели и для листа)
 export function pricedLines(bom: Bom, stick: number, env: EnvBomLine[]): PricedLine[] {
   const out: PricedLine[] = []
-  for (const p of bom.pipes) out.push({ key: pipeKey(p.size), name: p.name, sub: `${stick / 12}' sticks · total ${formatLength(p.total)} · ${p.cuts.length} cuts`, qty: p.sticks, unit: 'stick' })
+  for (const p of bom.pipes) out.push({ key: pipeKey(p.size), name: p.name, sub: `${sizeSpec(p.size).mat === 'bi' ? 21 : stick / 12}' sticks · total ${formatLength(p.total)} · ${p.cuts.length} cuts`, qty: p.sticks, unit: 'stick' })
   for (const f of [...bom.fittings].sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }))) out.push({ key: f.key, name: f.name, sub: f.pn ? `#${f.pn}` : '', qty: f.qty, unit: 'ea' })
   for (const e of env) out.push({ key: 'env|' + e.name, name: e.name, sub: 'Site / framing', qty: Math.round(e.qty * 100) / 100, unit: e.unit })
   return out

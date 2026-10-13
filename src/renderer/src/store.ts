@@ -77,7 +77,14 @@ function adapterFor(to: PortDef, nextDepth: number, target: { id: string; port: 
   const pick = (a: string, b: string): string => (fittingDef(a).sizes.includes(to.size) ? a : b)
   let part: Part
   let note: string
-  if (to.kind === 'hub') {
+  if (to.kind === 'fpt' && to.size.startsWith('bi')) {
+    // чёрная сталь: внутренняя резьба к внутренней — короткий ниппель
+    part = { ...base, kind: 'pipe', attach: 0, length: Math.ceil((to.depth + nextDepth + 0.35) * 4) / 4 }
+    note = `FPT to FPT — added a ${formatLength(part.length!)} black nipple`
+  } else if (to.kind === 'mpt' && to.size.startsWith('bi')) {
+    part = { ...base, kind: 'biCoupling', attach: 0 }
+    note = 'pipe to pipe — added a black coupling'
+  } else if (to.kind === 'hub') {
     part = { ...base, kind: 'pipe', attach: 0, length: nippleLength(to.depth, nextDepth) }
     note = `hub-to-hub can't be glued — added a ${formatLength(part.length!)} nipple`
   } else if (to.kind === 'spigot' && nextKinds.includes('mpt') && !nextKinds.includes('hub') && !nextKinds.includes('spigot')) {

@@ -87,15 +87,17 @@ const MAT_HEAD: Record<Material, (s: SizeId) => string> = {
   pvc: (s) => `PVC Sch 40${sizeSpec(s).dwv > 0 ? ' · DWV' : ''}`,
   cu: () => 'Copper Type L · sweat',
   ci: () => 'Cast Iron No-Hub (CISPI 301)',
-  gs: () => 'Galvanized Sch 40'
+  gs: () => 'Galvanized Sch 40',
+  bi: () => 'Black Iron Sch 40 · threaded · gas'
 }
-const MAT_SRC: Record<Material, string> = { pvc: 'Charlotte', cu: 'NIBCO', ci: 'Charlotte', gs: 'ASTM A53' }
+const MAT_SRC: Record<Material, string> = { pvc: 'Charlotte', cu: 'NIBCO', ci: 'Charlotte', gs: 'ASTM A53', bi: 'ASME B16.3' }
 
 const GROUPS: { id: Group; title: string }[] = [
   { id: 'pressure', title: 'Pressure Sch 40' },
   { id: 'dwv', title: 'DWV — Drain, Waste & Vent' },
   { id: 'copper', title: 'Copper — Sweat (NIBCO Wrot)' },
-  { id: 'nohub', title: 'No-Hub Couplings (Transitions)' }
+  { id: 'nohub', title: 'No-Hub Couplings (Transitions)' },
+  { id: 'gas', title: 'Black Iron — Gas (Malleable Class 150)' }
 ]
 // Сантехническое оборудование — отдельный раздел, не зависит от размера трубы
 const FIXTURE_GROUPS: { id: Group; title: string }[] = [
@@ -173,6 +175,9 @@ export function Palette({ model }: { model: Model }) {
           <button className={mat === 'gs' ? 'on' : ''} onClick={() => setMat('gs')} title="Galvanized steel Sch 40">
             Galv.
           </button>
+          <button className={mat === 'bi' ? 'on' : ''} onClick={() => setMat('bi')} title="Black iron Sch 40, threaded — gas piping">
+            Black Iron
+          </button>
         </div>
         <button className="wide fixtures-btn" onClick={() => setStep('fixtures')}>
           <GlyphIcon name="heater" /> Plumbing Fixtures
@@ -186,7 +191,7 @@ export function Palette({ model }: { model: Model }) {
                 <span className="size-big">{sizeLabel(s.id)}</span>
                 <span className="size-sub">OD {s.od.toFixed(3)}"</span>
                 <span className="size-tags">
-                  {s.mat === 'cu' ? <span className="tag cu">Type L</span> : s.mat === 'ci' ? <span className="tag">No-Hub</span> : s.mat === 'gs' ? <span className="tag">Galv Sch 40</span> : <span className="tag">Sch 40</span>}
+                  {s.mat === 'cu' ? <span className="tag cu">Type L</span> : s.mat === 'ci' ? <span className="tag">No-Hub</span> : s.mat === 'gs' ? <span className="tag">Galv Sch 40</span> : s.mat === 'bi' ? <span className="tag gas">Gas</span> : <span className="tag">Sch 40</span>}
                   {s.dwv > 0 && <span className="tag dwv">DWV</span>}
                 </span>
                 <span className="size-count">{count} fittings</span>

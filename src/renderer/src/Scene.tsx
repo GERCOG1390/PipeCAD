@@ -56,11 +56,13 @@ const COPPER_TUBE = '#b8714a'
 const isCopper = (s: SizeId): boolean => sizeSpec(s).mat === 'cu'
 const CAST_IRON = '#26282b'
 const GALV = '#a4aaaf'
+const BLACK_IRON = '#2c2f33'
 const PRINT: Record<string, { color: string; text: (sz: string) => string }> = {
   pvc: { color: '#22408a', text: (sz) => `CHARLOTTE®  PVC SCH 40  ${sz}  ASTM D1785 / D2665  NSF-pw-dwv  MADE IN USA` },
   cu: { color: '#1d4ed8', text: (sz) => `TYPE L  ${sz}  COPPER WATER TUBE  ASTM B88  NSF-61  MADE IN USA` },
   ci: { color: '#e8e8e2', text: (sz) => `CHARLOTTE  ${sz}  NO-HUB  CISPI 301  ASTM A888  USA` },
-  gs: { color: '#3a3f44', text: (sz) => `${sz}  SCH 40  ASTM A53  GALV` }
+  gs: { color: '#3a3f44', text: (sz) => `${sz}  SCH 40  ASTM A53  GALV` },
+  bi: { color: '#d8d4c4', text: (sz) => `${sz}  SCH 40  ASTM A53  BLACK  GAS` }
 }
 function pipeMat(size: SizeId, selected: boolean, ghost?: boolean): MeshStandardMaterial {
   switch (sizeSpec(size).mat) {
@@ -70,6 +72,8 @@ function pipeMat(size: SizeId, selected: boolean, ghost?: boolean): MeshStandard
       return mat(CAST_IRON, selected, { ghost })
     case 'gs':
       return mat(GALV, selected, { ghost, metal: true })
+    case 'bi':
+      return mat(BLACK_IRON, selected, { ghost })
     default:
       return mat(PVC, selected, { ghost })
   }
@@ -288,7 +292,7 @@ function shapeGeo(s: Shape): Geo | null {
       }
       // phi в градусах; 0° — направление +Z детали (перед)
       const geom = s.phi ? new LatheGeometry(pts, segs(s.seg ?? 64, 6), (s.phi[0] * Math.PI) / 180, (s.phi[1] * Math.PI) / 180) : new LatheGeometry(pts, segs(s.seg ?? 64, 12))
-      return { geom, pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal }
+      return { geom, pos: new Vector3(...s.at), quat: quatTo(new Vector3(...s.dir)), color: s.color ?? PVC, metal: s.metal, flat: s.flat }
     }
     case 'prism': {
       const dir = new Vector3(...s.dir).normalize()
@@ -362,10 +366,28 @@ function PipeBody({ size, len, selected, ghost }: { size: SizeId; len: number; s
     t.needsUpdate = true
     return t
   }, [size, len])
-  useEffect(() => () => (body.dispose(), print.dispose(), tex.dispose()), [body, print, tex])
+  // у чёрной стальной трубы на концах видна резьба NPT (светлая, без краски)
+  const threads = useMemo(() => {
+    if (s.mat !== 'bi') return null
+    const L = Math.min(len / 2 - 0.05, 0.78 + s.od * 0.12)
+    const pitch = 1 / s.tpi
+    const h = 0.6 * pitch
+    const pts: Vector2[] = [new Vector2(ri, 0), new Vector2(ro - h, 0)]
+    const n = Math.max(2, Math.round(L / (pitch / 2)))
+    for (let i = 1; i <= n; i++) pts.push(new Vector2(i % 2 ? ro + 0.004 : ro - h, (L * i) / n))
+    pts.push(new Vector2(ri, L))
+    return new LatheGeometry(pts, 48)
+  }, [s.mat, s.od, s.tpi, ri, ro, len])
+  useEffect(() => () => (body.dispose(), print.dispose(), tex.dispose(), threads?.dispose()), [body, print, tex, threads])
   return (
     <>
       <mesh geometry={body} material={pipeMat(size, selected, ghost)} quaternion={quatTo(new Vector3(0, 0, 1))} raycast={ghost ? () => null : undefined} />
+      {threads && (
+        <>
+          <mesh geometry={threads} material={mat('#8c9095', selected, { ghost, metal: true })} quaternion={quatTo(new Vector3(0, 0, 1))} raycast={ghost ? () => null : undefined} />
+          <mesh geometry={threads} material={mat('#8c9095', selected, { ghost, metal: true })} position={[0, 0, len]} quaternion={quatTo(new Vector3(0, 0, -1))} raycast={ghost ? () => null : undefined} />
+        </>
+      )}
       <mesh geometry={print} position={[0, 0, len / 2]} quaternion={quatTo(new Vector3(0, 0, 1))}>
         <meshStandardMaterial map={tex} transparent roughness={0.4} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
       </mesh>

@@ -8,6 +8,7 @@ import * as NHD from './data/noHub'
 import { ALL_SIZES, CU_SIZES, DWV_SIZES, SIZES, SizeId, n, pressureHubWall, sizeIndex, sizeLabel, sizeMatLabel, sizeSpec, threadSize } from './data/sizes'
 import * as K from './parts/kit'
 import { registerEquipment } from './parts/equipment'
+import { BI_SIZES, registerBlackIron } from './parts/blackIron'
 export type { Built, FittingDef, Group, Part, PathSeg, PortDef, PortKind, Shape, V3 } from './parts/kit'
 export { arcEnd, bodyR, hubR, hubWall, mates } from './parts/kit'
 export { basinDims, basinRadius } from './parts/equipment'
@@ -308,7 +309,8 @@ const PIPE_NAME: Record<string, (sz: string) => string> = {
   pvc: (sz) => `${sz} PVC Sch 40 Pipe`,
   cu: (sz) => `${sz} Type L Copper Tube (ASTM B88)`,
   ci: (sz) => `${sz} Cast Iron No-Hub Soil Pipe (CISPI 301 / ASTM A888)`,
-  gs: (sz) => `${sz} Galvanized Steel Pipe Sch 40 (ASTM A53)`
+  gs: (sz) => `${sz} Galvanized Steel Pipe Sch 40 (ASTM A53)`,
+  bi: (sz) => `${sz} Black Steel Pipe Sch 40 (ASTM A53), Threaded Both Ends`
 }
 
 // Адаптер сифона (trap adapter) по чертежу Charlotte 104 W: DWV-раструб (клей) → уступ → корпус с наружной
@@ -512,9 +514,13 @@ export const FITTINGS: Record<string, FittingDef> = {
     cat: 'Pipe',
     icon: 'pipe',
     key: 'P',
-    sizes: [...PRESSURE_SIZES, ...CU_SIZES, ...SIZES.filter((s) => s.mat === 'ci' || s.mat === 'gs').map((s) => s.id)],
+    sizes: [...PRESSURE_SIZES, ...CU_SIZES, ...SIZES.filter((s) => s.mat === 'ci' || s.mat === 'gs').map((s) => s.id), ...BI_SIZES],
     build: (p) => ({
-      ports: [spig(O, NZ, p.size, 'p', 0, { bare: true }), spig([0, 0, p.length ?? DEFAULT_PIPE], Z, p.size, 'p', 0, { bare: true })],
+      // чёрная сталь — резьба NPT на обоих концах (TBE), остальное — гладкие концы
+      ports:
+        sp(p.size).mat === 'bi'
+          ? [mpt(O, NZ, p.size, 'p', NPT[p.size], { bare: true }), mpt([0, 0, p.length ?? DEFAULT_PIPE], Z, p.size, 'p', NPT[p.size], { bare: true })]
+          : [spig(O, NZ, p.size, 'p', 0, { bare: true }), spig([0, 0, p.length ?? DEFAULT_PIPE], Z, p.size, 'p', 0, { bare: true })],
       shapes: [{ t: 'pipe', size: p.size, len: p.length ?? DEFAULT_PIPE }]
     }),
     bom: (p) => [{ name: PIPE_NAME[sp(p.size).mat](sizeLabel(p.size)) }]
@@ -1898,6 +1904,7 @@ function closetFlange(size: SizeId, [A, B, Cc]: number[], metal: boolean): Built
 // ---------- доступ ----------
 export const fittingDef = (kind: string): FittingDef => FITTINGS[kind] ?? FITTINGS.pipe
 registerEquipment(FITTINGS)
+registerBlackIron(FITTINGS)
 
 export const FITTING_ORDER = Object.keys(FITTINGS)
 export const isDwvKind = (kind: string): boolean => fittingDef(kind).group === 'dwv'

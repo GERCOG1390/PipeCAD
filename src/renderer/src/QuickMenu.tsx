@@ -5,7 +5,8 @@ import { KindIcon } from './Panels'
 import { systemFam, useStore } from './store'
 
 // Частые детали по типу конца, в порядке «как ведут трубу»
-const QUICK: Record<'pressure' | 'dwv' | 'copper' | 'nohub', string[]> = {
+const QUICK: Record<'pressure' | 'dwv' | 'copper' | 'nohub' | 'gas', string[]> = {
+  gas: ['bi90', 'bi45', 'biTee', 'biCoupling', 'biUnion', 'biGasValve', 'biCap', 'biPlug', 'biStreet90', 'biReducer', 'biBushing'],
   pressure: ['elbow90', 'elbow45', 'tee', 'coupling', 'reducer', 'cap', 'pma', 'pfa', 'punion', 'valve'],
   dwv: ['dwv90', 'dwvLong90', 'dwv45', 'sanTee', 'wye', 'combo', 'dcoup', 'dincr', 'dcotee', 'dcap', 'ptrap'],
   copper: ['cu90', 'cu45', 'cuTee', 'cuCoupling', 'cuReducer', 'cuCap', 'cuMa', 'cuFa', 'cuUnion', 'cuValve'],
@@ -17,6 +18,7 @@ export function endFamily(size: SizeId, fam: 'p' | 'd', preferCu?: boolean): { g
   const mat = sizeSpec(size).mat
   if (mat === 'cu') return { group: 'copper', size }
   if (preferCu) return { group: 'copper', size: ('cu' + size) as SizeId }
+  if (mat === 'bi') return { group: 'gas', size }
   if (mat === 'ci' || mat === 'gs') return { group: 'nohub', size }
   return { group: fam === 'd' ? 'dwv' : 'pressure', size }
 }
@@ -104,7 +106,7 @@ export function QuickMenu() {
             </button>
           </span>
         ) : (
-          <span>{group === 'copper' ? 'Copper' : group === 'nohub' ? 'No-hub' : 'Pressure'}</span>
+          <span>{group === 'copper' ? 'Copper' : group === 'nohub' ? 'No-hub' : group === 'gas' ? 'Black iron · gas' : 'Pressure'}</span>
         )}
       </div>
       <div className="qm-list">
