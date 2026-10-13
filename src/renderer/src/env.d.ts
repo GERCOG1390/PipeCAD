@@ -8,6 +8,7 @@ interface Window {
     recRestore: () => Promise<void>
     transcodeTest: (args: { data: Uint8Array; ext: string; out: string }) => Promise<boolean>
     setZoom: (f: number) => void
+    onPower?: (cb: (p: { onBattery: boolean; thermal: import('./power').Thermal }) => void) => void
     exportPdf: (args: { html: string; defaultName: string; out?: string }) => Promise<string | null>
   }
 }

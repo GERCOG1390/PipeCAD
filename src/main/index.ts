@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, screen, session, shell } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, powerMonitor, screen, session, shell } from 'electron'
 import { spawn } from 'child_process'
 import { readFile, unlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -156,8 +156,28 @@ function macMenu(): void {
   )
 }
 
+// Питание: от батареи или перегрев — окно снижает качество картинки (экономия батареи)
+type Thermal = 'unknown' | 'nominal' | 'fair' | 'serious' | 'critical'
+let thermal: Thermal = 'unknown'
+const powerState = (): { onBattery: boolean; thermal: Thermal } => ({ onBattery: powerMonitor.isOnBatteryPower(), thermal })
+const sendPower = (): void => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('power', powerState()))
+ipcMain.handle('power:get', () => powerState())
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin') macMenu()
+  powerMonitor.on('on-battery', sendPower)
+  powerMonitor.on('on-ac', sendPower)
+  if (process.platform === 'darwin') {
+    try {
+      thermal = powerMonitor.getCurrentThermalState() as Thermal
+    } catch {
+      thermal = 'unknown'
+    }
+    powerMonitor.on('thermal-state-change', (e) => {
+      thermal = e.state
+      sendPower()
+    })
+  }
   // getDisplayMedia в окне программы записывает само это окно, без диалога выбора
   session.defaultSession.setDisplayMediaRequestHandler(async (_req, callback) => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]

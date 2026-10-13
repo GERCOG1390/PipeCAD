@@ -1,5 +1,6 @@
 // Настройки вида программы: тема и размер интерфейса (запоминаются на этом компьютере)
 import { create } from 'zustand'
+import { isMac } from './platform'
 
 export type Theme = 'dark' | 'light'
 export type Quality = 'fast' | 'balanced' | 'high' | 'ultra'
@@ -37,7 +38,8 @@ export const useViewPrefs = create<ViewPrefs>((set, get) => ({
   theme: read('pipecad.theme') === 'light' ? 'light' : 'dark',
   zoom: Number(read('pipecad.zoom')) || 1,
   quality: (['fast', 'balanced', 'high', 'ultra'] as Quality[]).find((q) => q === read('pipecad.quality')) ?? 'high',
-  graphics: read('pipecad.graphics') === 'webgpu' ? 'webgpu' : 'webgl',
+  // на Mac WebGPU идёт прямо в Metal и в замере в 3–5 раз быстрее WebGL (тот идёт через слой перевода ANGLE)
+  graphics: ((g) => (g === 'webgpu' || g === 'webgl' ? g : isMac ? 'webgpu' : 'webgl'))(read('pipecad.graphics')),
   setGraphics: (graphics) => {
     set({ graphics })
     write('pipecad.graphics', graphics)

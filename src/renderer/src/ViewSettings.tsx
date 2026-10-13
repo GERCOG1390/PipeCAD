@@ -1,5 +1,6 @@
 // Окно настроек вида: тема и размер интерфейса
-import { QUALITY } from './Effects'
+import { qualityDefs } from './Effects'
+import { usePower } from './power'
 import { Quality, ZOOMS, useViewPrefs } from './viewPrefs'
 import { useBackend } from './gpu'
 import { MOD, isMac } from './platform'
@@ -7,6 +8,8 @@ import { MOD, isMac } from './platform'
 export function ViewSettings({ onClose }: { onClose: () => void }) {
   const { theme, zoom, quality, graphics, setTheme, setZoom, setQuality, setGraphics } = useViewPrefs()
   const backend = useBackend((s) => s.label)
+  const power = usePower()
+  const QUALITY = qualityDefs()
   return (
     <div className="modal-back" onClick={onClose}>
       <div className="modal settings" onClick={(e) => e.stopPropagation()}>
@@ -40,13 +43,18 @@ export function ViewSettings({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div className="muted small">{QUALITY[quality].hint}</div>
-        <label>Graphics API (experimental)</label>
+        <label className="check">
+          <input type="checkbox" checked={power.saver} onChange={(e) => power.setSaver(e.target.checked)} />
+          Save battery: no extra resolution on battery power or when the {isMac ? 'Mac' : 'computer'} runs hot
+        </label>
+        {power.saving && <div className="muted small">{power.onBattery ? 'On battery' : 'Running hot'} — drawing at screen resolution now.</div>}
+        <label>Graphics API{isMac ? '' : ' (experimental)'}</label>
         <div className="seg">
-          <button className={graphics === 'webgl' ? 'on' : ''} onClick={() => setGraphics('webgl')} title={isMac ? 'Proven: WebGL through ANGLE on Metal' : 'Proven: WebGL through ANGLE on DirectX 11'}>
+          <button className={graphics === 'webgl' ? 'on' : ''} onClick={() => setGraphics('webgl')} title={isMac ? 'WebGL through the ANGLE layer on Metal: fallback if WebGPU misbehaves' : 'Proven: WebGL through ANGLE on DirectX 11'}>
             {isMac ? 'WebGL · Metal' : 'WebGL · DirectX 11'}
           </button>
-          <button className={graphics === 'webgpu' ? 'on' : ''} onClick={() => setGraphics('webgpu')} title={isMac ? 'Experimental: WebGPU on Metal' : 'Experimental: WebGPU on DirectX 12'}>
-            {isMac ? 'WebGPU · Metal' : 'WebGPU · DirectX 12'}
+          <button className={graphics === 'webgpu' ? 'on' : ''} onClick={() => setGraphics('webgpu')} title={isMac ? 'WebGPU straight on Metal: the faster choice on Mac' : 'Experimental: WebGPU on DirectX 12'}>
+            {isMac ? 'WebGPU · Metal (default)' : 'WebGPU · DirectX 12'}
           </button>
         </div>
         <div className="muted small">Now running: {backend || '…'}. Switching restarts the 3D view; the project stays as is.</div>

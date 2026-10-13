@@ -51,6 +51,8 @@ The build targets the Mac's own architecture. A build made this way isn't code-s
 
 Shortcuts accept ⌘ as well as Ctrl.
 
+On Mac the 3D view runs on WebGPU (straight to Metal), about twice as fast as WebGL there; WebGL stays in ⚙ View settings as a fallback. On Retina screens the quality levels count from the screen's own resolution, and on battery power the view draws without extra resolution (can be turned off in ⚙).
+
 Video recording needs Screen Recording permission (System Settings → Privacy & Security).
 
 Stack: Electron, React, three.js with React Three Fiber, zustand, TypeScript.
