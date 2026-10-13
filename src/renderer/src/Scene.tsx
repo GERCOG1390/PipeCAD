@@ -1,4 +1,4 @@
-import { Detailed, GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls } from '@react-three/drei'
+import { Detailed, GizmoHelper, GizmoViewport, Html, OrbitControls } from '@react-three/drei'
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -19,7 +19,6 @@ import {
   Ray,
   LatheGeometry,
   MeshStandardMaterial,
-  PMREMGenerator,
   Quaternion,
   RepeatWrapping,
   SRGBColorSpace,
@@ -27,7 +26,6 @@ import {
   Vector2,
   Vector3
 } from 'three'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
@@ -43,6 +41,7 @@ import { SnapshotHook } from './Snapshot'
 import { SCENE_COLORS, useViewPrefs } from './viewPrefs'
 import { Effects, useQualityDpr } from './Effects'
 import { FrameControl, useAlwaysRender } from './FrameControl'
+import { BenchHook, EnvSetup, FloorGrid, GuideLine, applyBackground, rendererFactory } from './gpu'
 import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength } from './units'
 
@@ -919,7 +918,7 @@ function AxisGuides({ model }: { model: Model }) {
         const from = mouthOf(w)
         const len = Math.max(reach.get(k) ?? 0, isA ? 144 : 48)
         const to = w.pos.clone().addScaledVector(w.dir, len)
-        return <Line key={k} points={[from, to]} color={isA ? '#f59e0b' : '#7dd3fc'} lineWidth={isA ? 2 : 1.2} dashed dashSize={2} gapSize={1.2} transparent opacity={isA ? 0.95 : 0.6} depthTest={false} renderOrder={9} />
+        return <GuideLine key={k} points={[from, to]} color={isA ? '#f59e0b' : '#7dd3fc'} lineWidth={isA ? 2 : 1.2} dashSize={2} gapSize={1.2} opacity={isA ? 0.95 : 0.6} renderOrder={9} />
       })}
       {guides.map((g, i) => {
         const X = g.pA.clone().add(g.pB).multiplyScalar(0.5)
@@ -928,7 +927,7 @@ function AxisGuides({ model }: { model: Model }) {
         const cutB = g.fit ? g.tB - g.fit.takeoff : null
         return (
           <group key={i}>
-            {!hit && <Line points={[g.pA, g.pB]} color="#ef4444" lineWidth={2} dashed dashSize={0.6} gapSize={0.4} depthTest={false} renderOrder={9} />}
+            {!hit && <GuideLine points={[g.pA, g.pB]} color="#ef4444" lineWidth={2} dashSize={0.6} gapSize={0.4} renderOrder={9} />}
             <mesh position={X} renderOrder={12}>
               <sphereGeometry args={[hit ? 0.7 : 0.45, 20, 14]} />
               <meshBasicMaterial color={hit ? (g.fit ? '#22c55e' : '#eab308') : '#ef4444'} depthTest={false} transparent opacity={0.9} />
@@ -979,7 +978,12 @@ const floorPlane = new Plane(new Vector3(0, 1, 0), 0)
 // Фон сцены под тему
 function SceneBackground() {
   const theme = useViewPrefs((s) => s.theme)
-  return <color key={theme} attach="background" args={[SCENE_COLORS[theme].bg]} />
+  const { gl, scene, invalidate } = useThree()
+  useEffect(() => {
+    applyBackground(gl, scene, SCENE_COLORS[theme].bg)
+    invalidate()
+  }, [gl, scene, theme, invalidate])
+  return null
 }
 
 function PlacementLayer() {
@@ -1103,26 +1107,6 @@ function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
   return null
 }
 
-// Мягкое окружение для отражений на пластике (без загрузки HDR из сети)
-function EnvSetup() {
-  const { gl, scene } = useThree()
-  const camera = useThree((st) => st.camera)
-  // для автотестов: проекция точек на экран
-  ;(window as unknown as { pipecadCamera: typeof camera }).pipecadCamera = camera
-  useEffect(() => {
-    const pmrem = new PMREMGenerator(gl)
-    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-    scene.environment = env
-    scene.environmentIntensity = 0.45
-    return () => {
-      scene.environment = null
-      env.dispose()
-      pmrem.dispose()
-    }
-  }, [gl, scene])
-  return null
-}
-
 function CameraRig({ model }: { model: Model }) {
   const { camera, scene } = useThree()
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
@@ -1151,16 +1135,18 @@ export function Scene({ model }: { model: Model }) {
   const sceneColors = SCENE_COLORS[useViewPrefs((s) => s.theme)]
   const dpr = useQualityDpr()
   const always = useAlwaysRender()
+  const graphics = useViewPrefs((s) => s.graphics)
   const parts = useStore((s) => s.parts)
   const showDims = useStore((s) => s.showDims)
   const select = useStore((s) => s.select)
   const autoRotate = useStore((s) => !!s.replay && s.replay.auto && s.replay.playing)
   return (
     <Canvas
+      key={graphics}
       camera={{ position: [60, 45, 70], fov: 40, near: 0.05, far: 10000 }}
       dpr={dpr}
       frameloop={always ? 'always' : 'demand'}
-      gl={{ antialias: true, toneMappingExposure: 0.95, powerPreference: 'high-performance' }}
+      gl={rendererFactory(graphics) as never}
       onPointerMissed={(e) => e.button === 0 && !busyPlacing() && select(null)}
     >
       <SceneBackground />
@@ -1169,19 +1155,7 @@ export function Scene({ model }: { model: Model }) {
       <directionalLight position={[50, 110, 70]} intensity={1.7} />
       <directionalLight position={[-90, 30, -40]} intensity={0.35} color="#cfe3ff" />
       <directionalLight position={[0, -60, 20]} intensity={0.15} />
-      <Grid
-        name="floor-grid"
-        position={[0, -0.02, 0]}
-        infiniteGrid
-        cellSize={12}
-        sectionSize={60}
-        cellThickness={0.6}
-        sectionThickness={1}
-        cellColor={sceneColors.cell}
-        sectionColor={sceneColors.section}
-        fadeDistance={900}
-        fadeStrength={1.5}
-      />
+      <FloorGrid cell={sceneColors.cell} section={sceneColors.section} />
       <group name="parts">
         {parts.map((p) => (
           <PartMesh key={p.id} part={p} xf={model.xfs.get(p.id)!} open={model.open.filter((w) => w.partId === p.id)} />
@@ -1198,6 +1172,7 @@ export function Scene({ model }: { model: Model }) {
       <SnapshotHook />
       <Effects />
       <FrameControl />
+      <BenchHook />
       <OrbitControls makeDefault enableDamping={false} autoRotate={autoRotate} autoRotateSpeed={0.7} onChange={(e) => e && viewTarget.copy((e.target as unknown as OrbitControlsImpl).target)} />
       <CameraRig model={model} />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>

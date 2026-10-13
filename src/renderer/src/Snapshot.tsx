@@ -5,6 +5,7 @@ import { Color, Vector3 } from 'three'
 import { Model } from './geometry'
 import { dwvSlopes, slopeLabel } from './slope'
 import { useStore } from './store'
+import { applyBackground } from './gpu'
 import { formatLength } from './units'
 
 export interface Shot {
@@ -14,25 +15,35 @@ export interface Shot {
   labels: { x: number; y: number; text: string; warn: boolean }[] // x, y — доли ширины/высоты
 }
 
-let grab: ((model: Model) => Shot) | null = null
+let grab: ((model: Model) => Promise<Shot>) | null = null
 
 // Внутри Canvas
 export function SnapshotHook() {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
     ;(window as unknown as { pipecadScene: unknown }).pipecadScene = scene // для автотестов
-    grab = (model) => {
+    const r = gl as unknown as { renderAsync?: (s: unknown, c: unknown) => Promise<void> }
+    const render = async (): Promise<void> => {
+      if (r.renderAsync) await r.renderAsync(scene, camera)
+      else gl.render(scene, camera)
+    }
+    grab = async (model) => {
       // для печати — светлый фон
       const bg = scene.background
-      scene.background = new Color('#ffffff')
+      const clear = new Color()
+      const g = gl as unknown as { getClearColor: (c: Color) => Color; getClearAlpha: () => number; setClearColor: (c: Color, a?: number) => void }
+      g.getClearColor(clear)
+      const clearA = g.getClearAlpha()
+      applyBackground(gl, scene, '#ffffff')
       const grid = scene.getObjectByName('floor-grid')
       if (grid) grid.visible = false
-      gl.render(scene, camera)
+      await render()
       const c = gl.domElement
       const img = c.toDataURL('image/png')
       scene.background = bg
+      g.setClearColor(clear, clearA)
       if (grid) grid.visible = true
-      gl.render(scene, camera)
+      await render()
       const parts = useStore.getState().parts
       const slopes = new Map(dwvSlopes(parts, model).map((s) => [s.id, s]))
       const v = new Vector3()
@@ -68,7 +79,7 @@ export async function captureView(model: Model): Promise<Shot | null> {
   useStore.setState({ showPorts: false, selectedId: null, activePort: null, showAxes: false, selectedEnv: null })
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))
   try {
-    return grab(model)
+    return await grab(model)
   } finally {
     useStore.setState(saved)
   }

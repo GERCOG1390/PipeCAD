@@ -3,6 +3,7 @@ import { create } from 'zustand'
 
 export type Theme = 'dark' | 'light'
 export type Quality = 'fast' | 'balanced' | 'high' | 'ultra'
+export type Graphics = 'webgl' | 'webgpu'
 export const ZOOMS = [0.9, 1, 1.15, 1.3, 1.5]
 
 const read = (key: string): string | null => {
@@ -25,6 +26,8 @@ interface ViewPrefs {
   zoom: number
   quality: Quality
   setQuality: (q: Quality) => void
+  graphics: Graphics
+  setGraphics: (g: Graphics) => void
   setTheme: (t: Theme) => void
   setZoom: (z: number) => void
   stepZoom: (dir: 1 | -1 | 0) => void
@@ -34,6 +37,11 @@ export const useViewPrefs = create<ViewPrefs>((set, get) => ({
   theme: read('pipecad.theme') === 'light' ? 'light' : 'dark',
   zoom: Number(read('pipecad.zoom')) || 1,
   quality: (['fast', 'balanced', 'high', 'ultra'] as Quality[]).find((q) => q === read('pipecad.quality')) ?? 'high',
+  graphics: read('pipecad.graphics') === 'webgpu' ? 'webgpu' : 'webgl',
+  setGraphics: (graphics) => {
+    set({ graphics })
+    write('pipecad.graphics', graphics)
+  },
   setQuality: (quality) => {
     set({ quality })
     write('pipecad.quality', quality)
