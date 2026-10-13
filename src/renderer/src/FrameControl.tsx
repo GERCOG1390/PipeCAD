@@ -2,6 +2,7 @@
 // а пока камеру вращают — облегчённая картинка; после остановки дорисовывается полное качество.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
+import { Vector3 } from 'three'
 import { create } from 'zustand'
 import { useStore } from './store'
 import { useViewPrefs } from './viewPrefs'
@@ -72,6 +73,23 @@ export function FrameControl() {
   }, [el, invalidate])
   // пока окно «разогрето» событием — продолжаем рисовать (анимации, оверлеи, подсказки)
   useFrame(() => (window as unknown as { __pipecadLoop?: () => void }).__pipecadLoop?.())
+  // Точность глубины: ближняя граница камеры растёт с расстоянием до модели.
+  // Иначе вдали тонкие слои (наклейки на корпусе в сотых дюйма) мерцают полосками (z-fighting).
+  const camera = useThree((s) => s.camera)
+  const controls = useThree((s) => s.controls) as unknown as { target?: Vector3 } | null
+  useFrame(() => {
+    const target = controls?.target
+    if (!target) return
+    const d = camera.position.distanceTo(target)
+    const near = Math.min(20, Math.max(0.05, d * 0.004))
+    const far = Math.max(10000, d * 40)
+    const cam = camera as unknown as { near: number; far: number; updateProjectionMatrix: () => void }
+    if (Math.abs(cam.near - near) / near > 0.05 || cam.far !== far) {
+      cam.near = near
+      cam.far = far
+      cam.updateProjectionMatrix()
+    }
+  })
   return null
 }
 
