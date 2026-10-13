@@ -23,7 +23,7 @@ A 3D editor for plumbing layouts on Windows, made by a plumber in Illinois for e
   - CSV export;
   - a **PDF job sheet** with the 3D view with lengths, the materials with totals, and things to check before install.
 - **Replay and video.** Replay the build step by step and record it to MP4.
-- **Fast on big jobs.** The view only redraws when something changes, the image is simplified while you orbit, and far parts use lighter geometry. Render quality goes from Fast to Ultra (supersampling, SMAA, ambient occlusion). Light and dark themes, and an adjustable interface size.
+- **Fast on big jobs.** The view only redraws when something changes, the image is simplified while you orbit, and far parts use lighter geometry. Render quality goes from Fast to Ultra (supersampling for clean edges, no shadows — it is a work tool). Light and dark themes, and an adjustable interface size.
 
 ## Build from source
 

@@ -16,12 +16,6 @@ export interface Shot {
 
 let grab: ((model: Model) => Shot) | null = null
 
-// Постобработка (если включена): снимок берём с её выхода, чтобы в PDF было то же качество, что на экране
-let composer: { render: (dt?: number) => void } | null = null
-export const setComposer = (c: { render: (dt?: number) => void } | null): void => {
-  composer = c
-}
-
 // Внутри Canvas
 export function SnapshotHook() {
   const { gl, scene, camera } = useThree()
@@ -30,18 +24,15 @@ export function SnapshotHook() {
     grab = (model) => {
       // для печати — светлый фон
       const bg = scene.background
-      // с тональной коррекцией (ACES) белый темнеет до серого — даём фон ярче белого
-      scene.background = new Color(1, 1, 1).multiplyScalar(composer ? 8 : 1)
+      scene.background = new Color('#ffffff')
       const grid = scene.getObjectByName('floor-grid')
       if (grid) grid.visible = false
-      if (composer) composer.render(0)
-      else gl.render(scene, camera)
+      gl.render(scene, camera)
       const c = gl.domElement
       const img = c.toDataURL('image/png')
       scene.background = bg
       if (grid) grid.visible = true
-      if (composer) composer.render(0)
-      else gl.render(scene, camera)
+      gl.render(scene, camera)
       const parts = useStore.getState().parts
       const slopes = new Map(dwvSlopes(parts, model).map((s) => [s.id, s]))
       const v = new Vector3()
