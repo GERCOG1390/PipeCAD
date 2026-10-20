@@ -6,9 +6,9 @@ import { buildModel } from './geometry'
 import { Inspector, Palette } from './Panels'
 import { BomPanel } from './BomPanel'
 import { Scene } from './Scene'
-import { EnvModeSwitch, EnvPalette } from './EnvPanel'
+import { EnvPalette } from './EnvPanel'
 import { usePenetrations } from './EnvScene'
-import { RecButton, ReplayBar } from './Replay'
+import { RecButton, ReplayBar, toggleRecording } from './Replay'
 import { QuickMenu } from './QuickMenu'
 import { LengthEditor } from './LengthEditor'
 import { ModeBanner } from './ModeBanner'
@@ -17,35 +17,13 @@ import { ViewSettings } from './ViewSettings'
 import { useViewPrefs } from './viewPrefs'
 import { dwvSlopes } from './slope'
 import { ProjectFile, serialize, useStore } from './store'
+import { newProject, open, openPath, save } from './projectActions'
+import { useRecentFiles } from './recentFiles'
+import { Menu, MenuItem } from './Menu'
+import { Box, Clapperboard, Eye, FileText, CircleHelp, Maximize, Redo2, Settings, Undo2 } from 'lucide-react'
 import { MOD, isMac } from './platform'
 
 const DRAFT_KEY = 'pipecad.draft'
-
-async function save(saveAs = false): Promise<void> {
-  const { filePath, markSaved, setMessage } = useStore.getState()
-  const path = await window.api.saveProject({ path: filePath, content: serialize(), saveAs })
-  if (path) {
-    markSaved(path)
-    setMessage(`Saved: ${path}`)
-  }
-}
-
-function confirmDiscard(): boolean {
-  return !useStore.getState().dirty || confirm('You have unsaved changes. Continue without saving?')
-}
-
-async function open(): Promise<void> {
-  if (!confirmDiscard()) return
-  const r = await window.api.openProject()
-  if (!r) return
-  try {
-    const f = JSON.parse(r.content) as ProjectFile
-    if (f.app !== 'pipecad' || !Array.isArray(f.parts)) throw new Error()
-    useStore.getState().loadProject(f, r.path)
-  } catch {
-    useStore.getState().setMessage('Couldn\'t read the project file')
-  }
-}
 
 export function App() {
   const parts = useStore((s) => s.parts)
@@ -59,6 +37,9 @@ export function App() {
   const replaying = useStore((s) => !!s.replay)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
+  const envMode = useStore((s) => s.envMode)
+  const recording = useStore((s) => !!s.recording)
+  const recentFiles = useRecentFiles((s) => s.files)
   const st = useStore.getState()
   const [tab, setTab] = useState<'props' | 'bom'>('props')
   const [left, setLeft] = useState<'pipes' | 'env'>('pipes')
@@ -82,9 +63,21 @@ export function App() {
   ;(window as unknown as { pipecadModel: typeof model }).pipecadModel = model // для автотестов
   const pens = usePenetrations(model)
   const badPens = pens.filter((p) => !p.ok).length
+  // выделили деталь или объект — справа сразу её свойства
+  const selectedId = useStore((s) => s.selectedId)
   useEffect(() => {
-    if (selectedEnv) setTab('props')
-  }, [selectedEnv])
+    if (selectedEnv || selectedId) setTab('props')
+  }, [selectedEnv, selectedId])
+
+  const fileItems: MenuItem[] = [
+    { label: 'New project', onClick: newProject },
+    { label: 'Open…', keys: `${MOD}O`, onClick: () => void open() },
+    { label: 'Save', keys: `${MOD}S`, onClick: () => void save() },
+    { label: 'Save as…', keys: isMac ? '⌘⇧S' : 'Ctrl+Shift+S', onClick: () => void save(true) },
+    ...(recentFiles.length ? [{ sep: true as const, label: 'Recent' }, ...recentFiles.slice(0, 6).map((f) => ({ label: f.name, onClick: () => void openPath(f.path) }))] : []),
+    { sep: true },
+    { label: 'Materials, prices & PDF sheet', onClick: () => setTab('bom') }
+  ]
 
   // Черновик на случай закрытия без сохранения
   useEffect(() => {
@@ -179,47 +172,62 @@ export function App() {
           <img className="logo-img" src={logo} alt="" />
           PipeCAD
         </div>
-        <button onClick={() => confirmDiscard() && st.newProject()}>New</button>
-        <button onClick={() => void open()}>Open</button>
-        <button onClick={() => void save()}>Save</button>
-        <button onClick={() => void save(true)} title={`Save as… (${isMac ? "⌘⇧S" : "Ctrl+Shift+S"})`}>…</button>
+        <Menu label="File" icon={<FileText size={16} />} items={fileItems} />
         <span className="sep" />
-        <button disabled={!canUndo} onClick={st.undo} title={`${MOD}Z`}>
-          ↶
+        <button className="tb" disabled={!canUndo} onClick={st.undo} title={`Undo (${MOD}Z)`}>
+          <Undo2 size={16} />
+          <span>Undo</span>
         </button>
-        <button disabled={!canRedo} onClick={st.redo} title={isMac ? '⌘⇧Z' : 'Ctrl+Y'}>
-          ↷
-        </button>
-        <span className="sep" />
-        <button onClick={() => st.setView(null)} title="Fit all (Home)">Fit</button>
-        <button onClick={() => st.setView([1, 0.8, 1.2])}>3D</button>
-        <button onClick={() => st.setView([0, 1, 0])}>Top</button>
-        <button onClick={() => st.setView([0, 0, 1])}>Front</button>
-        <button onClick={() => st.setView([1, 0, 0])}>Side</button>
-        <span className="sep" />
-        <button className={showDims ? 'on' : 'off'} onClick={st.toggleDims} title={showDims ? 'Hide pipe lengths (L)' : 'Show pipe lengths (L)'}>
-          📏 Lengths
-        </button>
-        <button className={showPorts ? 'on' : ''} onClick={st.togglePorts} title="Show open ends">
-          Ends
-        </button>
-        <button className={showAxes ? 'on' : ''} onClick={st.toggleAxes} title="Open-end centerlines and intersections (A)">
-          Axes
+        <button className="tb" disabled={!canRedo} onClick={st.redo} title={`Redo (${isMac ? '⌘⇧Z' : 'Ctrl+Y'})`}>
+          <Redo2 size={16} />
+          <span>Redo</span>
         </button>
         <span className="sep" />
-        <button className={replaying ? 'on' : ''} onClick={() => (replaying ? st.stopReplay() : st.startReplay())} title="Replay: watch the build step by step">
-          ▶ Replay
+        <button className="tb" onClick={() => st.setView(null)} title="Fit everything in view (Home)">
+          <Maximize size={16} />
+          <span>Fit</span>
         </button>
-        <RecButton />
+        <Menu
+          label="View"
+          icon={<Box size={16} />}
+          items={[
+            { label: '3D view', onClick: () => st.setView([1, 0.8, 1.2]) },
+            { label: 'Top', onClick: () => st.setView([0, 1, 0]) },
+            { label: 'Front', onClick: () => st.setView([0, 0, 1]) },
+            { label: 'Side', onClick: () => st.setView([1, 0, 0]) }
+          ]}
+        />
+        <Menu
+          label="Show"
+          icon={<Eye size={16} />}
+          items={[
+            { label: 'Pipe lengths', keys: 'L', checked: showDims, onClick: st.toggleDims },
+            { label: 'Open ends', checked: showPorts, onClick: st.togglePorts },
+            { label: 'Centerlines & intersections', keys: 'A', checked: showAxes, onClick: st.toggleAxes },
+            { sep: true, label: 'Walls, floors, ground' },
+            { label: 'Solid', checked: envMode === 'solid', onClick: () => st.setEnvMode('solid') },
+            { label: 'X-ray (see pipes inside)', checked: envMode === 'ghost', onClick: () => st.setEnvMode('ghost') },
+            { label: 'Hidden', checked: envMode === 'hidden', onClick: () => st.setEnvMode('hidden') }
+          ]}
+        />
         <span className="sep" />
-        <span className="muted small">Site:</span>
-        <EnvModeSwitch />
+        <Menu
+          label="Video"
+          icon={<Clapperboard size={16} />}
+          active={replaying}
+          items={[
+            { label: replaying ? 'Stop replay' : 'Replay the build step by step', onClick: () => (replaying ? st.stopReplay() : st.startReplay()) },
+            { label: recording ? 'Stop recording and save' : 'Record window to MP4', onClick: () => void toggleRecording() }
+          ]}
+        />
+        {recording && <RecButton />}
         <span className="grow" />
-        <button onClick={() => setSettings(true)} title="Theme and interface size">
-          ⚙
+        <button className="tb icon-only" onClick={() => setSettings(true)} title="View settings: theme, size, quality">
+          <Settings size={17} />
         </button>
-        <button onClick={() => setHelp(true)} title="Keyboard & mouse (?)">
-          ? Help
+        <button className="tb" onClick={() => setHelp(true)} title="Keyboard & mouse (?)">
+          <CircleHelp size={16} />
+          <span>Help</span>
         </button>
       </header>
       {help && <Shortcuts onClose={() => setHelp(false)} />}

@@ -69,5 +69,5 @@ export const useViewPrefs = create<ViewPrefs>((set, get) => ({
 // Цвета 3D-сцены под тему
 export const SCENE_COLORS: Record<Theme, { bg: string; cell: string; section: string }> = {
   dark: { bg: '#1a1e23', cell: '#2b3238', section: '#2f6f6c' },
-  light: { bg: '#e9edf1', cell: '#c9d1d8', section: '#7bb8b4' }
+  light: { bg: '#c9d1d9', cell: '#b3bdc6', section: '#5e9f9b' }
 }

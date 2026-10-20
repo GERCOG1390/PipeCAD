@@ -33,6 +33,15 @@ ipcMain.handle('project:open', async () => {
   return { path, content: await readFile(path, 'utf8') }
 })
 
+// Открыть недавний проект по пути (со стартового экрана и меню File)
+ipcMain.handle('project:openPath', async (_e, path: string) => {
+  try {
+    return { path, content: await readFile(path, 'utf8') }
+  } catch {
+    return null
+  }
+})
+
 ipcMain.handle('project:save', async (_e, args: { path: string | null; content: string; saveAs?: boolean }) => {
   let path = args.path
   if (!path || args.saveAs) {

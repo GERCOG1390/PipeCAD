@@ -45,6 +45,11 @@ export function LengthEditor() {
       else el.select()
     }
   }, [edit?.id, edit?.n])
+  // выделили другую деталь — поле относится уже не к ней, закрываем
+  const selectedId = useStore((s) => s.selectedId)
+  useEffect(() => {
+    if (edit && selectedId && selectedId !== edit.id) useStore.setState({ lengthEdit: null })
+  }, [selectedId])
   if (!edit || !part) return null
   const close = (): void => useStore.setState({ lengthEdit: null })
   const commit = (): boolean => {

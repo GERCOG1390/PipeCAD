@@ -4,7 +4,7 @@
   --panel2: #252a30;
   --line: #31373e;
   --text: #e3e6e8;
-  --muted: #8b949c;
+  --muted: #9aa3ab;
   --accent: #3fd0c9;
   --accent-dim: #1f5c59;
   --warn: #f59e0b;
@@ -12,7 +12,7 @@
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--text); font: 13px/1.4 'Segoe UI', system-ui, sans-serif; user-select: none; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; user-select: none; -webkit-font-smoothing: antialiased; }
 button, select, input { font: inherit; color: inherit; }
 button { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
 button:hover:not(:disabled) { border-color: var(--accent-dim); background: #2b3138; }
@@ -30,7 +30,7 @@ kbd { font: 11px Consolas, monospace; color: var(--muted); border: 1px solid var
 
 .main { flex: 1; display: flex; min-height: 0; }
 .palette { width: 220px; padding: 12px; background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-top: 6px; }
+.section-title { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-top: 8px; }
 .kinds { display: flex; flex-direction: column; gap: 4px; }
 .kind { display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 8px; }
 .kind span { flex: 1; }
@@ -51,7 +51,7 @@ kbd { font: 11px Consolas, monospace; color: var(--muted); border: 1px solid var
 .side-body { flex: 1; overflow-y: auto; padding: 12px; }
 .empty { color: var(--muted); padding: 16px 0; }
 .inspector { display: flex; flex-direction: column; gap: 6px; }
-.inspector label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-top: 8px; }
+.inspector label { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-top: 10px; }
 .insp-head { display: flex; gap: 10px; align-items: center; }
 .insp-title { font-size: 15px; font-weight: 600; }
 .insp-sub { color: var(--muted); }
@@ -85,14 +85,14 @@ td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; 
 .search { margin: 2px 0 4px; }
 .group { display: flex; flex-direction: column; gap: 4px; }
 .group-head, .cat-head { display: flex; align-items: center; gap: 6px; background: none; border: none; padding: 4px 2px; text-align: left; }
-.group-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-top: 6px; }
+.group-head { font-size: 12.5px; font-weight: 600; color: var(--accent); margin-top: 8px; }
 .cat-head { color: var(--muted); font-size: 12px; }
 .group-head:hover, .cat-head:hover { background: none !important; color: var(--text); }
 .chev { width: 10px; display: inline-block; }
 .cat { display: flex; flex-direction: column; gap: 4px; padding-left: 6px; }
 .kind:disabled { opacity: 0.32; }
 .palette { width: 250px; }
-.step-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+.step-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
 .step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #0b1514; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
 .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .size-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; text-align: left; }
@@ -230,7 +230,7 @@ button.rec.on, .replay-bar .rec:disabled { background: #7f1d1d; border-color: #e
 .bom details.job summary { cursor: pointer; font-weight: 600; }
 .bom details.job input, .bom details.job textarea { width: 100%; }
 .bom details.job textarea { resize: vertical; font: inherit; background: var(--panel2); color: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
-.bom table.priced th { font-size: 10px; text-transform: uppercase; color: var(--muted, #8b949e); font-weight: 600; text-align: left; }
+.bom table.priced th { font-size: 11.5px; color: var(--muted, #8b949e); font-weight: 600; text-align: left; }
 .bom table.priced .n { text-align: right; white-space: nowrap; }
 .bom input.price { width: 64px; text-align: right; padding: 2px 4px; }
 .bom input.price.pct { width: 40px; }
@@ -279,3 +279,49 @@ button.primary { background: var(--accent); color: #0b1514; font-weight: 700; bo
 .logo-img { width: 22px; height: 22px; display: block; }
 .tag.gas { background: #3a3417; color: #f2c21b; }
 :root[data-theme="light"] .tag.gas { background: #fbf0c6; color: #7a5a00; }
+
+/* ===== обновлённый интерфейс (2026-10) ===== */
+/* верхняя панель: кнопки с иконкой и подписью, выпадающие меню */
+.toolbar { gap: 4px; padding: 7px 10px; }
+.toolbar .tb { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: transparent; border-color: transparent; border-radius: 8px; }
+.toolbar .tb:hover:not(:disabled) { background: var(--panel2); border-color: var(--line); }
+.toolbar .tb.on { background: var(--accent-dim); border-color: var(--accent); }
+.toolbar .tb.icon-only { padding: 6px 8px; }
+.toolbar .tb svg { flex: none; }
+.chev-dn { opacity: .6; margin-left: -2px; }
+.menu { position: relative; }
+.menu-list { position: fixed; z-index: 200; min-width: 240px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 40px rgba(0,0,0,.45); padding: 6px; display: flex; flex-direction: column; }
+.menu-item { display: flex; align-items: center; gap: 8px; border: none; background: transparent; text-align: left; padding: 7px 8px; border-radius: 6px; white-space: nowrap; }
+.menu-item:hover:not(:disabled) { background: var(--panel2); }
+.menu-item.danger { color: var(--danger); }
+.mi-icon { width: 18px; display: inline-flex; justify-content: center; color: var(--accent); }
+.mi-label { flex: 1; }
+.menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
+.menu-sep.labeled { height: auto; background: none; color: var(--muted); font-size: 12px; font-weight: 600; margin: 8px 8px 2px; }
+:root[data-theme="light"] .menu-list { box-shadow: 0 14px 40px rgba(20,30,40,.18); }
+/* узкое окно: прячем подписи у вторичных кнопок, иконки остаются */
+@media (max-width: 1360px) {
+  .toolbar .tb { padding: 5px 7px; }
+  .toolbar .tb > span { display: none; }
+  .toolbar .menu .tb > span { display: inline; }
+}
+/* свойства: разделы и удаление */
+.inspector .sect { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 2px; display: flex; flex-direction: column; gap: 6px; }
+.inspector details.fold > summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--muted); padding: 8px 0 2px; list-style: none; }
+.inspector details.fold > summary::before { content: '▸ '; }
+.inspector details.fold[open] > summary::before { content: '▾ '; }
+.inspector details.fold[open] { display: flex; flex-direction: column; gap: 6px; }
+.del-row { display: flex; gap: 6px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.danger-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--danger); background: transparent; border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.danger-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 14%, transparent) !important; border-color: var(--danger) !important; }
+/* материалы: позиция блоком — название, ниже «кол-во × цена = сумма» */
+.lines { display: flex; flex-direction: column; }
+.line { padding: 8px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+.line-name { line-height: 1.3; }
+.line-nums { display: flex; align-items: center; gap: 8px; }
+.line-nums .qty { min-width: 64px; text-align: left; }
+.line-nums input.price { width: 84px; }
+.line-total { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+button.primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.size-head-text > div.size-head-mat { white-space: normal; overflow: visible; line-height: 1.25; font-weight: 600; }
+.palette .branch { white-space: nowrap; }

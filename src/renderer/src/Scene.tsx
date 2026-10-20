@@ -515,7 +515,7 @@ function PartMesh({ part, xf, open, ghost }: { part: Part; xf: Xf; open: WorldPo
     else select(part.id)
   }
   return (
-    <group position={xf.pos} quaternion={xf.quat} onClick={onClick}>
+    <group name={ghost ? undefined : `part:${part.id}`} position={xf.pos} quaternion={xf.quat} onClick={onClick}>
       {pipe && <PipeBody size={pipe.size} len={pipe.len} selected={selected} ghost={ghost} />}
       {ghost || !lods.lo.length ? (
         meshes(lods.hi)
@@ -1078,6 +1078,65 @@ function PlacementLayer() {
   )
 }
 
+// Выделенная деталь: уголки рамки вокруг неё (видны сквозь другие детали, в любой теме)
+function SelectionBox({ model }: { model: Model }) {
+  const selectedId = useStore((s) => s.selectedId)
+  const parts = useStore((s) => s.parts)
+  const scene = useThree((s) => s.scene)
+  const invalidate = useThree((s) => s.invalidate)
+  const [geo, setGeo] = useState<BufferGeometry | null>(null)
+  const light = useViewPrefs((s) => s.theme) === 'light'
+  const xf = selectedId ? model.xfs.get(selectedId) : undefined
+  useEffect(() => {
+    if (!selectedId) return setGeo(null)
+    // ждём, пока деталь отрисуется, затем меряем её габарит в её же осях
+    const t = setTimeout(() => {
+      const g = scene.getObjectByName(`part:${selectedId}`)
+      if (!g) return setGeo(null)
+      g.updateMatrixWorld(true)
+      const inv = g.matrixWorld.clone().invert()
+      const box = new Box3()
+      const m = new Matrix4()
+      g.traverse((o) => {
+        const mesh = o as Mesh
+        if (!mesh.isMesh || !mesh.geometry) return
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
+        box.union(mesh.geometry.boundingBox!.clone().applyMatrix4(m.multiplyMatrices(inv, mesh.matrixWorld)))
+      })
+      if (box.isEmpty()) return setGeo(null)
+      box.expandByScalar(0.35)
+      const { min: a, max: b } = box
+      const ext = b.clone().sub(a)
+      const len = ext.clone().multiplyScalar(0.28)
+      // толщина уголков — от размера детали, чтобы было видно и у фитинга ½", и у бойлера
+      const w = Math.max(0.08, Math.min(0.6, ext.length() * 0.012))
+      const bars: BufferGeometry[] = []
+      for (const x of [a.x, b.x])
+        for (const y of [a.y, b.y])
+          for (const z of [a.z, b.z]) {
+            const sx = x === a.x ? 1 : -1
+            const sy = y === a.y ? 1 : -1
+            const sz = z === a.z ? 1 : -1
+            bars.push(new BoxGeometry(len.x, w, w).translate(x + (sx * len.x) / 2, y, z))
+            bars.push(new BoxGeometry(w, len.y, w).translate(x, y + (sy * len.y) / 2, z))
+            bars.push(new BoxGeometry(w, w, len.z).translate(x, y, z + (sz * len.z) / 2))
+          }
+      const bg = mergeGeometries(bars)!
+      bars.forEach((g) => g.dispose())
+      setGeo(bg)
+      invalidate()
+    }, 30)
+    return () => clearTimeout(t)
+  }, [selectedId, parts, model, scene, invalidate])
+  useEffect(() => () => geo?.dispose(), [geo])
+  if (!geo || !xf) return null
+  return (
+    <mesh geometry={geo} position={xf.pos} quaternion={xf.quat} renderOrder={20} raycast={() => null}>
+      <meshBasicMaterial color={light ? '#0b7a74' : '#3fd0c9'} depthTest={false} transparent opacity={0.95} />
+    </mesh>
+  )
+}
+
 // Подписи длин труб: свой слой поверх холста, без React-порталов (drei Html при массовом удалении
 // конфликтует с React 19). Элементы создаём и двигаем сами, каждый кадр.
 function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
@@ -1187,6 +1246,7 @@ export function Scene({ model }: { model: Model }) {
       <PortMarkers model={model} />
       <LengthHandles model={model} />
       <RotateRing model={model} />
+      <SelectionBox model={model} />
       <PlacementLayer />
       <AxisGuides model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}

@@ -10,6 +10,7 @@ import { dwvSlopes } from './slope'
 import { captureView } from './Snapshot'
 import { useStore } from './store'
 import { formatLength } from './units'
+import { FileDown } from 'lucide-react'
 
 function PriceInput({ value, onCommit }: { value?: number; onCommit: (v: number | null) => void }) {
   const [text, setText] = useState<string | null>(null)
@@ -117,37 +118,27 @@ export function BomPanel({ bom, pens, model }: { bom: Bom; pens: Penetration[]; 
       ))}
 
       {lines.length > 0 && (
-        <table className="priced">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th className="n">Qty</th>
-              <th className="n">Unit $</th>
-              <th className="n">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l) => {
-              const pr = prices[l.key]
-              return (
-                <tr key={l.key}>
-                  <td>
-                    {l.name}
-                    {l.sub && <div className="muted small">{l.sub}</div>}
-                  </td>
-                  <td className="qty n">
-                    {l.qty}
-                    <span className="muted small"> {l.unit}</span>
-                  </td>
-                  <td className="n">
-                    <PriceInput value={pr} onCommit={(v) => setPrice(l.key, v)} />
-                  </td>
-                  <td className="n">{pr !== undefined ? money(pr * l.qty) : <span className="muted">—</span>}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <div className="lines">
+          {lines.map((l) => {
+            const pr = prices[l.key]
+            return (
+              <div key={l.key} className="line">
+                <div className="line-name">
+                  {l.name}
+                  {l.sub && <div className="muted small">{l.sub}</div>}
+                </div>
+                <div className="line-nums">
+                  <span className="qty">
+                    {l.qty} <span className="muted small">{l.unit}</span>
+                  </span>
+                  <span className="muted small">×</span>
+                  <PriceInput value={pr} onCommit={(v) => setPrice(l.key, v)} />
+                  <span className="line-total">{pr !== undefined ? money(pr * l.qty) : <span className="muted">—</span>}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
 
       {!empty && (
@@ -177,7 +168,7 @@ export function BomPanel({ bom, pens, model }: { bom: Bom; pens: Penetration[]; 
           </div>
           <EnvBomSection pens={pens} />
           <button className="wide primary" disabled={busy} onClick={() => void exportPdf()} title="Uses the current 3D view — set it up the way you want first">
-            {busy ? 'Making PDF…' : '📄 Export PDF sheet'}
+            {busy ? 'Making PDF…' : <><FileDown size={16} /> Export PDF sheet</>}
           </button>
           <button className="wide" onClick={exportCsv}>
             Export to Excel (CSV)

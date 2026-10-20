@@ -7,6 +7,7 @@ import { KITS } from './kits'
 import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength, parseLength } from './units'
 import { DEL, MOD, isMac } from './platform'
+import { Trash2 } from 'lucide-react'
 
 // Иконки — линия по оси детали
 const ICONS: Record<string, string> = {
@@ -315,7 +316,7 @@ export function Palette({ model }: { model: Model }) {
           <div className="size-head">
             <span className="size-badge">{sizeLabel(size)}</span>
             <div className="size-head-text">
-              <div>{MAT_HEAD[sizeSpec(size).mat](size)}</div>
+              <div className="size-head-mat">{MAT_HEAD[sizeSpec(size).mat](size)}</div>
               <div className="muted small">OD {sizeSpec(size).od.toFixed(3)}" · {MAT_SRC[sizeSpec(size).mat]}</div>
             </div>
             <button className="link" onClick={() => setStep('size')}>
@@ -329,13 +330,13 @@ export function Palette({ model }: { model: Model }) {
         </>
       )}
       {parts.length > 0 && (
-        <button className={'wide branch' + (placing ? ' on' : '')} onClick={() => (placing ? cancelPlacing() : newBranch())}>
-          {placing ? '✕ Cancel placing' : '＋ New branch (place separately)'}
+        <button className={'wide branch' + (placing ? ' on' : '')} onClick={() => (placing ? cancelPlacing() : newBranch())} title="Start a separate run: pick a part, then click the floor">
+          {placing ? '✕ Cancel placing' : '＋ New branch'}
         </button>
       )}
       {portSize && (
         <button className={'wide branch' + (joining ? ' on' : '')} onClick={() => (joining ? useStore.setState({ joining: false, message: null }) : startJoin())} title="Key J">
-          {joining ? '✕ Cancel join' : '🔗 Join to another end (J)'}
+          {joining ? '✕ Cancel join' : '🔗 Join to another end'}
         </button>
       )}
       {parts.length > 0 && !portSize && !placing && <div className="hint">Pick a green ring — the open end to connect to — or start a new branch: pick a part and click the floor</div>}
@@ -629,30 +630,37 @@ export function Inspector({ model }: { model: Model }) {
         )
       })()}
 
-      <SystemPosition part={part} parts={parts} />
-
-      <RotationControl part={part} />
-      {!part.parent && (
-        <div className="row">
-          <button onClick={() => rotateRoot(part.id, 0, 90)}>Tilt X 90°</button>
-          <button onClick={() => rotateRoot(part.id, 2, 90)}>Tilt Z 90°</button>
-        </div>
-      )}
-
       {part.parent && (ports.length > 2 || s2?.reversible) && (
         <button className="wide" onClick={() => cycleAttach(part.id)}>
           {s2?.reversible ? 'Flip (reduce ↔ increase)' : 'Connect by another end'}
         </button>
       )}
 
-      <button className="wide danger" onClick={() => deletePart(part.id)} title="Del">
-        Delete this part only
-      </button>
-      {sub > 1 && (
-        <button className="wide danger" onClick={() => deleteBranch(part.id)} title="Shift+Del">
-          Delete with everything downstream ({sub} parts)
+      <div className="sect">
+        <RotationControl part={part} />
+        {!part.parent && (
+          <div className="row">
+            <button onClick={() => rotateRoot(part.id, 0, 90)}>Tilt X 90°</button>
+            <button onClick={() => rotateRoot(part.id, 2, 90)}>Tilt Z 90°</button>
+          </div>
+        )}
+      </div>
+
+      <details className="sect fold">
+        <summary>Branch position</summary>
+        <SystemPosition part={part} parts={parts} />
+      </details>
+
+      <div className="del-row">
+        <button className="danger-btn" onClick={() => deletePart(part.id)} title={`${DEL} — removes only this part; what's attached stays where it is`}>
+          <Trash2 size={15} /> Delete
         </button>
-      )}
+        {sub > 1 && (
+          <button className="danger-btn" onClick={() => deleteBranch(part.id)} title={`Shift+${DEL}`}>
+            Delete + {sub - 1} more
+          </button>
+        )}
+      </div>
     </div>
   )
 }
