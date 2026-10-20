@@ -456,6 +456,18 @@ function mergeParts(built: { shapes: Shape[] }, cu: boolean): MergedGroup[] {
   })
 }
 
+// Для миниатюр каталога: геометрия детали без кэша (вызывающий освобождает сам)
+const PIPE_COLOR: Record<string, string> = { pvc: PVC, cu: COPPER_TUBE, ci: CAST_IRON, gs: GALV, bi: BLACK_IRON }
+export function thumbGroups(part: Part): { geom: BufferGeometry; color: string; metal: boolean; flat: boolean }[] {
+  if (part.kind === 'pipe') {
+    const sp = sizeSpec(part.size)
+    const geom = new CylinderGeometry(sp.od / 2, sp.od / 2, Math.max(6, sp.od * 4), 48, 1, true).rotateX(Math.PI / 2)
+    geom.computeBoundingSphere()
+    return [{ geom, color: PIPE_COLOR[sp.mat] ?? PVC, metal: sp.mat === 'cu' || sp.mat === 'gs', flat: false }]
+  }
+  return mergeParts(buildPart(part), isCopper(part.size))
+}
+
 function useMergedPart(part: Part, built: { shapes: Shape[] }): PartLods {
   const key = partGeoKey(part)
   const groups = useMemo(() => {

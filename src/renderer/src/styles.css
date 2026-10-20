@@ -325,3 +325,14 @@ button.primary { background: var(--accent); color: #0b1514; font-weight: 700; bo
 button.primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .size-head-text > div.size-head-mat { white-space: normal; overflow: visible; line-height: 1.25; font-weight: 600; }
 .palette .branch { white-space: nowrap; }
+/* каталог с картинками деталей */
+.palette { width: 290px; }
+.palette .kind { padding: 4px 8px 4px 4px; gap: 10px; min-height: 56px; }
+.kind span.thumb { flex: 0 0 52px; }
+.thumb { width: 52px; height: 52px; flex: none; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.thumb img { width: 52px; height: 52px; object-fit: contain; }
+.kind-text { display: flex; flex-direction: column; line-height: 1.25; }
+.kind-text small { font-size: 11.5px; }
+.chips { padding-left: 66px; }
+.chip { font-size: 12px; padding: 2px 8px; }
+@media (max-width: 1360px) { .palette { width: 260px; } }

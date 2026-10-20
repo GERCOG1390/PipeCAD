@@ -54,6 +54,7 @@ export function rendererFactory(graphics: 'webgl' | 'webgpu') {
 export function EnvSetup() {
   const { gl, scene } = useThree()
   const camera = useThree((st) => st.camera)
+  const invalidate = useThree((st) => st.invalidate)
   // для автотестов: проекция точек на экран
   ;(window as unknown as { pipecadCamera: typeof camera }).pipecadCamera = camera
   useEffect(() => {
@@ -67,7 +68,10 @@ export function EnvSetup() {
       const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
       scene.environment = env
       scene.environmentIntensity = 0.45
+      // кадры рисуются по требованию: перерисовать, когда отражения готовы (в WebGPU они дозревают асинхронно)
+      const kicks = [0, 120, 400, 1000].map((ms) => setTimeout(() => invalidate(), ms))
       cleanup = () => {
+        kicks.forEach(clearTimeout)
         scene.environment = null
         env.dispose()
         pmrem.dispose()
@@ -77,7 +81,7 @@ export function EnvSetup() {
       disposed = true
       cleanup()
     }
-  }, [gl, scene])
+  }, [gl, scene, invalidate])
   return null
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FITTINGS, FittingDef, Group, Material, defaultSize2, mates, matOf, sizeMatLabel, Part, SIZES, SizeId, fittingDef, portsOf, sizeIndex, sizeLabel, sizeSpec } from './catalog'
 import { EnvInspector, SystemPosition } from './EnvPanel'
 import { Model, portKey } from './geometry'
@@ -8,6 +8,7 @@ import { dwvSlopes, slopeLabel } from './slope'
 import { formatLength, parseLength } from './units'
 import { DEL, MOD, isMac } from './platform'
 import { Trash2 } from 'lucide-react'
+import { useThumb } from './thumbs'
 
 // Иконки — линия по оси детали
 const ICONS: Record<string, string> = {
@@ -71,6 +72,14 @@ export function KindIcon({ kind }: { kind: string }) {
       <path d={ICONS[fittingDef(kind).icon] ?? ICONS.pipe} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
+}
+
+// Картинка детали в каталоге (пока рисуется — значок)
+function PartThumb({ kind, size }: { kind: string; size: SizeId }) {
+  const d = FITTINGS[kind]
+  const sz = d.sizes.includes(size) ? size : d.sizes[0]
+  const url = useThumb(kind, sz)
+  return <span className="thumb">{url ? <img src={url} alt="" draggable={false} /> : <KindIcon kind={kind} />}</span>
 }
 
 function SizeSelect({ value, onChange, only, disabled }: { value: SizeId; onChange: (s: SizeId) => void; only?: SizeId[]; disabled?: boolean }) {
@@ -140,6 +149,15 @@ export function Palette({ model }: { model: Model }) {
     setPaletteSize(portPrefersCu && !portSize.startsWith('cu') ? (('cu' + portSize) as SizeId) : portSize)
     setStep('catalog')
   }, [portSize, portPrefersCu])
+
+  // черновик проекта подгружается после первого показа панели — тогда сразу открываем каталог
+  const hadParts = useRef(parts.length > 0)
+  useEffect(() => {
+    if (!hadParts.current && parts.length) {
+      hadParts.current = true
+      setStep('catalog')
+    }
+  }, [parts.length])
 
   const toggle = (k: string): void => {
     const next = { ...open, [k]: !(open[k] ?? true) }
@@ -237,10 +255,10 @@ export function Palette({ model }: { model: Model }) {
     return (
       <div key={kind} className={'kind-row' + (fit ? '' : ' needs-adapter')}>
         <button className="kind" onClick={() => addPart(kind)} title={`${d.en}${d.pn ? ` · #${d.pn}` : ''}${d.key ? ` · key ${d.key}` : ''}${fit ? '' : ' · an adapter will be added for the selected end'}`}>
-          <KindIcon kind={kind} />
-          <span>
+          <PartThumb kind={kind} size={size} />
+          <span className="kind-text">
             {d.ru}
-            {d.pn && <small> #{d.pn}</small>}
+            {d.pn && <small>#{d.pn}</small>}
           </span>
           {!fit && <em className="adapter-tag">+ adapter</em>}
           {d.key && <kbd>{d.key}</kbd>}
@@ -364,7 +382,7 @@ export function Palette({ model }: { model: Model }) {
           <div className="kinds">
             {KITS.map((k) => (
               <button key={k.id} className="kind kit" onClick={() => useStore.getState().startPlacing({ kind: k.base, kit: k.id })} title="Click the floor to place; the rest is built automatically">
-                <KindIcon kind={k.base} />
+                <PartThumb kind={k.base} size={size} />
                 <span>
                   {k.title}
                   <small>{k.sub}</small>
