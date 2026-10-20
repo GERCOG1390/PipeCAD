@@ -3,6 +3,7 @@ import { KIND_KEYS, fittingDef } from './catalog'
 import { DEL, MOD, isMac } from './platform'
 
 const GENERAL: [string, string][] = [
+  [isMac ? '⌘K' : 'Ctrl+K', 'Find any part, assembly or command'],
   ['Right-click an open end', 'Quick menu: common parts for that end'],
   ['0–9 on a selected pipe', 'Type the length right away (3\'6, 42, 3-1/2)'],
   ['J', 'Join the selected end to another end'],
