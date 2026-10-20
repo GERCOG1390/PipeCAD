@@ -11,6 +11,8 @@ import { usePenetrations } from './EnvScene'
 import { RecButton, ReplayBar, toggleRecording } from './Replay'
 import { QuickMenu } from './QuickMenu'
 import { LengthEditor } from './LengthEditor'
+import { PartToolbar } from './PartToolbar'
+import { Welcome } from './Welcome'
 import { ModeBanner } from './ModeBanner'
 import { Shortcuts } from './Shortcuts'
 import { ViewSettings } from './ViewSettings'
@@ -20,6 +22,7 @@ import { ProjectFile, serialize, useStore } from './store'
 import { newProject, open, openPath, save } from './projectActions'
 import { useRecentFiles } from './recentFiles'
 import { Menu, MenuItem } from './Menu'
+import { useUi } from './ui'
 import { Box, Clapperboard, Eye, FileText, CircleHelp, Maximize, Redo2, Settings, Undo2 } from 'lucide-react'
 import { MOD, isMac } from './platform'
 
@@ -35,13 +38,15 @@ export function App() {
   const showPorts = useStore((s) => s.showPorts)
   const showAxes = useStore((s) => s.showAxes)
   const replaying = useStore((s) => !!s.replay)
+  const placing = useStore((s) => !!s.placing)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
   const envMode = useStore((s) => s.envMode)
   const recording = useStore((s) => !!s.recording)
   const recentFiles = useRecentFiles((s) => s.files)
   const st = useStore.getState()
-  const [tab, setTab] = useState<'props' | 'bom'>('props')
+  const tab = useUi((s) => s.sideTab)
+  const setTab = useUi((s) => s.setSideTab)
   const [left, setLeft] = useState<'pipes' | 'env'>('pipes')
   const [help, setHelp] = useState(false)
   const [settings, setSettings] = useState(false)
@@ -249,13 +254,9 @@ export function App() {
           <ReplayBar />
           <QuickMenu />
           <LengthEditor />
+          <PartToolbar />
           <ModeBanner />
-          {parts.length === 0 && env.length === 0 && (
-            <div className="welcome">
-              <h2>Start with the first part</h2>
-              <p>Pick a pipe size on the left to open its fittings catalog. Start with "Pipe" (key P).</p>
-            </div>
-          )}
+          {parts.length === 0 && env.length === 0 && !placing && <Welcome />}
         </div>
         <aside className="side">
           <div className="tabs">

@@ -9,6 +9,7 @@ import { formatLength, parseLength } from './units'
 import { DEL, MOD, isMac } from './platform'
 import { Trash2 } from 'lucide-react'
 import { useThumb } from './thumbs'
+import { useUi } from './ui'
 
 // Иконки — линия по оси детали
 const ICONS: Record<string, string> = {
@@ -504,6 +505,15 @@ export function Inspector({ model }: { model: Model }) {
   const selectedEnv = useStore((s) => s.selectedEnv)
   const part = parts.find((p) => p.id === selectedId)
   const envItem = env.find((e) => e.id === selectedEnv)
+  // «Replace…» с панели у детали: показать список замены
+  const replaceTick = useUi((s) => s.replaceTick)
+  const replaceRef = useRef<HTMLSelectElement>(null)
+  useEffect(() => {
+    if (!replaceTick || !replaceRef.current) return
+    replaceRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    replaceRef.current.focus()
+    ;(replaceRef.current as HTMLSelectElement & { showPicker?: () => void }).showPicker?.()
+  }, [replaceTick])
   if (envItem) return <EnvInspector it={envItem} />
 
   if (!part) return <div className="empty">Nothing selected. Click a part or object.</div>
@@ -630,6 +640,7 @@ export function Inspector({ model }: { model: Model }) {
           <>
             <label>Replace with (keeps connections)</label>
             <select
+              ref={replaceRef}
               value=""
               onChange={(e) => {
                 const k = e.target.value

@@ -67,9 +67,10 @@ export function EnvPalette() {
             <span className="swatch" style={{ background: SWATCH[g.cat] }} />
             {g.cat}
           </div>
-          <div className="kinds">
+          <div className="env-grid">
             {g.items.map((p) => (
-              <button key={p.label} className="kind" onClick={() => addEnv(p, [viewTarget.x, 0, viewTarget.z])}>
+              <button key={p.label} className="env-tile" onClick={() => addEnv(p, [viewTarget.x, 0, viewTarget.z])} title="Adds it at the center of the view">
+                <span className="env-sw" style={{ background: SWATCH[g.cat] }} />
                 <span>{p.label}</span>
               </button>
             ))}
@@ -81,9 +82,10 @@ export function EnvPalette() {
           <span className="swatch" style={{ background: 'linear-gradient(180deg,#1b1c1e 0 40%,#3a3e43 40%)' }} />
           Sump & ejector pits
         </div>
-        <div className="kinds">
+        <div className="env-grid">
           {pits.map((k) => (
-            <button key={k} className="kind" onClick={() => startPlacing({ kind: k })} title="Click the floor: the basin is set in flush with it. Then pick its bottom ring and add a Zoeller pump">
+            <button key={k} className="env-tile" onClick={() => startPlacing({ kind: k })} title="Click the floor: the basin is set in flush with it. Then pick its bottom ring and add a Zoeller pump">
+              <span className="env-sw" style={{ background: 'linear-gradient(180deg,#1b1c1e 0 40%,#3a3e43 40%)' }} />
               <span>{FITTINGS[k].ru}</span>
             </button>
           ))}

@@ -32,6 +32,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Part, PathSeg, Shape, SizeId, V3, buildPart, fittingDef, hubR, sizeLabel, sizeSpec } from './catalog'
 import { Model, WorldPort, Xf, buildModel, computeTransforms, portKey } from './geometry'
 import { placementFor } from './placement'
+import { PartToolbarAnchor } from './PartToolbar'
 import { angleOf, withAngle } from './Panels'
 import { computeGuides, mouthOf } from './axes'
 import { EnvLayer } from './EnvScene'
@@ -1119,9 +1120,11 @@ function SelectionBox({ model }: { model: Model }) {
       box.expandByScalar(0.35)
       const { min: a, max: b } = box
       const ext = b.clone().sub(a)
-      const len = ext.clone().multiplyScalar(0.28)
-      // толщина уголков — от размера детали, чтобы было видно и у фитинга ½", и у бойлера
-      const w = Math.max(0.08, Math.min(0.6, ext.length() * 0.012))
+      const minDim = Math.min(ext.x, ext.y, ext.z)
+      const cap = Math.max(1.5, minDim * 0.9)
+      const len = new Vector3(Math.min(ext.x * 0.28, cap), Math.min(ext.y * 0.28, cap), Math.min(ext.z * 0.28, cap))
+      // толщина уголков — от тонкой стороны детали, чтобы было видно и у фитинга ½", и у бойлера
+      const w = Math.max(0.06, Math.min(0.35, minDim * 0.06))
       const bars: BufferGeometry[] = []
       for (const x of [a.x, b.x])
         for (const y of [a.y, b.y])
@@ -1154,7 +1157,7 @@ function SelectionBox({ model }: { model: Model }) {
 function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
   const { camera, gl, size } = useThree()
   const layer = useRef<HTMLDivElement | null>(null)
-  const items = useRef<{ el: HTMLDivElement; pos: Vector3 }[]>([])
+  const items = useRef<{ el: HTMLDivElement; id: string; len: number; w: number; pos: Vector3 }[]>([])
   useEffect(() => {
     const host = gl.domElement.parentElement
     if (!host) return
@@ -1182,19 +1185,34 @@ function DimLabels({ model, parts }: { model: Model; parts: Part[] }) {
         el.className = 'dim' + (sl && !sl.ok ? ' flat' : '')
         el.textContent = formatLength(p.length ?? 0) + (sl ? (sl.rise < 0.01 ? ' · level!' : ` · ${slopeLabel(sl.rise)}/ft`) : '')
         div.appendChild(el)
-        return { el, pos: new Vector3(0, 0, (p.length ?? 0) / 2).applyQuaternion(xf.quat).add(xf.pos) }
+        // ширину подписи оцениваем по числу знаков (моноширинный шрифт 12px)
+        return { el, id: p.id, len: p.length ?? 0, w: el.textContent.length * 7.3 + 12, pos: new Vector3(0, 0, (p.length ?? 0) / 2).applyQuaternion(xf.quat).add(xf.pos) }
       })
   }, [parts, model])
   const v = useMemo(() => new Vector3(), [])
+  const selectedId = useStore((s) => s.selectedId)
   useFrame(() => {
-    for (const it of items.current) {
+    // подписи не налезают друг на друга: сначала выбранная труба, потом длинные, потом остальные; лишние прячем
+    const placed: [number, number, number, number][] = []
+    const order = [...items.current].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.len - a.len)
+    for (const it of order) {
       v.copy(it.pos).project(camera)
       if (v.z > 1 || v.z < -1) {
         it.el.style.display = 'none'
         continue
       }
+      const x = ((v.x + 1) / 2) * size.width
+      const y = ((1 - v.y) / 2) * size.height
+      const w = it.w / 2 + 3
+      const h = 11
+      const hit = it.id !== selectedId && placed.some(([l, t, r, b]) => x - w < r && x + w > l && y - h < b && y + h > t)
+      if (hit) {
+        it.el.style.display = 'none'
+        continue
+      }
+      placed.push([x - w, y - h, x + w, y + h])
       it.el.style.display = ''
-      it.el.style.transform = `translate(-50%, -50%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`
+      it.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`
     }
   })
   return null
@@ -1263,6 +1281,7 @@ export function Scene({ model }: { model: Model }) {
       <AxisGuides model={model} />
       {showDims && <DimLabels model={model} parts={parts} />}
       <LengthEditAnchor model={model} />
+      <PartToolbarAnchor />
       <SnapshotHook />
       <Effects />
       <FrameControl />
