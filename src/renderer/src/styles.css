@@ -365,3 +365,49 @@ button.primary { display: inline-flex; align-items: center; justify-content: cen
 .env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .env-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 8px; border-radius: 9px; line-height: 1.25; min-height: 64px; }
 .env-sw { width: 100%; height: 10px; border-radius: 4px; border: 1px solid var(--line); }
+/* командная строка ⌘K */
+.toolbar .tb.find { border-color: var(--line); background: var(--panel2); color: var(--muted); min-width: 200px; }
+.toolbar .tb.find kbd { margin-left: auto; }
+.cp-back { place-items: start center; padding-top: 12vh; }
+.cp { width: min(640px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,.55); display: flex; flex-direction: column; overflow: hidden; }
+.cp-input { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--muted); }
+.cp-input input { border: none; background: transparent; font-size: 16px; padding: 4px 0; color: var(--text); }
+.cp-input input:focus { border: none; }
+.cp-list { max-height: min(56vh, 520px); overflow-y: auto; padding: 6px; display: flex; flex-direction: column; }
+.cp-item { display: flex; align-items: center; gap: 10px; text-align: left; border: none; background: transparent; padding: 6px 8px; border-radius: 8px; }
+.cp-item.on { background: var(--accent-dim); }
+.cp-icon { width: 40px; height: 40px; display: grid; place-items: center; color: var(--accent); flex: none; }
+.cp-thumb { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 6px; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.cp-thumb img { width: 40px; height: 40px; object-fit: contain; }
+.cp-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.cp-text small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-empty { padding: 14px; }
+.cp-foot { border-top: 1px solid var(--line); padding: 7px 14px; }
+:root[data-theme="light"] .cp { box-shadow: 0 24px 70px rgba(20,30,40,.25); }
+@media (max-width: 1360px) { .toolbar .tb.find { min-width: 0; } .toolbar .tb.find > span, .toolbar .tb.find kbd { display: none; } }
+/* подсказки при первом запуске */
+.coach { position: absolute; left: 16px; bottom: 16px; z-index: 36; width: min(360px, calc(100% - 32px)); display: flex; gap: 10px; align-items: flex-start; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 12px 12px 10px; box-shadow: 0 12px 34px rgba(0,0,0,.4); }
+.coach-ic { color: var(--warn); flex: none; margin-top: 2px; }
+.coach-body { display: flex; flex-direction: column; gap: 4px; flex: 1; line-height: 1.45; }
+.coach-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.coach-foot .link { margin-left: auto; }
+.coach-foot .primary { padding: 5px 14px; }
+.coach-x { background: transparent; border: none; padding: 2px; color: var(--muted); }
+:root[data-theme="light"] .coach { box-shadow: 0 12px 34px rgba(20,30,40,.18); }
+/* режим «на объекте»: крупные цели (от 44px), шрифт 16px, высокий контраст */
+:root[data-onsite="1"] { --text: #ffffff; --muted: #cdd5db; --line: #5a646d; }
+:root[data-onsite="1"][data-theme="light"] { --text: #000000; --muted: #2c353d; --line: #8995a0; --bg: #dfe5ea; }
+:root[data-onsite="1"] body { font-size: 16px; }
+:root[data-onsite="1"] button { min-height: 44px; padding: 8px 12px; }
+:root[data-onsite="1"] .toolbar .tb { min-height: 44px; padding: 8px 12px; }
+:root[data-onsite="1"] .chip { min-height: 36px; padding: 4px 12px; font-size: 14px; }
+:root[data-onsite="1"] input, :root[data-onsite="1"] select { min-height: 44px; font-size: 16px; }
+:root[data-onsite="1"] .menu-item, :root[data-onsite="1"] .qm-item, :root[data-onsite="1"] .cp-item { min-height: 48px; }
+:root[data-onsite="1"] .part-toolbar button { min-width: 48px; min-height: 48px; justify-content: center; }
+:root[data-onsite="1"] .dim { font-size: 15px; padding: 1px 7px; }
+:root[data-onsite="1"] .inspector label, :root[data-onsite="1"] .group-head { font-size: 14px; }
+.onsite-check { align-items: flex-start !important; line-height: 1.4; margin: 4px 0; }
+.onsite-check input { margin-top: 3px; }
+:root[data-onsite="1"] .row button { white-space: nowrap; padding: 8px 4px; }
+:root[data-onsite="1"] .fixtures-btn { min-height: 0; padding: 10px 12px; }
+:root[data-onsite="1"] .fixtures-btn small { margin-top: 0; }

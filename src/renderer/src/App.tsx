@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import logo from './assets/logo.png'
 import { KIND_KEYS } from './catalog'
 import { computeBom } from './bom'
@@ -13,6 +13,8 @@ import { QuickMenu } from './QuickMenu'
 import { LengthEditor } from './LengthEditor'
 import { PartToolbar } from './PartToolbar'
 import { Welcome } from './Welcome'
+import { CommandPalette } from './CommandPalette'
+import { Coach } from './Coach'
 import { ModeBanner } from './ModeBanner'
 import { Shortcuts } from './Shortcuts'
 import { ViewSettings } from './ViewSettings'
@@ -23,7 +25,7 @@ import { newProject, open, openPath, save } from './projectActions'
 import { useRecentFiles } from './recentFiles'
 import { Menu, MenuItem } from './Menu'
 import { useUi } from './ui'
-import { Box, Clapperboard, Eye, FileText, CircleHelp, Maximize, Redo2, Settings, Undo2 } from 'lucide-react'
+import { Box, Clapperboard, Eye, FileText, CircleHelp, Maximize, Redo2, Search, Settings, Undo2 } from 'lucide-react'
 import { MOD, isMac } from './platform'
 
 const DRAFT_KEY = 'pipecad.draft'
@@ -50,11 +52,17 @@ export function App() {
   const [left, setLeft] = useState<'pipes' | 'env'>('pipes')
   const [help, setHelp] = useState(false)
   const [settings, setSettings] = useState(false)
+  const openSettings = useCallback(() => setSettings(true), [])
+  const openHelp = useCallback(() => setHelp(true), [])
   const theme = useViewPrefs((s) => s.theme)
   const zoom = useViewPrefs((s) => s.zoom)
+  const onsite = useViewPrefs((s) => s.onsite)
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+  useEffect(() => {
+    document.documentElement.dataset.onsite = onsite ? '1' : '0'
+  }, [onsite])
   useEffect(() => {
     window.api?.setZoom?.(zoom)
   }, [zoom])
@@ -114,6 +122,8 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      // ⌘K / Ctrl+K — откуда угодно, даже из поля ввода
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyK') return (e.preventDefault(), useUi.getState().setPalette(true))
       const t = e.target as HTMLElement
       if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA') return
       const s = useStore.getState()
@@ -227,6 +237,11 @@ export function App() {
         />
         {recording && <RecButton />}
         <span className="grow" />
+        <button className="tb find" onClick={() => useUi.getState().setPalette(true)} title="Find a part or command">
+          <Search size={16} />
+          <span>Find part or command</span>
+          <kbd>{MOD}K</kbd>
+        </button>
         <button className="tb icon-only" onClick={() => setSettings(true)} title="View settings: theme, size, quality">
           <Settings size={17} />
         </button>
@@ -237,6 +252,7 @@ export function App() {
       </header>
       {help && <Shortcuts onClose={() => setHelp(false)} />}
       {settings && <ViewSettings onClose={() => setSettings(false)} />}
+      <CommandPalette onSettings={openSettings} onHelp={openHelp} />
       <div className={replaying ? "main replaying" : "main"}>
         <div className="left">
           <div className="tabs">
@@ -255,6 +271,7 @@ export function App() {
           <QuickMenu />
           <LengthEditor />
           <PartToolbar />
+          <Coach />
           <ModeBanner />
           {parts.length === 0 && env.length === 0 && !placing && <Welcome />}
         </div>

@@ -30,6 +30,8 @@ interface ViewPrefs {
   graphics: Graphics
   setGraphics: (g: Graphics) => void
   setTheme: (t: Theme) => void
+  onsite: boolean // крупные кнопки и высокий контраст — для работы на объекте
+  setOnsite: (v: boolean) => void
   setZoom: (z: number) => void
   stepZoom: (dir: 1 | -1 | 0) => void
 }
@@ -47,6 +49,11 @@ export const useViewPrefs = create<ViewPrefs>((set, get) => ({
   setQuality: (quality) => {
     set({ quality })
     write('pipecad.quality', quality)
+  },
+  onsite: read('pipecad.onsite') === '1',
+  setOnsite: (onsite) => {
+    set({ onsite })
+    write('pipecad.onsite', onsite ? '1' : '0')
   },
   setTheme: (theme) => {
     set({ theme })

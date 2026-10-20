@@ -9,6 +9,8 @@ export function ViewSettings({ onClose }: { onClose: () => void }) {
   const { theme, zoom, quality, graphics, setTheme, setZoom, setQuality, setGraphics } = useViewPrefs()
   const backend = useBackend((s) => s.label)
   const power = usePower()
+  const onsite = useViewPrefs((s) => s.onsite)
+  const setOnsite = useViewPrefs((s) => s.setOnsite)
   const QUALITY = qualityDefs()
   return (
     <div className="modal-back" onClick={onClose}>
@@ -34,6 +36,12 @@ export function ViewSettings({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+        <label className="check onsite-check">
+          <input type="checkbox" checked={onsite} onChange={(e) => setOnsite(e.target.checked)} />
+          <span>
+            <b>On-site mode</b> — big buttons and high contrast, for a laptop or touchscreen on the job in bright light
+          </span>
+        </label>
         <label>Render quality</label>
         <div className="seg">
           {(Object.keys(QUALITY) as Quality[]).map((q) => (
