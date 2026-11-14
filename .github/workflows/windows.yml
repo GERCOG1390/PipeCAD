@@ -1,0 +1,34 @@
+# Сборка portable-версии для Windows на GitHub и загрузка её в релиз (запуск вручную)
+name: Windows build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the exe to (e.g. v0.3.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      # бинарники Electron и ffmpeg (Windows) — их install-скрипты могут быть отключены
+      - run: node node_modules/electron/install.js
+      - run: node node_modules/ffmpeg-static/install.js
+      - run: npm test
+      - run: npm run dist
+      - name: Attach to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" release/PipeCAD-*-portable.exe --clobber
